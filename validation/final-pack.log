@@ -1,0 +1,1406 @@
+[
+  {
+    "id": "@apex-agent/pi@0.0.0",
+    "name": "@apex-agent/pi",
+    "version": "0.0.0",
+    "size": 727910,
+    "unpackedSize": 2756856,
+    "shasum": "bd94454fcd2a4ca5293a415133b7ce70396d2ebf",
+    "integrity": "sha512-NvK2/qO4VlO0KdmuVf/1gwwZx32DUaC74MgU0EJXwVV3ePMbjsBg0Li9lI9Vvlhbzv9xvdg44kt3BNAA+Z87Ng==",
+    "filename": "apex-agent-pi-0.0.0.tgz",
+    "files": [
+      {
+        "path": ".gitattributes",
+        "size": 175,
+        "mode": 420
+      },
+      {
+        "path": "APEX_BUILD.md",
+        "size": 29290,
+        "mode": 420
+      },
+      {
+        "path": "DECISIONS.md",
+        "size": 17072,
+        "mode": 420
+      },
+      {
+        "path": "LICENSE",
+        "size": 1074,
+        "mode": 420
+      },
+      {
+        "path": "NOTES.md",
+        "size": 30786,
+        "mode": 420
+      },
+      {
+        "path": "PHASE0_LOCAL.md",
+        "size": 4158,
+        "mode": 420
+      },
+      {
+        "path": "PHASE0_PLAN.md",
+        "size": 13927,
+        "mode": 420
+      },
+      {
+        "path": "PHASE1_DESIGN.md",
+        "size": 5115,
+        "mode": 420
+      },
+      {
+        "path": "PHASE1_LOCAL.md",
+        "size": 5796,
+        "mode": 420
+      },
+      {
+        "path": "PHASE1_PLAN.md",
+        "size": 10630,
+        "mode": 420
+      },
+      {
+        "path": "PHASE2_DESIGN.md",
+        "size": 7561,
+        "mode": 420
+      },
+      {
+        "path": "PHASE2_LOCAL.md",
+        "size": 7203,
+        "mode": 420
+      },
+      {
+        "path": "PHASE2_PLAN.md",
+        "size": 10994,
+        "mode": 420
+      },
+      {
+        "path": "PHASE3_DESIGN.md",
+        "size": 6290,
+        "mode": 420
+      },
+      {
+        "path": "PHASE3_LOCAL.md",
+        "size": 6187,
+        "mode": 420
+      },
+      {
+        "path": "PHASE3_PLAN.md",
+        "size": 6079,
+        "mode": 420
+      },
+      {
+        "path": "PROGRESS.md",
+        "size": 5212,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 22903,
+        "mode": 420
+      },
+      {
+        "path": "RESULTS.md",
+        "size": 18783,
+        "mode": 420
+      },
+      {
+        "path": "SETUP_FREE.md",
+        "size": 4016,
+        "mode": 420
+      },
+      {
+        "path": "bin/apex",
+        "size": 3450,
+        "mode": 420
+      },
+      {
+        "path": "evals/analysis/failures.py",
+        "size": 2588,
+        "mode": 420
+      },
+      {
+        "path": "evals/analysis/metrics.py",
+        "size": 39699,
+        "mode": 420
+      },
+      {
+        "path": "evals/analysis/normalize.py",
+        "size": 5558,
+        "mode": 420
+      },
+      {
+        "path": "evals/analysis/report.py",
+        "size": 3248,
+        "mode": 420
+      },
+      {
+        "path": "evals/analysis/trace_store.py",
+        "size": 3818,
+        "mode": 420
+      },
+      {
+        "path": "evals/codex-budget.json",
+        "size": 1376,
+        "mode": 420
+      },
+      {
+        "path": "evals/config.json",
+        "size": 586,
+        "mode": 420
+      },
+      {
+        "path": "evals/context_flags.py",
+        "size": 572,
+        "mode": 420
+      },
+      {
+        "path": "evals/core_flags.py",
+        "size": 1515,
+        "mode": 420
+      },
+      {
+        "path": "evals/datasets/terminal-bench-2.0/manifest.json",
+        "size": 3131,
+        "mode": 420
+      },
+      {
+        "path": "evals/datasets/terminal-bench-2.0/registry.json",
+        "size": 21428,
+        "mode": 420
+      },
+      {
+        "path": "evals/feature_flags.py",
+        "size": 726,
+        "mode": 420
+      },
+      {
+        "path": "evals/final-validation.json",
+        "size": 1050,
+        "mode": 420
+      },
+      {
+        "path": "evals/guard.py",
+        "size": 1326,
+        "mode": 420
+      },
+      {
+        "path": "evals/harbor/apex.py",
+        "size": 10531,
+        "mode": 420
+      },
+      {
+        "path": "evals/harbor/datasets.py",
+        "size": 11298,
+        "mode": 420
+      },
+      {
+        "path": "evals/harbor/final_validation.py",
+        "size": 4667,
+        "mode": 420
+      },
+      {
+        "path": "evals/harbor/plan.py",
+        "size": 11728,
+        "mode": 420
+      },
+      {
+        "path": "evals/micro/pipeline.py",
+        "size": 16505,
+        "mode": 420
+      },
+      {
+        "path": "evals/micro/provider-smoke.mjs",
+        "size": 25088,
+        "mode": 420
+      },
+      {
+        "path": "evals/micro/run.py",
+        "size": 6870,
+        "mode": 420
+      },
+      {
+        "path": "evals/phase1-ablations.json",
+        "size": 7599,
+        "mode": 420
+      },
+      {
+        "path": "evals/phase2-ablations.json",
+        "size": 11705,
+        "mode": 420
+      },
+      {
+        "path": "evals/phase3-ablations.json",
+        "size": 7347,
+        "mode": 420
+      },
+      {
+        "path": "evals/pricing.json",
+        "size": 6990,
+        "mode": 420
+      },
+      {
+        "path": "evals/spend.json",
+        "size": 1543,
+        "mode": 420
+      },
+      {
+        "path": "evals/versions.json",
+        "size": 529,
+        "mode": 420
+      },
+      {
+        "path": "evolve/__main__.py",
+        "size": 5587,
+        "mode": 420
+      },
+      {
+        "path": "evolve/comparison.py",
+        "size": 26394,
+        "mode": 420
+      },
+      {
+        "path": "evolve/config.json",
+        "size": 96,
+        "mode": 420
+      },
+      {
+        "path": "evolve/integrity.py",
+        "size": 16029,
+        "mode": 420
+      },
+      {
+        "path": "evolve/leaderboard.md",
+        "size": 369,
+        "mode": 420
+      },
+      {
+        "path": "evolve/loop.py",
+        "size": 38581,
+        "mode": 420
+      },
+      {
+        "path": "evolve/micro.py",
+        "size": 10913,
+        "mode": 420
+      },
+      {
+        "path": "evolve/proposer.mjs",
+        "size": 11245,
+        "mode": 420
+      },
+      {
+        "path": "evolve/README.md",
+        "size": 6961,
+        "mode": 420
+      },
+      {
+        "path": "evolve/sources.py",
+        "size": 27511,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/cache.mjs",
+        "size": 2292,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/compaction.mjs",
+        "size": 8500,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/config.mjs",
+        "size": 1651,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/index.mjs",
+        "size": 4246,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/lazy.mjs",
+        "size": 727,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/masking.mjs",
+        "size": 4944,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/patch.mjs",
+        "size": 8591,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/private-spill.ps1",
+        "size": 7903,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/shaping.mjs",
+        "size": 16689,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-context/tools.mjs",
+        "size": 18069,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/config.mjs",
+        "size": 1550,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/control.mjs",
+        "size": 28008,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/correction-tools.mjs",
+        "size": 1364,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/environment.mjs",
+        "size": 30077,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/index.mjs",
+        "size": 11701,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/models.mjs",
+        "size": 29351,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/process.mjs",
+        "size": 23075,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-core/state.mjs",
+        "size": 35470,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/accounting.mjs",
+        "size": 18955,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/checkpoints.mjs",
+        "size": 30868,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/config.mjs",
+        "size": 678,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/index.mjs",
+        "size": 10242,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/learnings.mjs",
+        "size": 6181,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/lifecycle.mjs",
+        "size": 581,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/safety.mjs",
+        "size": 3677,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-features/workflows.mjs",
+        "size": 13153,
+        "mode": 420
+      },
+      {
+        "path": "extensions/apex-router/index.mjs",
+        "size": 4093,
+        "mode": 420
+      },
+      {
+        "path": "extensions/README.md",
+        "size": 506,
+        "mode": 420
+      },
+      {
+        "path": "lib/commands.mjs",
+        "size": 1495,
+        "mode": 420
+      },
+      {
+        "path": "lib/launcher.mjs",
+        "size": 7810,
+        "mode": 420
+      },
+      {
+        "path": "lib/recovery-profile.mjs",
+        "size": 2698,
+        "mode": 420
+      },
+      {
+        "path": "lib/session-report.mjs",
+        "size": 9166,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2942,
+        "mode": 420
+      },
+      {
+        "path": "prompts/compaction.md",
+        "size": 625,
+        "mode": 420
+      },
+      {
+        "path": "prompts/context-efficiency.md",
+        "size": 460,
+        "mode": 420
+      },
+      {
+        "path": "prompts/contract.md",
+        "size": 441,
+        "mode": 420
+      },
+      {
+        "path": "prompts/explore.md",
+        "size": 300,
+        "mode": 420
+      },
+      {
+        "path": "prompts/loop-breaker.md",
+        "size": 195,
+        "mode": 420
+      },
+      {
+        "path": "prompts/mode-headless.md",
+        "size": 477,
+        "mode": 420
+      },
+      {
+        "path": "prompts/mode-interactive.md",
+        "size": 315,
+        "mode": 420
+      },
+      {
+        "path": "prompts/README.md",
+        "size": 783,
+        "mode": 420
+      },
+      {
+        "path": "prompts/system.md",
+        "size": 2895,
+        "mode": 420
+      },
+      {
+        "path": "prompts/time-note.md",
+        "size": 100,
+        "mode": 420
+      },
+      {
+        "path": "prompts/verification-gate.md",
+        "size": 144,
+        "mode": 420
+      },
+      {
+        "path": "prompts/verify.md",
+        "size": 599,
+        "mode": 420
+      },
+      {
+        "path": "research/harbor-notes.md",
+        "size": 21270,
+        "mode": 420
+      },
+      {
+        "path": "research/openrouter-model-public.json",
+        "size": 976,
+        "mode": 420
+      },
+      {
+        "path": "research/pi-api-notes.md",
+        "size": 60557,
+        "mode": 420
+      },
+      {
+        "path": "research/pricing-notes.md",
+        "size": 5065,
+        "mode": 420
+      },
+      {
+        "path": "scripts/check_python.py",
+        "size": 2295,
+        "mode": 420
+      },
+      {
+        "path": "scripts/check.mjs",
+        "size": 2980,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evolve.mjs",
+        "size": 1789,
+        "mode": 420
+      },
+      {
+        "path": "scripts/extract-prompts.py",
+        "size": 832,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-phase1.mjs",
+        "size": 27680,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-phase2.mjs",
+        "size": 38402,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-phase3.mjs",
+        "size": 46189,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-process.mjs",
+        "size": 12483,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-session.mjs",
+        "size": 25869,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro-tools.mjs",
+        "size": 2433,
+        "mode": 420
+      },
+      {
+        "path": "scripts/micro.mjs",
+        "size": 302,
+        "mode": 420
+      },
+      {
+        "path": "scripts/preflight.mjs",
+        "size": 10018,
+        "mode": 420
+      },
+      {
+        "path": "scripts/python-runtime.mjs",
+        "size": 1003,
+        "mode": 420
+      },
+      {
+        "path": "scripts/test.mjs",
+        "size": 841,
+        "mode": 420
+      },
+      {
+        "path": "scripts/upgrade-pi.mjs",
+        "size": 1727,
+        "mode": 420
+      },
+      {
+        "path": "scripts/upgrade-pi.sh",
+        "size": 95,
+        "mode": 420
+      },
+      {
+        "path": "skills/_shared/static-probe.mjs",
+        "size": 13663,
+        "mode": 420
+      },
+      {
+        "path": "skills/build-systems/scripts/probe.mjs",
+        "size": 92,
+        "mode": 420
+      },
+      {
+        "path": "skills/build-systems/SKILL.md",
+        "size": 1055,
+        "mode": 420
+      },
+      {
+        "path": "skills/databases/scripts/probe.mjs",
+        "size": 88,
+        "mode": 420
+      },
+      {
+        "path": "skills/databases/SKILL.md",
+        "size": 1024,
+        "mode": 420
+      },
+      {
+        "path": "skills/debugging/scripts/probe.mjs",
+        "size": 88,
+        "mode": 420
+      },
+      {
+        "path": "skills/debugging/SKILL.md",
+        "size": 953,
+        "mode": 420
+      },
+      {
+        "path": "skills/git-surgery/scripts/probe.mjs",
+        "size": 90,
+        "mode": 420
+      },
+      {
+        "path": "skills/git-surgery/SKILL.md",
+        "size": 1095,
+        "mode": 420
+      },
+      {
+        "path": "skills/http/scripts/probe.mjs",
+        "size": 83,
+        "mode": 420
+      },
+      {
+        "path": "skills/http/SKILL.md",
+        "size": 1003,
+        "mode": 420
+      },
+      {
+        "path": "skills/numerics/scripts/probe.mjs",
+        "size": 87,
+        "mode": 420
+      },
+      {
+        "path": "skills/numerics/SKILL.md",
+        "size": 1036,
+        "mode": 420
+      },
+      {
+        "path": "skills/profiling/scripts/probe.mjs",
+        "size": 88,
+        "mode": 420
+      },
+      {
+        "path": "skills/profiling/SKILL.md",
+        "size": 989,
+        "mode": 420
+      },
+      {
+        "path": "skills/python-packaging/scripts/probe.mjs",
+        "size": 95,
+        "mode": 420
+      },
+      {
+        "path": "skills/python-packaging/SKILL.md",
+        "size": 1065,
+        "mode": 420
+      },
+      {
+        "path": "skills/README.md",
+        "size": 2692,
+        "mode": 420
+      },
+      {
+        "path": "skills/security-hardening/scripts/probe.mjs",
+        "size": 97,
+        "mode": 420
+      },
+      {
+        "path": "skills/security-hardening/SKILL.md",
+        "size": 1063,
+        "mode": 420
+      },
+      {
+        "path": "skills/test-writing/scripts/probe.mjs",
+        "size": 91,
+        "mode": 420
+      },
+      {
+        "path": "skills/test-writing/SKILL.md",
+        "size": 1028,
+        "mode": 420
+      },
+      {
+        "path": "templates/apex-plan.md",
+        "size": 503,
+        "mode": 420
+      },
+      {
+        "path": "templates/apex-review.md",
+        "size": 564,
+        "mode": 420
+      },
+      {
+        "path": "templates/README.md",
+        "size": 115,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-cache.test.mjs",
+        "size": 2571,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-compaction.test.mjs",
+        "size": 14310,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-config.test.mjs",
+        "size": 1303,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-integration.test.mjs",
+        "size": 3454,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-lazy.test.mjs",
+        "size": 4345,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-masking.test.mjs",
+        "size": 12935,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-patch.test.mjs",
+        "size": 7490,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-router.test.mjs",
+        "size": 7519,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-shaping.test.mjs",
+        "size": 21995,
+        "mode": 420
+      },
+      {
+        "path": "tests/context-tools.test.mjs",
+        "size": 16281,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-config.test.mjs",
+        "size": 1291,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-control.test.mjs",
+        "size": 27642,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-environment.test.mjs",
+        "size": 24432,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-integration.test.mjs",
+        "size": 6054,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-launcher.test.mjs",
+        "size": 2359,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-models.test.mjs",
+        "size": 40113,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-process.test.mjs",
+        "size": 22048,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-recovery-profile.test.mjs",
+        "size": 2046,
+        "mode": 420
+      },
+      {
+        "path": "tests/core-state.test.mjs",
+        "size": 33770,
+        "mode": 420
+      },
+      {
+        "path": "tests/evolve-proposer.test.mjs",
+        "size": 4554,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-accounting.test.mjs",
+        "size": 17490,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-checkpoints.test.mjs",
+        "size": 26896,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-integration.test.mjs",
+        "size": 10122,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-launcher.test.mjs",
+        "size": 3656,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-learnings.test.mjs",
+        "size": 4856,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-safety.test.mjs",
+        "size": 4871,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-skills.test.mjs",
+        "size": 16584,
+        "mode": 420
+      },
+      {
+        "path": "tests/features-workflows.test.mjs",
+        "size": 13534,
+        "mode": 420
+      },
+      {
+        "path": "tests/fixtures/filesystem.mjs",
+        "size": 752,
+        "mode": 420
+      },
+      {
+        "path": "tests/launcher.test.mjs",
+        "size": 4578,
+        "mode": 420
+      },
+      {
+        "path": "tests/phase1-micro.test.mjs",
+        "size": 5014,
+        "mode": 420
+      },
+      {
+        "path": "tests/phase2-micro.test.mjs",
+        "size": 7029,
+        "mode": 420
+      },
+      {
+        "path": "tests/phase3-micro.test.mjs",
+        "size": 6011,
+        "mode": 420
+      },
+      {
+        "path": "tests/preflight.test.mjs",
+        "size": 12495,
+        "mode": 420
+      },
+      {
+        "path": "tests/process-micro.test.mjs",
+        "size": 11214,
+        "mode": 420
+      },
+      {
+        "path": "tests/provider-smoke.test.mjs",
+        "size": 19168,
+        "mode": 420
+      },
+      {
+        "path": "tests/session-micro.test.mjs",
+        "size": 6864,
+        "mode": 420
+      },
+      {
+        "path": "tests/session-report.test.mjs",
+        "size": 15610,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_datasets.py",
+        "size": 12978,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_evolve_comparison.py",
+        "size": 22206,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_evolve_integrity.py",
+        "size": 27980,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_evolve_loop.py",
+        "size": 6782,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_failures.py",
+        "size": 827,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_guard.py",
+        "size": 1676,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_harbor_adapter.py",
+        "size": 15277,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_metrics.py",
+        "size": 35866,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_normalize.py",
+        "size": 6304,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_phase3_adapter.py",
+        "size": 10988,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_pipeline_micro.py",
+        "size": 4931,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_plan.py",
+        "size": 13327,
+        "mode": 420
+      },
+      {
+        "path": "tests/test_trace_store.py",
+        "size": 4256,
+        "mode": 420
+      },
+      {
+        "path": "validation/build-verification.json",
+        "size": 16654,
+        "mode": 420
+      },
+      {
+        "path": "validation/fd-dependency.json",
+        "size": 320,
+        "mode": 420
+      },
+      {
+        "path": "validation/harbor-datasets-legacy.txt",
+        "size": 62644,
+        "mode": 420
+      },
+      {
+        "path": "validation/harbor-datasets.txt",
+        "size": 69,
+        "mode": 420
+      },
+      {
+        "path": "validation/harbor-run-help.txt",
+        "size": 35895,
+        "mode": 420
+      },
+      {
+        "path": "validation/local-preflight.json",
+        "size": 2881,
+        "mode": 420
+      },
+      {
+        "path": "validation/offline-micro.json",
+        "size": 20145,
+        "mode": 420
+      },
+      {
+        "path": "validation/openrouter-auth-check.json",
+        "size": 262,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase0-local.json",
+        "size": 2247,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-check.log",
+        "size": 178,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-cleanup.json",
+        "size": 1093,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-context-report.md",
+        "size": 3776,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-final-review.md",
+        "size": 1131,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-local.json",
+        "size": 3312,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-micro-gates.log",
+        "size": 9986,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-micro.json",
+        "size": 2705,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-native-report.md",
+        "size": 6479,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-router-report.md",
+        "size": 10292,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-shaping-report.md",
+        "size": 4348,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-tools-report.md",
+        "size": 3842,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase1-unit.log",
+        "size": 14638,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-check.log",
+        "size": 178,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-cleanup.json",
+        "size": 2632,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-control-report.md",
+        "size": 9336,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-core-review.md",
+        "size": 12433,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-environment-report.md",
+        "size": 7621,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-local.json",
+        "size": 4059,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-micro-gates.log",
+        "size": 14159,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-micro.json",
+        "size": 3765,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-models-report.md",
+        "size": 9927,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-native-report.md",
+        "size": 7053,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-process-report.md",
+        "size": 9480,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-runtime-path-regression.log",
+        "size": 884,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-state-models-review.md",
+        "size": 9323,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-state-report.md",
+        "size": 10075,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-unit-initial.log",
+        "size": 36485,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase2-unit.log",
+        "size": 30333,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-accounting-report.md",
+        "size": 10466,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-adapter-report.md",
+        "size": 2378,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-assets-review.md",
+        "size": 7607,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-baseline.log",
+        "size": 30313,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-check.log",
+        "size": 178,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-checkpoints-report.md",
+        "size": 10104,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-cleanup.json",
+        "size": 6720,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-integration-review.md",
+        "size": 9496,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-local.json",
+        "size": 4073,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-micro-gates.log",
+        "size": 20026,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-micro.json",
+        "size": 5676,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-modules-review.md",
+        "size": 7741,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-native-report.md",
+        "size": 6929,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-placeholder-green.log",
+        "size": 2939,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-placeholder-red.log",
+        "size": 924,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-session-focused.log",
+        "size": 225,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-skills-report.md",
+        "size": 6868,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-template-green.log",
+        "size": 2945,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-template-red.log",
+        "size": 990,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-unit-pre-final.log",
+        "size": 42946,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-unit-pre-template.log",
+        "size": 43530,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-unit-session-timeout.log",
+        "size": 44075,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-unit-watchdog-failure.log",
+        "size": 43990,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-unit.log",
+        "size": 43574,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-watchdog-green.log",
+        "size": 620,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-watchdog-red.log",
+        "size": 1692,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-watchdog-review.md",
+        "size": 3609,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase3-workflows-report.md",
+        "size": 8815,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-integrated-check.log",
+        "size": 1099,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-integrated-micro.log",
+        "size": 809,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-integrated-python.log",
+        "size": 28269,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-integrated-unit.log",
+        "size": 145142,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-local.json",
+        "size": 3780,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-micro.json",
+        "size": 889,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-node-unit-initial.log",
+        "size": 689,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-package-smoke.json",
+        "size": 306,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-python-unit-initial.log",
+        "size": 8336,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-retained-history.log",
+        "size": 194,
+        "mode": 420
+      },
+      {
+        "path": "validation/phase4-smoke-initial.log",
+        "size": 889,
+        "mode": 420
+      },
+      {
+        "path": "validation/pipeline-micro.json",
+        "size": 2051,
+        "mode": 420
+      },
+      {
+        "path": "validation/process-micro.json",
+        "size": 418,
+        "mode": 420
+      },
+      {
+        "path": "validation/session-micro.json",
+        "size": 1694,
+        "mode": 420
+      }
+    ],
+    "entryCount": 278,
+    "bundled": []
+  }
+]

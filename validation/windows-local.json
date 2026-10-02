@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "kind": "windows_local_acceptance",
+  "target": "native-windows",
+  "offline_engineering": "PASS",
+  "clean_package_installation": "PASS",
+  "live_feature_acceptance": "PENDING",
+  "interactive_terminal_acceptance": "UNVERIFIED",
+  "full_project_definition_of_done": false,
+  "provider_calls": 0,
+  "new_spend_usd": 0,
+  "node_passed": 453,
+  "python_passed": 193,
+  "total_passed": 646,
+  "capability_skips": 45,
+  "skip_categories": {
+    "windows-file-symlink-privilege": 15,
+    "outside-native-windows-scope": 29,
+    "optional-checker-unavailable": 1
+  },
+  "native_contracts": 6,
+  "native_checks": 123,
+  "package_checks": 7,
+  "package_sha256": "db91c8a5b9a820ada088bf96576bec49c691d8c9a4ee6db5c0702785d37f501e",
+  "source_revision": null,
+  "benchmark_policy": "unchanged/offline-only",
+  "full_micro_scope": "still requires Unix proofs; separate native artifact",
+  "evidence": [
+    {
+      "path": "validation/windows-preflight.json",
+      "sha256": "a385a9f43aea6be79b53eb3c313962d8ed2bd9222e720dffe27d59385543ed6b"
+    },
+    {
+      "path": "validation/windows-check-verified.log",
+      "sha256": "6c2d78089c7fd6ccec866f38c90265d955fb996cbe05f1baf4ca18949047de1b"
+    },
+    {
+      "path": "validation/windows-full-check-verified.log",
+      "sha256": "f8cabbbcc01ac8fdb201db4b9f634ada97bdb8a4258dc4c39d8bf2deee5d486d"
+    },
+    {
+      "path": "validation/windows-unit-verified.log",
+      "sha256": "2859b4dc52e6c1131682bd16c9b8dcc490f33fc956bda83396eab58e03aa7030"
+    },
+    {
+      "path": "validation/windows-native-unit-verified.log",
+      "sha256": "95539714aae4c73ce9cb088de862b342df3b0937704905e5d2da2b14d124a17d"
+    },
+    {
+      "path": "validation/windows-native-micro.json",
+      "sha256": "6cf54c40e60ac562af30b623017679b96563d2c24d1ee9d2ac6cf6ad58f4f38a"
+    },
+    {
+      "path": "validation/windows-package-smoke.json",
+      "sha256": "fa1848f926738ed3f714debd290a8613dca5c55f53635439e8e8af5733cf4616"
+    },
+    {
+      "path": "validation/windows-skip-audit.json",
+      "sha256": "3f2467bbea25cdf5bd918753c4bf72a5e9a9eea305bea4c33f774624202d25ec"
+    }
+  ],
+  "next": [
+    "Implement a reserved/bounded Codex-only live feature test; do not use the launcher target as a budget guard.",
+    "Verify interactive Windows Terminal input, confirmations and cancellation.",
+    "Retain privilege-based file-symlink gaps; do not request elevation or relabel skips as passes."
+  ]
+}

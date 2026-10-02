@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Apex</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body data-pane="chat">
+<a class="skip" href="#box">Skip to message box</a>
+
+<nav id="side" aria-label="Workspaces and sessions">
+  <header class="brand">
+    <h1>Apex</h1>
+    <button class="ghost" id="addws" type="button">Add workspace</button>
+  </header>
+  <section class="account" aria-label="Codex login">
+    <div><strong>Codex</strong><small id="codex-status">Checking saved login…</small></div>
+    <button class="ghost" id="codex-login" type="button">Sign in to Codex</button>
+  </section>
+  <section id="queue" class="queue" aria-labelledby="queue-h" hidden>
+    <h2 id="queue-h">Needs you <span id="queue-n"></span></h2>
+    <div id="queue-list"></div>
+  </section>
+  <div id="groups"></div>
+  <footer id="codex-usage" class="usage-summary"></footer>
+</nav>
+
+<main id="chat" aria-label="Conversation">
+  <header class="bar">
+    <div class="who">
+      <h2 id="title">Pick a session</h2>
+      <p id="where"></p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="stop" type="button" hidden>Stop turn</button>
+      <button class="btn quiet" id="end" type="button" hidden>End session</button>
+    </div>
+  </header>
+  <section class="login-needed notice" id="login-needed" hidden>
+    <span>Sign in to Codex to send messages. Your login is saved for future sessions.</span>
+    <button class="btn primary" id="login-needed-button" type="button">Sign in to Codex</button>
+  </section>
+  <div id="log" role="log" aria-live="polite" tabindex="0"></div>
+  <section id="queued" aria-label="Queued messages" aria-live="polite" tabindex="0" hidden></section>
+  <div id="asks" aria-live="assertive"></div>
+  <form id="form" autocomplete="off">
+    <ul id="slash" role="listbox" aria-label="Commands" hidden></ul>
+    <input id="image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled>
+    <div id="attachments" class="attachment-list" role="list" aria-label="Images to send" hidden></div>
+    <div class="composer-row">
+      <textarea id="box" rows="2" placeholder="Message the agent. Type / for commands. Enter sends, Shift+Enter adds a line." aria-label="Message" aria-describedby="attachment-hint" disabled></textarea>
+      <button class="btn primary" id="send" type="submit" disabled>Send</button>
+    </div>
+    <div class="composer-tools">
+      <button class="btn" id="attach" type="button" aria-describedby="attachment-hint" disabled>Add images</button>
+      <small id="attachment-hint">Open a session to attach images.</small>
+    </div>
+    <small id="attachment-status" role="status" hidden></small>
+    <p id="composer-error" class="note" role="alert" hidden></p>
+  </form>
+</main>
+
+<aside id="info" aria-label="Session details">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-plan" aria-selected="true" aria-controls="p-plan">Plan</button>
+    <button role="tab" id="t-use" aria-selected="false" aria-controls="p-use">Usage</button>
+    <button role="tab" id="t-cmd" aria-selected="false" aria-controls="p-cmd">Commands</button>
+  </div>
+  <section role="tabpanel" id="p-plan" aria-labelledby="t-plan"></section>
+  <section role="tabpanel" id="p-use" aria-labelledby="t-use" hidden></section>
+  <section role="tabpanel" id="p-cmd" aria-labelledby="t-cmd" hidden></section>
+</aside>
+
+<nav id="panes" aria-label="Panels">
+  <button data-pane="side" type="button">Sessions</button>
+  <button data-pane="chat" type="button">Chat</button>
+  <button data-pane="info" type="button">Details</button>
+</nav>
+
+<dialog id="launch" aria-labelledby="launch-h">
+  <form id="launch-form" method="dialog">
+    <header><h2 id="launch-h">New session</h2><p id="launch-where"></p></header>
+    <div class="launch-body">
+      <fieldset id="model-set"><legend>Model</legend></fieldset>
+      <div class="notice" id="launch-auth" hidden>
+        <p>Sign in with your ChatGPT account to use Codex. Apex saves the login on this computer.</p>
+        <button class="btn primary" id="launch-login" type="button">Sign in to Codex</button>
+      </div>
+      <label class="field">Thinking level
+        <select id="thinking"></select>
+        <small id="thinking-note"></small>
+      </label>
+      <fieldset id="presets"><legend>Start from</legend></fieldset>
+      <div id="feature-note" class="notice" hidden></div>
+      <div id="features"></div>
+      <label class="check" id="evalrow"><input type="checkbox" id="evalmode"><span><b>Evaluation isolation</b><small>Turns off remembered project facts, so a run does not depend on earlier sessions.</small></span></label>
+    </div>
+    <footer>
+      <p id="launch-error" class="error" role="alert"></p>
+      <button class="btn" value="cancel" type="button" id="launch-cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="launch-go">Start session</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="wsdlg" aria-labelledby="wsdlg-h">
+  <form id="ws-form" method="dialog">
+    <header><h2 id="wsdlg-h">Add a workspace</h2></header>
+    <div class="launch-body">
+      <label class="field">Project folder
+        <input id="wspath" type="text" spellcheck="false" placeholder="C:\Users\you\Documents\GitHub\app" required>
+      </label>
+      <button class="btn" type="button" id="pick">Browse for a folder</button>
+    </div>
+    <footer>
+      <p id="ws-error" class="error" role="alert"></p>
+      <button class="btn" type="button" id="ws-cancel">Cancel</button>
+      <button class="btn primary" type="submit">Add workspace</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="codexdlg" aria-labelledby="codexdlg-h">
+  <form id="codex-form">
+    <header><h2 id="codexdlg-h">Sign in to Codex</h2><p>No API key needed. Sign in on OpenAI; Apex saves your login for later.</p></header>
+    <div class="launch-body">
+      <p id="codex-message" role="status"></p>
+      <a class="btn primary" id="codex-open" target="_blank" rel="noopener noreferrer" hidden>Continue on OpenAI</a>
+      <details id="codex-fallback" hidden>
+        <summary>Browser did not return?</summary>
+        <label class="field">Full callback URL
+          <input id="codex-code" type="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:1455/auth/callback?code=…&amp;state=…">
+          <small>Paste the address from the OpenAI callback page. Never paste a password or API key.</small>
+        </label>
+        <button class="btn" type="submit">Finish sign-in</button>
+      </details>
+    </div>
+    <footer>
+      <p id="codex-error" class="error" role="alert"></p>
+      <button class="btn" id="codex-close" type="button">Cancel sign-in</button>
+      <button class="btn primary" id="codex-retry" type="button" hidden>Try again</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="image-viewer" aria-labelledby="image-viewer-title">
+  <header><h2 id="image-viewer-title">Image preview</h2></header>
+  <div class="image-viewer-body" id="image-viewer-body"></div>
+  <footer><button class="btn" id="image-viewer-close" type="button" autofocus>Close preview</button></footer>
+</dialog>
+
+<script type="importmap">{"imports":{"marked":"/vendor/marked.js"}}</script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

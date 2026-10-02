@@ -1,0 +1,28 @@
+✖ future authorized planning fills task placeholder with literal dollar replacement syntax (22.106767ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 132.34336
+
+✖ failing tests:
+
+test at tests/features-integration.test.mjs:99:1
+✖ future authorized planning fills task placeholder with literal dollar replacement syntax (22.106767ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(prompted.includes(task))
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/06581feb7ad4/tests/features-integration.test.mjs:104:96)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

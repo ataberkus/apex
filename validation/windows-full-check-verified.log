@@ -1,0 +1,6 @@
+
+> @apex-agent/pi@0.0.0 check
+> node scripts/check.mjs
+
+Python syntax and pinned Harbor checks passed.
+Syntax, JSON, source pins, price registry, and installed Pi checks passed.

@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "max_iterations": 10,
+  "bootstrap_samples": 5000,
+  "image": null
+}

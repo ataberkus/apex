@@ -1,0 +1,794 @@
+✔ cache ledger tracks stable prefix hashes without storing prompt values (2.5362ms)
+✔ cache ledger accounts native uncached/cache-read/cache-write without double counting (5.8348ms)
+✔ routine cap only lowers the exact Muse existing cap and preserves xhigh (0.3446ms)
+✔ Phase 2 loop and time counters survive coding compaction verbatim (1043.1114ms)
+✔ offline compaction cancels before touching registry/auth or injected completion (0.9201ms)
+✔ invalid policy model/thinking/enable flag cancels without registry access (0.5999ms)
+✔ compaction retains exact native cutoff, state JSON and reported summary usage (3.6106ms)
+✔ compaction passes exact physical model, API reasoning option and split prefix to injected completion (1.0926ms)
+✔ compaction unions previous hook file lists and removes modified paths from read-only lists (1.3967ms)
+✔ compaction chooses active branch state rather than abandoned branch state (0.966ms)
+✔ compaction cancels on malformed preparation, unsupported model, abort or incomplete output (4.7336ms)
+✔ compaction cancels instead of paraphrasing unsupported branch state (0.6783ms)
+✔ compaction cancels when the active branch changes while the summary is pending (1.0691ms)
+✔ compaction requires valid response usage and file-operation collections (3.5345ms)
+✔ revoking a previously enabled fixture policy cancels before registry access (0.5265ms)
+✔ enabled fixture can use the registry completion facade without explicit key lookup (0.8541ms)
+✔ Phase 3 plan and checkpoint counters survive coding compaction verbatim (0.9162ms)
+✔ Phase 1 flag selection defaults off and is immutable (0.9178ms)
+✔ all is explicit and unknown or ambiguous flags fail (0.7905ms)
+✔ current runtime policy remains offline, exact-model and xhigh (0.0981ms)
+✔ default extension starts no tools, prompt changes, filesystem or auxiliary calls (1.1016ms)
+✔ output section is stable and preserves native sections across turns (3.0209ms)
+✔ compact flag cancels offline before model lookup or auth (1.2377ms)
+✔ cache monitor observes mid-run tool delta without editing context messages (0.221ms)
+✔ native lazy registration stays inactive and adds no MCP or model router (1507.7136ms)
+✔ native codemode loadout omits deferred declarations and classifier access (1.5975ms)
+✔ native tool_search loads matching deferred tools only for the next declaration set (2.4035ms)
+✔ masking batches older assistant turns despite reset turnIndex and composes prior drafts (65.976ms)
+✔ masking protects latest reads by canonical path and all task/contract/todo state (0.9433ms)
+✔ masking persists native context edits and reopening retains stubs with original history (4.3624ms)
+✔ masking uses active branch and does not repeat pending or persisted edits (0.9242ms)
+✔ masking skips errors, images, custom structured fields, and observations without recovery logs (1.3319ms)
+✔ masking batches only when eligible observation region crosses the proxy threshold (0.5024ms)
+✔ masking prefers native full logs over shaped observed logs (0.563ms)
+✔ failed rereads do not make the latest successful file observation maskable (1.7646ms)
+✔ recovery pointer retains the exact JSON-escaped path (0.5128ms)
+✔ a previously elided read does not displace the latest useful read protection (0.6108ms)
+✔ masking preserves parent observation with native nested error with structured bash exit status (0.6589ms)
+✔ masking preserves parent observation with codemode details error without native nested record (0.4608ms)
+✔ masking preserves parent observation with successful latest nested file read (0.4778ms)
+✔ masking preserves parent observation with incomplete nested record (0.4124ms)
+✔ masking preserves parent observation with custom unknown nested status (0.398ms)
+✔ single-file unified patch uses exact context and compact coherent result (15.5289ms)
+✔ multiple hunks have strict old/new positions and preserve BOM/CRLF (3.8238ms)
+✔ no-newline markers faithfully change final newline status (5.3322ms)
+✔ invalid counts, context, new offsets, overlaps and unsupported formats never write (7.3073ms)
+✔ later hunk failure is atomic, missing files are rejected and runtime cwd wins (6.1642ms)
+▶ patch and native edit siblings share queue including symlinks; aborted calls do not write
+  ﹣ file symlink queue alias (0.7018ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ patch and native edit siblings share queue including symlinks; aborted calls do not write (2.8167ms)
+▶ mixed unchanged line endings, mode bits and temp cleanup survive atomic replacement
+  ﹣ POSIX mode preserved (0.1021ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ mixed unchanged line endings, mode bits and temp cleanup survive atomic replacement (3.7947ms)
+▶ patch rejects binary/invalid UTF8, traversal and outside-cwd symlinks with no partial write
+  ﹣ outside file symlink rejected (0.3665ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ patch rejects binary/invalid UTF8, traversal and outside-cwd symlinks with no partial write (5.654ms)
+✔ standard unified lines beginning with --- and +++ remain valid hunk data (3.0157ms)
+✔ router rejects unauthorized MAIN, FAST and lower thinking before registration (3.0438ms)
+✔ router is registered during native extension loading without model runtime initialization (773.2285ms)
+✔ first ten successful persisted assistants plan, then execute despite compacted request messages (1.0757ms)
+✔ routing signals and assistant counts follow the active native branch rather than stale router state (0.6078ms)
+✔ continuations and retries preserve the allowed physical identity and xhigh (0.7136ms)
+✔ direct summaries keep fixed Muse/xhigh and never return branch state (0.6774ms)
+✔ missing, virtual or misidentified physical catalog targets fail closed (0.6685ms)
+✔ short unchanged text is inert and creates no directory (7.2165ms)
+✖ module import is inert in a fresh process (37.2437ms)
+✖ ANSI cleanup, carriage-return progress and repeated lines retain exact raw spill (18.9844ms)
+✖ newline progress bars are condensed without hiding a progress-adjacent failure (10.3141ms)
+✖ caps include newlines, omission markers and log reference while retaining head and tail (9.1662ms)
+✖ Unicode long lines keep both ends without replacement characters or excess bytes (9.1154ms)
+✖ test failure context and assertion diff in the middle survive bounded selection (9.0065ms)
+✖ compiler diagnostics and package-manager failures survive the middle of output (9.1281ms)
+✖ git diff keeps a hunk and changed lines with bounded head/tail (8.9939ms)
+✖ native Bash structured output remains coherent with shaped content and status fields (10.2702ms)
+✖ nested native Bash JSON remains intact for codemode before parent output is shaped (11.4248ms)
+✖ native full-output pointer is preserved and spill contains only hook-visible text (9.7627ms)
+✖ real native Bash overflow distinguishes model text bytes from structured output bytes (18.7335ms)
+✔ unknown custom structured schemas preserve the result without a spill (2.1325ms)
+✖ non-path custom details cannot corrupt the native structured path schema (11.4121ms)
+✖ nontext payloads survive exactly while the neighboring text is shaped (8.2248ms)
+✖ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive (11.3912ms)
+﹣ owned logs remain owner-readable under a restrictive process umask (0.14ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ symlinked output directories are rejected without writing outside .apex (5.2247ms)
+✖ newline-heavy output and very small valid caps remain bounded (13.6905ms)
+✔ invalid caps fail before any filesystem mutation (2.6028ms)
+✔ feature selection is inert and conventional tools stay directly active with lazy (14.6108ms)
+✔ bounded read retains native schema/range notices and runtime cwd wins (6.4443ms)
+✔ dedup needs unchanged range and exact unmasked original observation in native active context (9.8518ms)
+✔ dedup never makes a pointer for missing/empty context or a fresh tool factory (5.7511ms)
+✔ dedup hashes actual range bytes even when a native oversized-line notice is unchanged (4.1933ms)
+✔ a change outside the requested range also invalidates unchanged-file dedup (3.4387ms)
+✔ outline reports line numbers and explicitly labels approximate fallback (6.6459ms)
+✔ images retain native payload; binary and huge lines produce bounded honest results (134.348ms)
+✔ conventional edit aliases use native multi-edit and preserve BOM/CRLF/untouched whitespace (6.7837ms)
+✔ native edit whitespace matching, ambiguity and overlap fail atomically with bounded candidates (7.4727ms)
+﹣ wrapper and native sibling edits serialize against realpath aliases (1.6168ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ search uses native caps with grouped grep and unknown overflow totals (84.6276ms)
+✔ missing engines fail locally without fetching or installing and imports/factories are inert (804.9003ms)
+﹣ ambiguous native filename rows do not fabricate search totals (0.1482ms) # Windows forbids literal newline filenames; ambiguous newline rows unexercised
+✔ edit argument preparation supports native legacy/object/string inputs without mutating raw arguments (1.1287ms)
+✔ Phase 2 features default off and immutable explicit selection covers fourteen flags (1.1578ms)
+✔ time and independent-attempt arguments are bounded and unambiguous (0.3878ms)
+✔ pre-schema preparation supports aliases without mutating raw model arguments (8.0204ms)
+✔ correction mutates the native input object and supports nested sibling paths independently (11.7566ms)
+✔ conflicting aliases and invalid post-hook native argument types block without partial mutation (1.0743ms)
+▶ confinement rejects lexical escapes, existing symlinks and dangling symlink writes
+  ﹣ dangling file symlink write refused (0.3659ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ confinement rejects lexical escapes, existing symlinks and dangling symlink writes (6.5662ms)
+✔ edit precondition accepts native multi-edit and native whitespace/BOM/CRLF modes without writing (6.4567ms)
+✔ native legacy edit forms normalize but missing, ambiguous and overlapping regions block with bounded candidates (8.9097ms)
+✔ catastrophic confirmation occurs only in a real TUI and never in headless or RPC (1.2993ms)
+✔ quoted root and expanded home operands require TUI confirmation across rm option forms (1.222ms)
+✔ quoted command descriptions and literal home strings do not request catastrophic confirmation (1.1373ms)
+✔ loop breaker notes repeat failures at three, bounds output and does not lower Muse effort (2.559ms)
+✔ repeated reads require identical result bytes and edit ping-pong requires successful reversed edits (0.2283ms)
+✔ time thresholds emit once at monotonic boundaries including catch-up and reset without timers (0.3132ms)
+✔ diagnostics select fixed installed checkers and compare a before-edit baseline with only new errors (4.9487ms)
+✔ diagnostics retain independent parallel nested baselines and reset discards pending work (5.3066ms)
+✔ diagnostics skip missing checkers, failed mutations, unsafe files and incomplete baseline checks (8.662ms)
+✔ diagnostic output is bounded and runtime imports/factories do not launch commands (5.2364ms)
+✔ diagnostics choose Go and Cargo through their real version syntax with offline compiler options (7.1903ms)
+✔ diagnostics do not label moved pre-existing errors as newly introduced errors (3.5855ms)
+✔ new files have an empty pre-edit baseline and introduced errors are checked after creation (2.5122ms)
+✔ real Node syntax diagnostics detect introduced syntax errors without executing project code (133.9276ms)
+﹣ default diagnostics run an existing local TypeScript compiler without network and return new errors (5.1765ms) # No complete existing TypeScript checker available in this environment
+﹣ default diagnostic timeouts terminate inherited-output checker descendants within the checker budget (0.2226ms) # Unix process-group test
+✔ restored monotonic budget starts at observed elapsed time (0.1479ms)
+✔ diagnostic subprocess environment excludes inherited private values (2.7989ms)
+✔ snapshot respects the UTF-8 byte ceiling, including a smaller caller budget (43.1797ms)
+✔ the default byte budget includes all ten byte-heavy entry paths (escaped control names on POSIX) (15.2774ms)
+▶ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks
+  ﹣ file symlink manifest is never read (0.381ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks (13.5803ms)
+✔ manifest discovery reports scripts and entry paths without executing scripts or reading source (7.7698ms)
+✔ snapshot explicitly reports distro, shell and current user through safe local sources (44.324ms)
+✔ an unavailable OS user lookup is labeled without failing environment capture (41.2688ms)
+✔ package manager versions and static declarations are reported without npm or install operations (10.4289ms)
+✔ Makefile targets and pyproject build/test tools become static hints without running recipes (12.4043ms)
+✔ entry ranking is deterministic and promotes an explicitly relevant source path (11.717ms)
+✔ entry discovery promotes a nested source identifier and declared symbol over a filename match (12.1628ms)
+✔ missing ripgrep keeps metadata ranking and explicitly reports the content fallback (8.2372ms)
+✔ entry source reads exclude generic tests and verifiers and enforce byte/file bounds (26.7704ms)
+✔ a manifest cannot promote an entry target that escapes the project (3.3004ms)
+✔ gitignore character classes and anchored recursive patterns filter the snapshot (9.1683ms)
+✔ untrusted ignore patterns cannot throw or stall snapshot discovery (47.9297ms)
+✔ missing tools and a missing project are labeled unavailable without failing capture (3.3719ms)
+✔ external reachability stays skipped by default and requires a literal true authorization (6.3171ms)
+✔ an explicitly authorized reachability probe is capped at two seconds without real network calls (3.877ms)
+﹣ native probes terminate hanging binaries, cap flood output and inherit no secret environment (0.0847ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ native probes preserve UTF-8 characters split across output chunks (0.0191ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ native tool lookup excludes PATH directories inside the project (49.9567ms)
+✔ an injected command that ignores cancellation is still bounded by the probe deadline (1002.8364ms)
+✔ import creates no processes or files and returns promptly (35.3242ms)
+✔ default Phase 2 factory and lifecycle are inert (1.3223ms)
+✔ initial snapshot is a context message and static mode sections retain native guidance (2.4362ms)
+✔ time appends threshold notes without volatile prompt edits or forced continuation (776.9485ms)
+✔ core correction preserves the selected Phase 1 edit shape through the native hook (20.5532ms)
+✔ reload retains elapsed time and does not repeat earlier time thresholds (0.8237ms)
+✔ Phase 2 opt-in launcher loads the core and retains Muse/xhigh (0.766ms)
+✔ Phase 1 and 2 flags compose, and time is only enabled by explicit feature (0.3945ms)
+✔ Apex options in literal task and Pi values retain their meanings (0.4803ms)
+✔ max is separate, explicit and blocked by free-only policy before launching Pi (0.3326ms)
+✔ offline subagent denial precedes prompt reads, cwd access, session and check adapters (2.4207ms)
+✔ future subagents use exact prompt files, independent task-only contexts and depth-one read tools (5.527ms)
+✔ model and thinking violations are denied before deterministic session work (0.2798ms)
+✔ nested subagents and invalid tasks never start a session (0.1986ms)
+✔ subagent output and usage are bounded and inconsistent totals are rebuilt (1.233ms)
+✔ subagent cancellation is reported coherently and retains incurred usage (0.6389ms)
+✔ verify explicit commands provide real bounded evidence without inheriting main history (0.8088ms)
+✔ verify rejects shell syntax, installs and unbounded command lists before adapters (0.293ms)
+✔ offline max denial precedes isolation, attempts, verification, judge and cwd reads (0.5005ms)
+✔ max ranks successful verification above score and sums nested usage before cleanup (0.5848ms)
+✔ max uses guarded judge only for tied passing candidates and includes its usage (0.26ms)
+✔ max refuses malformed judge selections and cleans every candidate (0.2848ms)
+✔ all failed candidates remain failed without invoking judge (0.2527ms)
+✔ max attempts are bounded and fail before isolation on bad policy/configuration (0.1785ms)
+✔ max cancellation and attempt errors retain usage and clean allocated isolation (0.2784ms)
+✔ max default copies isolate current source changes and cleanup owned directories (11.9256ms)
+✔ recovery native settings are disabled offline and bounded only under exact paid policy (0.401ms)
+✔ default verifier checks run real subprocesses inside a copy and preserve source files (84.5376ms)
+✔ max rejects reused/source isolation paths and preserves cleanup errors (0.4564ms)
+✔ native recovery application gates before session access and applies only supported settings seam (0.199ms)
+✔ native future SDK injection cannot fall through to default runtime or provider auth (1.7597ms)
+✔ stub-only native future path suppresses ambient resources and binds before prompting (724.6787ms)
+﹣ default max copies preserve internal symlinks without shared writes and reject external links (1.8374ms) # File symlink creation unavailable (EPERM); boundary unexercised
+▶ native future read tools confine paths and honor installed bounded read/search semantics
+  ﹣ native read rejects outside file link (0.3257ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ native future read tools confine paths and honor installed bounded read/search semantics (74.9672ms)
+✔ native future turn bound aborts tool loops and retains all partial usage (2.746ms)
+✔ verify rejects native test flags that open listeners or inject arbitrary startup modules (0.3162ms)
+✔ native future session may finish successfully on its eighth final turn (2.6222ms)
+✔ native future cleanup disposes even after abort failure and preserves incurred usage (2.6723ms)
+✔ native SDK rechecks policy before auth and streaming on every fresh-context turn (2.6411ms)
+✔ native SDK validates physical model, reasoning and cancellation before each request seam (6.0045ms)
+✔ auxiliary usage reaches native tool-result events while pre-call denials omit usage (1.8041ms)
+✔ missing helper usage remains explicitly incomplete and preserves known optional subsets (0.8496ms)
+✔ max optional token subsets aggregate only when known for every accounting source (0.2847ms)
+✔ zero helper accounting is explicitly incomplete rather than evidence of a free request (0.4616ms)
+✔ policy revoked during async auth preparation stops provider dispatch in the same turn (2.5548ms)
+✔ serialized max results retain explicit accounting completeness for every adapter source (0.437ms)
+✔ max exception serialization preserves missing callback accounting and known incurred usage (0.3192ms)
+✔ factory and import have no process or filesystem side effects (3.749ms)
+✔ bash timeout defaults preserve valid explicit values and block malformed values (0.3808ms)
+﹣ real service survives host exit and reload explicitly kills its owned group (0.1052ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ real noisy child logs and tails are capped with restrictive permissions (0.066ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ forged metadata, stale identity, traversal and symlinks cannot kill an unrelated real child (0.0443ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+▶ symlink state directories, Windows, malformed starts and canceled calls allocate no child
+  ﹣ Unix state directory links are refused before spawn (0.0771ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ symlink state directories, Windows, malformed starts and canceled calls allocate no child (2.5011ms)
+﹣ failed supervisor spawn rejects instead of reporting a running process (0.059ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ signed metadata cannot redirect an explicit owned kill to a different PID (0.1213ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ readiness timeout and in-flight abort retain an explicitly manageable real child (0.0912ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ TERM-resistant command remains owned and can receive a later explicit SIGKILL (0.122ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ concurrent KILL and TERM requests from fresh managers cannot lose the owned KILL (0.0567ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ concurrent first starts publish only complete ownership state (0.0274ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ recovery launch refuses offline before environment or filesystem access (0.6974ms)
+▶ authorized profile stores only native retry settings and cleans its own agent directory
+  ﹣ POSIX private retry files (0.1241ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ authorized profile stores only native retry settings and cleans its own agent directory (8.2292ms)
+✔ offline extraction denies before registry/auth/completion and exposes manual criteria (5.0581ms)
+✔ future authorized extraction uses one native exact FAST/xhigh completion and records usage (1.9827ms)
+✔ extraction fails closed on alternate models, cancellation, malformed criteria and missing usage (4.1395ms)
+✔ contract and todo custom data retain exact JSON and restore through compaction (1.9805ms)
+✔ todo serializes concurrent deltas and requires concrete dropped reasons (1.2119ms)
+✔ snapshot is detached and task reset cannot preserve foreign branch criteria (1.0701ms)
+✔ gate caps forced continuations at two and preserves prior boundary drafts (1.3879ms)
+✔ aborted/error/pending/malformed boundaries never consume caps or force requests (0.7493ms)
+✔ completed final-assistant boundary becomes continuable through its own nonempty native draft (1.0577ms)
+✔ missing todo steer occurs once after two turns only for an explicit multi-step task (1.2193ms)
+✔ verification must be an actual successful known checker after the final mutation (1.436ms)
+✔ unknown bash and apply_patch invalidate stale checks even on error (0.8586ms)
+✔ sibling verifier begun before an edit cannot prove success after that edit (0.768ms)
+✔ verifier completed while sibling mutation remains pending cannot clear the gate (0.7578ms)
+✔ nested native events are coherent and duplicate execution events are idempotent (0.7578ms)
+✔ unseen or incomplete nested mutation summaries invalidate instead of inventing verification (0.6983ms)
+✔ explicit artifacts check confined paths and parsed format without executing check strings (5.0961ms)
+▶ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats
+  ﹣ file symlink artifact refused (0.3847ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats (2.1288ms)
+✔ criteria do not claim semantic compliance from file existence or opaque check text (2.5379ms)
+✔ checker help/version requests and later failed checks cannot preserve a passing gate (0.7582ms)
+✔ changing a criterion resets resolved matching todo instead of reusing old acceptance (0.8395ms)
+✔ valid extraction usage is retained even when generated criteria are invalid (1.0047ms)
+✔ extraction cannot publish after an active native branch changes (1.2447ms)
+✔ artifact format parser rejects invalid CSV after a closing quote and directory symlinks (4.4843ms)
+✔ Phase 1 compaction that retains only contract/todo still restores task identity and continuation caps (1.3461ms)
+✔ explicit three inline numbered steps trigger the same bounded missing-todo steering (0.6751ms)
+✔ observation-looking shell hooks and incomplete checker results invalidate stale success (0.8539ms)
+✔ pending mutation persistence is bounded while all live calls still block verification (10.7829ms)
+✔ completion usage is accounted to its originating task when abortion follows the response (1.8871ms)
+✔ completion error usage is accounted once even when no criteria can be published (1.0348ms)
+✔ stale branch and revoked policy still retain incurred completion usage without publishing criteria (1.9389ms)
+✔ a new user task never inherits a previous task completion or error usage (2.0805ms)
+✔ actual extraction requests with missing usage report incomplete accounting and offline denials report none (1.6148ms)
+✔ successful extraction records exactly one dedicated helper accounting entry (1.115ms)
+✔ pre-request registry errors cannot masquerade as incurred extraction usage (0.6641ms)
+✔ partial error and aborted provider responses retain usage while reporting incomplete accounting (1.9161ms)
+✔ proposer reads exact raw pages, not summaries, with UTF-8 framing (7.2361ms)
+✔ proposer refuses traversal, absolute OS paths, and links into hidden evaluator data (4.3423ms)
+✔ listing is paginated without hiding later prior harness versions (57.3356ms)
+✔ concurrent submissions persist exactly one declared change (3.6218ms)
+✔ unbounded raw pages and malformed proposals are refused (4.1452ms)
+✔ offline native proposer denies before SDK import, credential lookup or file allocation (1.0737ms)
+✔ session and selected native branch have separate totals without mutating source snapshots (3.6143ms)
+✔ helper replay and state snapshots are billed once while distinct identical requests remain distinct (0.5526ms)
+✔ partial or missing helper records preserve known amounts and make full cost unknown (0.6434ms)
+✔ thinking and one-hour cache writes are subsets rather than additional billable tokens (0.632ms)
+✔ unknown context and absent or partial pricing never become free cost or invented context (0.3243ms)
+✔ native compaction, branch summary, usage and attributed tool totals are included without guessed model (0.2471ms)
+✔ category byte estimates count UTF8 content once and top consumers never echo payloads (0.2372ms)
+✔ task identity follows each branch ancestor instead of latest sibling state (0.2669ms)
+✔ conflicting IDs, helper identities, invalid subsets, missing compaction and zero placeholders fail honestly (0.6819ms)
+✔ partial subset totals stay unknown when a helper aborted after returning a known prefix (0.206ms)
+✔ native parent topology does not accept unavailable array branches or sibling ancestry cycles (0.2161ms)
+✔ unsupported usage and unpaid no-attempt tool snapshots cannot be billed as valid helpers (0.1586ms)
+✔ unsafe numeric aggregates cannot silently round exact token and native cost totals (0.2175ms)
+✔ identical main response replay is counted once but independent response IDs remain separate (0.1594ms)
+✔ an incurred extraction snapshot without its dedicated helper record makes totals incomplete without replay billing (0.2402ms)
+✔ native bash execution, injected custom and summary message content contribute safe byte proxies (0.1552ms)
+✔ footer includes usage, cache-hit/context percentages, routed model and explicit active task cost (0.2674ms)
+✔ footer chooses active leaf task rather than a sibling and keeps unknown values explicit (0.3797ms)
+✔ navigation active leaf selects explicit task without narrowing all-session accounting (0.3149ms)
+✔ factory is inert and invalid/cancelled methods fail before Git (1.2958ms)
+▶ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index
+  ﹣ POSIX mode restored (0.1348ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index (748.3649ms)
+✔ concurrent sibling captures wait for one persistent snapshot and finish is idempotent (521.0597ms)
+✔ reopen persists records, session isolation and detached list objects (927.9613ms)
+▶ manual post-turn edits and chmod refuse all restoration before any file changes
+  ✔ content (639.0571ms)
+  ﹣ mode (0.1074ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+  ✔ deleted (605.3617ms)
+✔ manual post-turn edits and chmod refuse all restoration before any file changes (1245.0282ms)
+✔ ignored and private paths are excluded, preserve mutations and never enter shadow history (800.2573ms)
+▶ symlink capture and later symlink target/ancestor restoration are rejected without external writes
+  ﹣ file symlink capture (0.5445ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ symlink capture and later symlink target/ancestor restoration are rejected without external writes (592.9187ms)
+✔ newly ignored restoration paths refuse undo (612.7295ms)
+✔ corrupt/foreign metadata and private-store symlinks fail closed (1188.5038ms)
+✔ capture and restore enforce file, byte, checkpoint caps (1942.9278ms)
+▶ post-apply durable Git failure rolls back every actual restored file and remains retryable
+  ﹣ POSIX mode rolled back (0.1138ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ post-apply durable Git failure rolls back every actual restored file and remains retryable (1017.402ms)
+✔ unfinished capture cannot undo and shutdown cancels a queued/in-flight capture (553.6254ms)
+✔ session metadata supports safe custom version-control directory without ambient Git variables (653.6118ms)
+✔ binary/CRLF payloads and Unicode filenames survive source attributes without filters (newline name on POSIX) (700.1782ms)
+✔ hard links and shadow object-directory symlinks fail closed (693.7239ms)
+✔ same-session manager instances serialize capture and user edits to unchanged paths remain (689.9881ms)
+✔ actual shutdown cancels in-flight and queued captures, and Git timeouts are bounded (345.6654ms)
+✔ rollback refuses concurrent manual edits and retains explicit private recovery backups (723.9706ms)
+✔ large allowed blobs restore beyond textual Git output cap, and external shadow indirection is refused (1475.6494ms)
+✔ untrusted shadow attributes cannot invoke source filters (533.0608ms)
+﹣ regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation (0.0785ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ source regular-file growth after fstat uses bounded chunk reads without readFile (214.6724ms)
+✔ manifest regular-file growth after fstat uses bounded chunk reads without readFile (457.7668ms)
+✔ default features startup and shutdown are completely inert (1.1113ms)
+✔ selected cost exposes native status/report without model work (1.9394ms)
+✔ plan gates any nested/deferred mutator, retains readonly and cancels tools (5.0871ms)
+✔ eval remember never creates tool or accesses learning cwd (0.1815ms)
+✔ skills discovery is explicit and excludes shared scanner/templates (0.312ms)
+✔ core todo and verification do not force planning continuations (2.3611ms)
+✔ checkpoint hooks skip untouched turns and close one capture after sibling calls (0.2652ms)
+✔ checkpoint capture failure blocks mutation and does not finish missing state (0.2209ms)
+✔ tree navigation restores base tools without old plan writes into new branch (0.2406ms)
+✔ checkpoint turn IDs remain unique across tree navigation and undo stays on active branch (0.4922ms)
+✔ native extension-local flag scoping still shares eval/safety ownership (744.0963ms)
+✔ scoped native flags preserve Phase 1 edits when core corrections are enabled (1.7517ms)
+✔ future authorized planning fills task placeholder with literal dollar replacement syntax (5.3824ms)
+✔ nine Phase 3 flags are default off and strictly parsed (0.7846ms)
+✔ Phase 3 prefix loads native extension and explicit eval without eating task (0.413ms)
+✔ combined extensions retain context core features order and route (0.2254ms)
+✔ Phase 3 default forwards and selected variants reject model overrides (0.278ms)
+✔ report and resume are exact local verbs with bounded literal option parser (0.1684ms)
+✔ actual resume free-policy denial precedes file or Pi resolution (33.1792ms)
+✔ native Pi argument parser retains prompt after eval boolean with explicit model (14.6103ms)
+✔ learnings are deferred, explicit, literal and supply a detached context file (19.3021ms)
+✔ eval denial happens before filesystem access and tool callbacks (0.1697ms)
+✔ concurrent appends across instances serialize without lost facts or duplicate facts (169.0057ms)
+✔ missing load creates no files, malformed/oversized facts and abort are refused (2.4181ms)
+▶ directory/file symlinks and oversized existing content are refused
+  ﹣ file symlink refused without changing target (0.6864ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ directory/file symlinks and oversized existing content are refused (5.8278ms)
+✔ fact count/UTF8 byte caps are enforced for append and load (4.3571ms)
+✔ eval/headless/RPC/no UI never request approval or inspect annotations (0.5464ms)
+✔ annotation hints are unverified, contradictory/destructive/open-world and unknown tools ask (0.8829ms)
+✔ native builtins use conservative classifications with no annotations (723.4788ms)
+✔ literal echo avoids destructive false positives while direct and nested destructive shell asks (0.3833ms)
+✔ decline/throw/pre-abort/pending cancellation block and approvals do not leak across calls (0.346ms)
+✔ approval is bounded even if UI ignores abort and a late approval is ignored (1.8762ms)
+✔ ten discoverable assets have valid short frontmatter and resolvable relative probes (11.1502ms)
+✔ description anchors route ten mechanical fixtures to nonoverlapping domains (1.2503ms)
+✔ shared helpers cannot be discovered as an eleventh skill (1.4188ms)
+✔ debugging executes a real offline probe and returns its domain evidence (43.3905ms)
+✔ test-writing executes a real offline probe and returns its domain evidence (39.3131ms)
+✖ profiling executes a real offline probe and returns its domain evidence (44.089ms)
+✔ build-systems executes a real offline probe and returns its domain evidence (46.0429ms)
+✔ python-packaging executes a real offline probe and returns its domain evidence (54.3547ms)
+✔ numerics executes a real offline probe and returns its domain evidence (40.3594ms)
+✔ http executes a real offline probe and returns its domain evidence (37.7336ms)
+✖ databases executes a real offline probe and returns its domain evidence (46.844ms)
+✔ git-surgery executes a real offline probe and returns its domain evidence (44.7017ms)
+✔ security-hardening executes a real offline probe and returns its domain evidence (43.5129ms)
+✔ probes reject malformed arguments and missing roots with bounded JSON (145.8429ms)
+▶ probes refuse root symlinks and do not follow child symlinks or private files
+  ﹣ file link source excluded (0.3995ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ probes refuse root symlinks and do not follow child symlinks or private files (362.7292ms)
+✔ all probes leave project scripts unexecuted and redact source contents (359.2533ms)
+✔ scanner enforces file, byte, depth and output bounds on real fixtures (218.073ms)
+✔ total public text reads stop before the byte budget is exceeded (45.297ms)
+✔ large real trees stop at directory and directory-entry budgets (896.2764ms)
+✔ Git probes never follow worktree pointers or oversized HEAD contents (103.7926ms)
+✔ empty projects do not invent installed packages or static evidence (322.2364ms)
+✔ hardlinked files are skipped rather than reading another name for private data (35.5115ms)
+✔ malformed public manifests do not fabricate dependency or build declarations (44.3349ms)
+﹣ a regular-file-to-FIFO replacement before the actual open cannot block or enter the scan (0.1072ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ offline plan enters without prompting and gates nested/deferred/unknown calls (3.9945ms)
+✔ manual save keeps literal markdown at exact PLAN.md and restores tools (8.3445ms)
+✔ cancel/shutdown restore tools without creating a plan (1.8416ms)
+﹣ plan write rejects symlink and restores on failure (1.7912ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ reload active branch and compaction restore prior tool selection (0.8186ms)
+✔ completed boundary saves final assistant text and preserves existing drafts (10.033ms)
+✔ pending continuation does not save while aborted/error outcomes restore honestly (1.3747ms)
+✔ completed boundary without final text refuses completion and restores (0.9769ms)
+✔ future plan prompting requires exact policy/model/xhigh and actual sendUserMessage (3.1177ms)
+✔ send/persist errors restore tools and never retain an active flag (0.8608ms)
+✔ prior assistant text is never saved for a new or reloaded task (0.8501ms)
+✔ nonfinal assistant tool-use text cannot be presented as a complete plan (0.8536ms)
+✔ failed restoration is honest and shutdown retries the original tools (0.7094ms)
+✔ failed persistence during finish never claims completion and later shutdown clears stale active state (7.7635ms)
+✔ review guards policy before reading cwd/task/context or invoking verify (0.2709ms)
+✔ authorized review sends current staged and unstaged diff plus requirements to native verify seam (217.7681ms)
+✔ invalid review policy identities refuse before verify and failed seam stays honest (14.6957ms)
+✔ review never claims success for malformed or non-complete native verification evidence (121.8073ms)
+✔ default profile forwards prompt and tool arguments without shell interpolation (0.9262ms)
+✔ headless profile supplies JSON print mode exactly once (0.1026ms)
+✔ headless profile refuses contradictory modes and unimplemented max profile (0.2265ms)
+✔ profile-looking words in the prompt remain untouched (0.0656ms)
+✔ Apex flags are prefix-only and never consume Pi option values (0.0637ms)
+✔ headless rejects equals-mode unsupported by Pi and repeated conflicting modes (0.1994ms)
+✔ dry-run CLI resolves real pinned Pi without invoking a provider (35.8215ms)
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.8199ms)
+✔ Phase 1 rejects wrong models, thinking, unknown and repeated feature options before Pi (0.1933ms)
+✖ route selection loads its model before Pi selection and still keeps physical policy (10.9957ms)
+✔ Phase 1 gate exposes an inert import without SDK loading or fixture allocation (78.2519ms)
+✔ missing native compact policy cannot pass or reach a provider (1343.4532ms)
+✖ native codemode gate detects corrupt shaping of programmatic JSON results (1226.2243ms)
+✖ native Phase 1 factory initializes actual wrappers, lazy loadout and cancellation offline (1201.5652ms)
+✔ Phase 1 gate denies ambient resource discovery before reading outside its fixture (816.5037ms)
+✔ Phase 2 gate import leaves SDK, extension factories and fixture allocation inert (68.9299ms)
+✖ native Phase 2 gate proves supported opt-in state and reports Unix-only process proof honestly (1389.7448ms)
+✖ missing native settlement gate fails instead of inventing offline verification success (1284.8852ms)
+✔ Phase 2 gate denies ambient package/resource discovery outside the fixture (857.7399ms)
+﹣ lost bg startup report recovers only fixture-owned IDs and acknowledges their cleanup (0.2326ms) # Requires Unix native owned-process start and process-group cleanup.
+✔ Phase 2 gate rejects unknown fault modes before fixture allocation (0.3849ms)
+✔ Phase 3 gate import leaves SDK, extensions and fixtures inert (92.8883ms)
+✔ native Phase 3 gate exercises commands, tools, resources and persisted state offline (4510.5859ms)
+✔ missing native plan enforcement fails without provider calls (1070.4408ms)
+✔ Phase 3 gate rejects ambient discovery and cleans fault fixtures (873.8694ms)
+✔ Phase 3 gate rejects unknown faults before allocation (0.4614ms)
+✔ fallback Python version probes obey the caller subprocess limits and environment (36.0161ms)
+✔ readiness requires every required check to pass (1.3141ms)
+✔ importing preflight performs no probes or filesystem writes (31.8829ms)
+✔ ready tooling uses only bounded local probes with no inherited credentials or remote contexts (36.3035ms)
+✔ a same-version Harbor wheel without the pinned VCS commit blocks readiness (37.0708ms)
+✔ prerelease or suffixed package versions cannot satisfy exact Pi and Harbor pins (190.2783ms)
+✔ old Python, changed Pi, or changed configured pins cannot report tooling ready (250.2704ms)
+✔ missing Docker, Windows daemon, or missing Compose wait support blocks local readiness (138.1146ms)
+✔ CLI reports blocked as JSON with exit 2 without printing command errors or environment secrets (61.5306ms)
+✔ importing the process microcheck does not spawn processes or create fixtures (47.4401ms)
+﹣ native Pi bash service survives tool-host exit and the owned process is cleaned up (44.8579ms) # requires Linux setsid and nohup
+﹣ missing readiness waits for the service watchdog before removing its fixture (0.158ms) # requires Linux
+﹣ an aborted loopback health response returns a failure artifact and cleans up (0.1099ms) # requires Linux
+﹣ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (0.0975ms) # requires Linux
+✔ free policy overrides unused historical budget and explicit request cap (0.8626ms)
+✔ paid smoke needs its own unique current reservation (0.1564ms)
+✔ paid policy rejects overcommitted or inconsistent ledger amounts (0.1376ms)
+✔ paid policy preserves exclusive Muse model and xhigh selection (0.1031ms)
+✔ free CLI refuses before credentials, SDK startup or filesystem run creation (30.9382ms)
+✔ conservative reservation covers all four maximum sized requests (0.2561ms)
+✔ fifth physical send fails before transport and sends are counted on failed responses (11.3906ms)
+✔ six-request profile reserves its full bound and blocks the seventh send (0.3373ms)
+✔ only authorized request profiles and their corresponding spend caps are accepted (0.1893ms)
+✔ CLI enforces profile and budget limits without credentials or provider calls (892.0811ms)
+✔ guard records blocked reasons separately from the SDK connection-error text (0.3584ms)
+✔ model mismatch and fallback fields cannot reach transport (0.3276ms)
+✔ UTF-8 byte cap rejects a multibyte payload before transport (0.1626ms)
+✔ request body and endpoint are checked for both Request and URL inputs (2.7858ms)
+✔ missing budget, larger authorization, unsupported model and unknown prices fail closed (0.2063ms)
+✔ response identity is restricted to requested slug and official canonical slug (0.0982ms)
+✔ payload preflight validates independently and never counts an unsent request (0.0589ms)
+✔ payload thinking downgrade is rejected before any physical request (0.1542ms)
+✔ redirects are denied for URL, string and Request inputs even if caller requests follow (0.4296ms)
+✔ successful echo cannot count as fixture verification (1.3527ms)
+✔ fixture completion rejects a final error and honors six-request policy (0.8583ms)
+✔ exact successful verification requires both edits before that bash start (0.9073ms)
+✔ later genuine verification is recognized after an unrelated earlier bash (0.9174ms)
+✔ reported reasoning sums billable responses and excludes an unsent guard error (0.2279ms)
+✔ provider credential echoes are sanitized before native session persistence without losing usage or IDs (757.2993ms)
+✔ session gate exposes an inert import instead of running or allocating a fixture (61.7128ms)
+✔ offline child environments preserve Windows name semantics without admitting credentials (0.6145ms)
+✔ native offline compaction preserves recent context and branch state through fresh-process torn-tail recovery (3246.2599ms)
+✔ a cancelled hook fails the gate without appending compaction or attempting auth/inference (811.2818ms)
+✔ default resource discovery is blocked before reading user or ancestor resources (884.816ms)
+✔ a custom summary that loses the fixture contract cannot produce a passing gate (3341.0789ms)
+✔ missing deterministic hook blocks default auth and inference instead of passing silently (919.5971ms)
+✔ bounded real native JSONL report aggregates all branches and exposes no prompt or tool payloads (13.9304ms)
+✔ resume metadata identifies only unresolved tools on native active branch and never replays or writes (5.3146ms)
+✔ unterminated valid record and torn final fragment are distinguished without native tail repair (12.5573ms)
+✔ malformed interior records fail closed with line number rather than raw payload echo (4.678ms)
+✔ report rejects oversized files and invalid limits before reading a payload (2.7554ms)
+▶ report refuses file and parent symlinks and nonregular files
+  ﹣ file symlink refused (0.5271ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ report refuses file and parent symlinks and nonregular files (4.5278ms)
+✔ invalid UTF8, empty files and nonnative headers fail with bounded messages (16.5454ms)
+✔ duplicate replay is reconciled but conflicting identity, broken parents and cycles are refused (13.6432ms)
+✔ completed active branch reports no pending tool and preserves empty native branch metadata (8.7342ms)
+✔ native safe custom session IDs and assistant model settings survive metadata inspection (4.4104ms)
+✔ extra header payload and overlong native lines cannot leak through report metadata (11.1571ms)
+✔ malformed native message shapes and excessive nesting cannot become an empty or successful report (10.488ms)
+✔ the last physical replay record determines native resume leaf even when accounting deduplicates it (4.3495ms)
+✔ torn tail invalidates full subset and task totals and estimates while retaining observed accounting (4.3596ms)
+﹣ a regular session replaced by an unwritten FIFO before real open is refused without blocking (0.1362ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+ℹ tests 466
+ℹ suites 0
+ℹ pass 400
+ℹ fail 24
+ℹ cancelled 0
+ℹ skipped 42
+ℹ todo 0
+ℹ duration_ms 35289.5413
+
+✖ failing tests:
+
+test at tests\context-shaping.test.mjs:34:1
+✖ module import is inert in a fresh process (37.2437ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/load:193
+      throw new ERR_UNSUPPORTED_ESM_URL_SCHEME(parsed, schemes);
+            ^
+  
+  Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only URLs with a scheme in: file, data, and node are supported by the default ESM loader. On Windows, absolute paths must be valid file:// URLs. Received protocol 'c:'
+      at throwIfUnsupportedURLScheme (node:internal/modules/esm/load:193:11)
+      at defaultLoadSync (node:internal/modules/esm/load:146:3)
+      at #loadAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:802:12)
+      at #loadSync (node:internal/modules/esm/loader:834:53)
+      at ModuleLoader.load (node:internal/modules/esm/loader:783:26)
+      at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:494:31)
+      at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+      at afterResolve (node:internal/modules/esm/loader:607:52)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_UNSUPPORTED_ESM_URL_SCHEME'
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:40:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\context-shaping.test.mjs:44:1
+✖ ANSI cleanup, carriage-return progress and repeated lines retain exact raw spill (18.9844ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:49:18)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:62:1
+✖ newline progress bars are condensed without hiding a progress-adjacent failure (10.3141ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:67:18)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:75:1
+✖ caps include newlines, omission markers and log reference while retaining head and tail (9.1662ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:78:18)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:87:1
+✖ Unicode long lines keep both ends without replacement characters or excess bytes (9.1154ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:91:18)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:99:1
+✖ test failure context and assertion diff in the middle survive bounded selection (9.0065ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:105:18)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:112:1
+✖ compiler diagnostics and package-manager failures survive the middle of output (9.1281ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:119:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:125:1
+✖ git diff keeps a hunk and changed lines with bounded head/tail (8.9939ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:131:16)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:137:1
+✖ native Bash structured output remains coherent with shaped content and status fields (10.2702ms)
+  TypeError: Cannot read properties of undefined (reading 'structuredContent')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:144:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:153:1
+✖ nested native Bash JSON remains intact for codemode before parent output is shaped (11.4248ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:174:31)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:178:1
+✖ native full-output pointer is preserved and spill contains only hook-visible text (9.7627ms)
+  TypeError: Cannot read properties of undefined (reading 'details')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:186:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:196:1
+✖ real native Bash overflow distinguishes model text bytes from structured output bytes (18.7335ms)
+  TypeError: Cannot read properties of undefined (reading 'details')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:216:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:235:1
+✖ non-path custom details cannot corrupt the native structured path schema (11.4121ms)
+  TypeError: Cannot read properties of undefined (reading 'details')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:240:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:250:1
+✖ nontext payloads survive exactly while the neighboring text is shaped (8.2248ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:255:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:260:1
+✖ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive (11.3912ms)
+  TypeError: Cannot read properties of undefined (reading 'details')
+      at file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:265:42
+      at Array.map (<anonymous>)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:265:25)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\context-shaping.test.mjs:309:1
+✖ newline-heavy output and very small valid caps remain bounded (13.6905ms)
+  TypeError: Cannot read properties of undefined (reading 'content')
+      at textOf (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:24:33)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-shaping.test.mjs:313:33)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\features-skills.test.mjs:109:45
+✖ profiling executes a real offline probe and returns its domain evidence (44.089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at cases.package.json (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:99:169)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:120:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\features-skills.test.mjs:109:45
+✖ databases executes a real offline probe and returns its domain evidence (46.844ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at cases..git/HEAD (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:104:203)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:120:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\launcher.test.mjs:46:1
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.8199ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /apex-context\/index\.mjs$/. Input:
+  
+  'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:53:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs',
+    expected: /apex-context\/index\.mjs$/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\launcher.test.mjs:61:1
+✖ route selection loads its model before Pi selection and still keeps physical policy (10.9957ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(args.some(value=>value.endsWith('/apex-router/index.mjs')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:43:1
+✖ native codemode gate detects corrupt shaping of programmatic JSON results (1226.2243ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:48:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:55:1
+✖ native Phase 1 factory initializes actual wrappers, lazy loadout and cancellation offline (1201.5652ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_phase1_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded local native tool calls plus an explicitly synthetic text masking observation","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"native_session_start":true,"registered_flag":true,"effective_model":true,"offline_settings":true,"actual_tool_definitions":true,"native_tools_executed":true,"native_result_hook":false,"native_lazy_loadout":true,"codemode_models_disabled":true,"codemode_programmatic_json_intact":true,"native_router":true,"persisted_masking":true,"native_compaction_cancelled":true,"no_extension_errors":true,"environment_sanitized":true,"no_ambient_discovery":true},"cleanup":{"fixture_removed":true},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase1-micro-04jLjA","pi_version":"0.99.2","settings":{"cache_warming":"off","retry_enabled":false,"automatic_compaction_enabled":false},"registration":{"extension_count":2,"registered_tool_count":11,"active_tool_count_before_discovery":9,"callable_tool_count":8,"names":["read","edit","grep","find","ls","apply_patch","tool_search","codemode"],"post_registration_refreshes_suppressed":1},"compaction":{"cancelled":true,"hook_calls":1,"entry_count":0},"codemode":{"models_global":"undefined","engine_source":"pinned installed Pi QuickJS worker; no engine installation","native_script_executed":true,"programmatic_json_bytes":20481,"programmatic_json_item_count":4096,"programmatic_nested_call_count":1,"programmatic_tiny_output":true},"synthetic_metrics":{"shape":{"returned_ratio":null,"source":"actual native bash hook-visible result"},"mask":{"original_bytes":26600,"returned_bytes":188,"returned_ratio":0.007067669172932331,"source":"synthetic text observation in native persisted projection"},"provider_token_savings_measured":false},"failure":"offline_phase1_contract_failed"}
+  
+  'FAIL' !== 'PASS'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:60:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FAIL',
+    expected: 'PASS',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:30:1
+✖ native Phase 2 gate proves supported opt-in state and reports Unix-only process proof honestly (1389.7448ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_phase2_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded native tools/boundaries; deterministic injected clock and synthetic masking observation","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"environment_sanitized":true,"no_ambient_discovery":true},"cleanup":{"fixture_removed":true,"owned_processes_removed":true,"recovered_owned_ids":0},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase2-micro-FJLyIg","failure":"fixture_tool_failed","failure_stage":"verification_gate","failure_code":null}
+  + actual - expected
+  
+  + 'fixture_tool_failed'
+  - 'native_background_requires_unix'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:37:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'fixture_tool_failed',
+    expected: 'native_background_requires_unix',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:82:1
+✖ missing native settlement gate fails instead of inventing offline verification success (1284.8852ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:87:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

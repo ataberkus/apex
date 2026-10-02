@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "kind": "native_git_longpath_repro",
+  "source_run": "windows-sol-live-005",
+  "before": "Live native /undo failed at Git update-ref refs/apex/restored/<64-character SHA-256> with cannot lock ref under fixture/.apex/checkpoints/<64-character session key>/shadow/.git.",
+  "after_command": "git -c core.longpaths=true --git-dir runs/model-smoke/windows-sol-live-005/fixture/.apex/checkpoints/45d2c52624674f1bf45661c43a7009a1760137c8b31377b73d81eb2bff2f73ed/shadow/.git update-ref refs/apex/restored/4523540f1504cd17100c4835e85b7eefd49911580f8efff0599a8f283be6b9e3 173353183e3f751e5e3b1d2b272fdf697ed8a998",
+  "after_exit_code": 0,
+  "persistent_windows_or_git_settings_changed": false,
+  "scope": "Only the scoped ref operation is proven; this does not claim successful checkpoint restore or change the failed run's result."
+}

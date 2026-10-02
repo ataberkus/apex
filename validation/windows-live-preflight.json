@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "kind": "windows_live_harness_preflight_attempts",
+  "attempts": [
+    {"run_id":"windows-sol-live-001","physical_requests":0,"reservation_created":false,"failure":"Pinned SDK does not export AuthStorage; corrected to provider-only in-memory credential store."},
+    {"run_id":"windows-sol-live-002","physical_requests":0,"reservation_created":false,"failure":"Pinned SDK does not export AuthStorage; corrected to provider-only in-memory credential store."},
+    {"run_id":"windows-sol-live-003","physical_requests":0,"reservation_created":false,"failure":"Pinned SDK does not export AuthStorage; corrected to provider-only in-memory credential store."}
+  ],
+  "credentials_logged_or_copied": false,
+  "benchmark_result": false
+}

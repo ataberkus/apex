@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "kind": "windows_interactive_terminal_acceptance",
+  "status": "PASS",
+  "date": "2026-10-02",
+  "host": "Windows 10 19045, Windows PowerShell 5.1 console host (conhost), no Windows Terminal",
+  "command": "node bin/apex --apex-target windows --apex-context read,search,edit,shape --apex-core todo,verify --apex-features cost,checkpoints,plan,safety,report",
+  "resolved_model": "openai-codex/gpt-6.1-sol, thinking xhigh",
+  "input_method": "WriteConsoleInputW key events into the console input buffer; screen read with ReadConsoleOutputCharacterW plus window screenshots",
+  "checks": {
+    "startup_loads_three_extensions": true,
+    "safety_confirm_dialog_rendered": true,
+    "safety_escape_denies_and_blocks": true,
+    "safety_enter_allows_edit": true,
+    "safety_enter_allows_bash": true,
+    "edit_applied_to_fixture": true,
+    "cost_command_reports_usage": true,
+    "undo_restores_edit": true,
+    "plan_offline_without_model_request": true,
+    "plan_cancel": true,
+    "plan_save_writes_plan_md": true,
+    "undo_removes_saved_plan": true,
+    "report_command_outputs_json": true,
+    "ctrl_d_exits_to_shell": true
+  },
+  "observations": [
+    "Denied edit and bash calls returned 'Tool action was not confirmed.' and left sample.txt unchanged.",
+    "Approved edit changed beta to delta; /undo printed 'Turn 9: restored; 1 paths.' and sample.txt returned to alpha/beta/gamma.",
+    "/plan save wrote PLAN.md; /undo printed 'Turn 12: restored; 1 paths.' and git status was clean.",
+    "Pi's default system theme draws violet tokens (inline code, list bullets) with ANSI palette slot 5; the Windows PowerShell 5.1 console maps that slot to its background, so those spans are invisible there. Pi's built-in dark theme renders them in truecolor and is readable."
+  ],
+  "provider": "openai-codex OAuth subscription",
+  "footer_session_estimate_usd": 0.0256,
+  "fixture_removed": true
+}

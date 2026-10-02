@@ -1,0 +1,767 @@
+
+> @apex-agent/pi@0.0.0 micro:windows
+> node scripts/micro-windows.mjs
+
+{
+  "schema_version": 1,
+  "kind": "windows_native_micro",
+  "target": "windows",
+  "status": "PASS",
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "model_performance_measured": false,
+  "contracts": {
+    "tools": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_tool_contract",
+        "provider_calls": 0,
+        "results": [
+          {
+            "check": "write",
+            "passed": true
+          },
+          {
+            "check": "read_range",
+            "passed": true
+          },
+          {
+            "check": "batch_edit_apply",
+            "passed": true
+          },
+          {
+            "check": "edit_precondition_preserves_file",
+            "passed": true
+          },
+          {
+            "check": "grep",
+            "passed": true
+          },
+          {
+            "check": "find",
+            "passed": true
+          },
+          {
+            "check": "ls",
+            "passed": true
+          },
+          {
+            "check": "bash",
+            "passed": true
+          }
+        ]
+      }
+    },
+    "session": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_session_contract",
+        "status": "PASS",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinking_level": "xhigh",
+        "transcript_source": "script-seeded assistant tool calls with actual native built-in tool results",
+        "summary_source": "deterministic local extension fixture",
+        "model_performance_measured": false,
+        "provider_calls": 0,
+        "benchmark_runs": 0,
+        "network_attempts": 0,
+        "transport_attempts": 0,
+        "resource_discovery_attempts": 0,
+        "attempted_calls": {
+          "network": 0,
+          "auth": 0,
+          "inference": 0,
+          "credentials": 0
+        },
+        "checks": {
+          "no_ambient_discovery": true,
+          "environment_sanitized": true,
+          "native_compaction": true,
+          "recent_context_preserved": true,
+          "summary_contract_preserved": true,
+          "branch_state_preserved": true,
+          "builtin_file_results_verified": true,
+          "fresh_process_reopen": true,
+          "fresh_sdk_restore": true,
+          "partial_tail_recovery": true,
+          "append_after_recovery": true
+        },
+        "cleanup": {
+          "fixture_removed": true
+        },
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-aLIvaG",
+        "pi_version": "0.99.2",
+        "compaction": {
+          "entry_count": 1,
+          "read_files": [
+            "read-only.txt"
+          ],
+          "modified_files": [
+            "changed.txt",
+            "new.txt"
+          ],
+          "deterministic_summary_only": true,
+          "inferred_summary": false
+        },
+        "recovery": {
+          "malformed_fragment_retained": true,
+          "malformed_fragment_reconstructed": false,
+          "power_loss_durability_tested": false,
+          "scope": "fresh-process transcript/state recovery; no in-flight tool or provider-stream continuation"
+        }
+      }
+    },
+    "context": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_phase1_contract",
+        "status": "PASS",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinking_level": "xhigh",
+        "transcript_source": "script-seeded local native tool calls plus an explicitly synthetic text masking observation",
+        "model_performance_measured": false,
+        "provider_calls": 0,
+        "benchmark_runs": 0,
+        "network_attempts": 0,
+        "transport_attempts": 0,
+        "resource_discovery_attempts": 0,
+        "attempted_calls": {
+          "network": 0,
+          "auth": 0,
+          "inference": 0,
+          "credentials": 0
+        },
+        "checks": {
+          "native_session_start": true,
+          "registered_flag": true,
+          "effective_model": true,
+          "offline_settings": true,
+          "actual_tool_definitions": true,
+          "native_tools_executed": true,
+          "native_result_hook": true,
+          "native_lazy_loadout": true,
+          "codemode_models_disabled": true,
+          "codemode_programmatic_json_intact": true,
+          "native_router": true,
+          "persisted_masking": true,
+          "native_compaction_cancelled": true,
+          "no_extension_errors": true,
+          "environment_sanitized": true,
+          "no_ambient_discovery": true
+        },
+        "cleanup": {
+          "fixture_removed": true
+        },
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase1-micro-FDEpw8",
+        "pi_version": "0.99.2",
+        "settings": {
+          "cache_warming": "off",
+          "retry_enabled": false,
+          "automatic_compaction_enabled": false
+        },
+        "registration": {
+          "extension_count": 2,
+          "registered_tool_count": 11,
+          "active_tool_count_before_discovery": 9,
+          "callable_tool_count": 8,
+          "names": [
+            "read",
+            "edit",
+            "grep",
+            "find",
+            "ls",
+            "apply_patch",
+            "tool_search",
+            "codemode"
+          ],
+          "post_registration_refreshes_suppressed": 1
+        },
+        "compaction": {
+          "cancelled": true,
+          "hook_calls": 1,
+          "entry_count": 0
+        },
+        "codemode": {
+          "models_global": "undefined",
+          "engine_source": "pinned installed Pi QuickJS worker; no engine installation",
+          "native_script_executed": true,
+          "programmatic_json_bytes": 20481,
+          "programmatic_json_item_count": 4096,
+          "programmatic_nested_call_count": 1,
+          "programmatic_tiny_output": true
+        },
+        "synthetic_metrics": {
+          "shape": {
+            "original_bytes": 38390,
+            "returned_bytes": 6536,
+            "returned_ratio": 0.17025266996613703,
+            "source": "actual native bash hook-visible result"
+          },
+          "mask": {
+            "original_bytes": 26600,
+            "returned_bytes": 188,
+            "returned_ratio": 0.007067669172932331,
+            "source": "synthetic text observation in native persisted projection"
+          },
+          "provider_token_savings_measured": false
+        }
+      }
+    },
+    "core": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_phase2_windows_contract",
+        "scope": "windows",
+        "status": "PASS",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinking_level": "xhigh",
+        "transcript_source": "script-seeded native tools/boundaries; deterministic injected clock and synthetic masking observation",
+        "model_performance_measured": false,
+        "provider_calls": 0,
+        "benchmark_runs": 0,
+        "network_attempts": 0,
+        "transport_attempts": 0,
+        "resource_discovery_attempts": 0,
+        "attempted_calls": {
+          "network": 0,
+          "auth": 0,
+          "inference": 0,
+          "credentials": 0
+        },
+        "checks": {
+          "default_features_off": true,
+          "native_registration": true,
+          "effective_model": true,
+          "offline_settings": true,
+          "native_profile_preserves_context": true,
+          "native_initial_context_persisted": true,
+          "native_todo_drop_reason": true,
+          "auxiliary_denied_before_auth": true,
+          "native_gate_two_continuations": true,
+          "native_verification_after_mutation": true,
+          "native_tools_executed": true,
+          "native_nested_tool_ordering": true,
+          "native_phase1_boundary_composition": true,
+          "native_todo_steer_once": true,
+          "native_loop_notes_bounded": true,
+          "native_time_notes_bounded": true,
+          "native_branch_restoration": true,
+          "windows_bg_refused_before_allocation": true,
+          "no_extension_errors": true,
+          "environment_sanitized": true,
+          "no_ambient_discovery": true
+        },
+        "cleanup": {
+          "fixture_removed": true,
+          "owned_processes_removed": true,
+          "recovered_owned_ids": 0
+        },
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase2-micro-mOQ6Oh",
+        "gate": {
+          "initial_context_can_continue": false,
+          "forced_continuations": 2,
+          "after_cap_continue": false,
+          "before_verification_continue": true,
+          "after_verified_continue": false
+        },
+        "notes": {
+          "todo_steers": 1,
+          "loop_notes": 2,
+          "time_thresholds": [
+            50,
+            75,
+            90
+          ]
+        },
+        "registration": {
+          "session_starts": 3,
+          "flags": {
+            "apex-core-flags": "",
+            "headless": false,
+            "apex-time-budget": "",
+            "apex-attempts": "2"
+          },
+          "names": [
+            "contract",
+            "todo",
+            "bg",
+            "explore",
+            "verify"
+          ],
+          "post_registration_refreshes_suppressed": 0
+        },
+        "auxiliary": {
+          "explore_blocked": true,
+          "verify_blocked": true,
+          "extraction_blocked": true,
+          "max_blocked": true,
+          "max_side_effects": 0
+        },
+        "nested": {
+          "call_count": 2,
+          "successful_check_after_write": true,
+          "after_nested_continue": false
+        },
+        "evidence": {
+          "transcript": "Script-seeded user/assistant messages; no model completions.",
+          "tools": "Actual Pi registered definitions with native tool-call/result and execution hooks; nested calls run through native codemode/QuickJS.",
+          "initial_context": "Native before_agent_start messages committed through SessionManager alongside its native prompt/loadout preparation; no provider request.",
+          "settlement": "Pinned Pi AgentSession._runBeforeSettleBoundary commits real native boundary drafts; no continuation request executed.",
+          "clock": "Injected deterministic monotonic milliseconds; no live elapsed-time measurement.",
+          "context": "Explicit fixture supplied through native agentsFilesOverride; ambient discovery remains denied.",
+          "masking": "Synthetic text-only observation; real Phase 1 projection and context_edit persistence."
+        },
+        "extension_errors": [],
+        "pi_version": "0.99.2",
+        "background": {
+          "status": "NOT_APPLICABLE",
+          "reason": "Unix process survival is outside Windows-native acceptance; refusal before allocation is tested instead."
+        }
+      }
+    },
+    "features": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_phase3_contract",
+        "status": "PASS",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinking_level": "xhigh",
+        "transcript_source": "Script-seeded native commands/tools/resources/session boundaries; no model completion.",
+        "model_performance_measured": false,
+        "provider_calls": 0,
+        "benchmark_runs": 0,
+        "network_attempts": 0,
+        "transport_attempts": 0,
+        "resource_discovery_attempts": 0,
+        "attempted_calls": {
+          "network": 0,
+          "auth": 0,
+          "inference": 0,
+          "credentials": 0
+        },
+        "checks": {
+          "default_features_off": true,
+          "native_registration": true,
+          "effective_model": true,
+          "offline_settings": true,
+          "native_plan_read_allowed": true,
+          "native_plan_mutations_blocked": true,
+          "native_plan_nested_blocked": true,
+          "native_plan_deferred_blocked": true,
+          "native_plan_core_cooperation": true,
+          "native_plan_saved_exactly": true,
+          "native_plan_loadout_restored": true,
+          "native_remember_append": true,
+          "native_learnings_context": true,
+          "native_eval_remember_absent": true,
+          "native_eval_learnings_pre_io": true,
+          "native_skills_discovery": true,
+          "native_skill_expansion": true,
+          "native_usage_accounting": true,
+          "native_report": true,
+          "native_checkpoint_undo": true,
+          "source_git_index_unchanged": true,
+          "native_resume_custom_state": true,
+          "native_resume_recent_read": true,
+          "native_resume_pending_not_replayed": true,
+          "native_checkpoint_reopen": true,
+          "native_review_guarded": true,
+          "guarded_cli_commands": true,
+          "structured_results_preserved": true,
+          "no_extension_errors": true,
+          "environment_sanitized": true,
+          "no_ambient_discovery": true
+        },
+        "cleanup": {
+          "fixture_removed": true,
+          "owned_processes_removed": true
+        },
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase3-micro-6Db1Uj",
+        "registration": {
+          "session_starts": 5,
+          "flags": {
+            "apex-feature-flags": "",
+            "apex-eval": false
+          },
+          "commands": [
+            "cost",
+            "undo",
+            "plan",
+            "review",
+            "report",
+            "resume-info"
+          ],
+          "local_refreshes_suppressed": 0
+        },
+        "plan": {
+          "read_allowed": true,
+          "direct_write_blocked": true,
+          "bash_blocked": true,
+          "nested_write_blocked": true,
+          "deferred_blocked": true,
+          "core_continuation": false,
+          "literal_markdown_bytes": 85,
+          "entered": true,
+          "saved": true
+        },
+        "accounting": {
+          "source": "Script-seeded native assistant usage, checked against native getSessionStats; no inference or real spend.",
+          "input": null,
+          "output": null,
+          "cache_read": null,
+          "cache_write": null,
+          "known_totals": {
+            "input": 101,
+            "cacheRead": 7,
+            "cacheWrite": 3,
+            "output": 23,
+            "totalTokens": 134,
+            "thinking": 5,
+            "cacheWrite1h": 0
+          },
+          "completeness": {
+            "usage": false,
+            "cost": false,
+            "thinking": false,
+            "issues": [
+              "zero_usage_placeholder"
+            ]
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": null,
+            "knownNativeEstimateUsd": 0.0001492,
+            "pricingEstimateUsd": null,
+            "knownPricingEstimateUsd": 0.000014714
+          },
+          "clean_native_totals": {
+            "input": 101,
+            "cacheRead": 7,
+            "cacheWrite": 3,
+            "output": 23,
+            "totalTokens": 134,
+            "thinking": 5,
+            "cacheWrite1h": null
+          },
+          "clean_native_estimate_usd": 0.0001492,
+          "seeded_native_estimate_usd": 0.0001492,
+          "actual_provider_spend_measured": false
+        },
+        "checkpoint": {
+          "source": "Actual registered native writes, turn_start/finishTurn boundaries, private shadow Git and /undo command.",
+          "dirty_restored": true,
+          "reopened_restored": true,
+          "user_git_index_unchanged": true,
+          "undo_status": "restored"
+        },
+        "resume": {
+          "source": "Native SessionManager.open of exact persisted JSONL; no model prompt or automatic tool replay.",
+          "custom_state_preserved": true,
+          "recent_read_preserved": true,
+          "unfinished_tool_replayed": false
+        },
+        "skills": {
+          "source": "Native resources_discover -> DefaultResourceLoader.extendResources metadata, _expandSkillCommand and registered read.",
+          "names": [
+            "debugging",
+            "test-writing",
+            "profiling",
+            "build-systems",
+            "python-packaging",
+            "numerics",
+            "http",
+            "databases",
+            "git-surgery",
+            "security-hardening"
+          ],
+          "prompt_templates_loaded": 0
+        },
+        "cli": {
+          "source": "Actual bin/apex imports in bounded offline subprocesses; SDK execution and credential reads are trapped.",
+          "denied_statuses": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "report_status": 0,
+          "sdk_initializations": 0
+        },
+        "evidence": {
+          "transcript": "Script-seeded user/assistant records; actual Pi native command handlers, definitions and hooks, no model completion.",
+          "nested": "Actual createToolContext.executeTool uses native nested callable-tool validation and tool hooks; model-disabled direct write is refused by native validation.",
+          "eval": "Actual eval session startup/before_agent_start with learnings path I/O traps; tool absent from registry/callable set.",
+          "discovery": "Explicit fixture context and isolated package manager; selected project skill paths only.",
+          "accounting": "Synthetic seeded token/cost fields are labeled fixtures, not claims about provider spend or benchmark performance."
+        },
+        "extension_errors": [],
+        "pi_version": "0.99.2"
+      }
+    },
+    "sol": {
+      "status": "PASS",
+      "exit_code": 0,
+      "report": {
+        "kind": "offline_windows_sol_contract",
+        "status": "PASS",
+        "model": "openai-codex/gpt-6.1-sol",
+        "thinking_level": "xhigh",
+        "transcript_source": "Script-seeded native commands/tools/resources/session boundaries; no model completion.",
+        "model_performance_measured": false,
+        "provider_calls": 0,
+        "benchmark_runs": 0,
+        "network_attempts": 0,
+        "transport_attempts": 0,
+        "resource_discovery_attempts": 0,
+        "attempted_calls": {
+          "network": 0,
+          "auth": 0,
+          "inference": 0,
+          "credentials": 0
+        },
+        "checks": {
+          "default_features_off": true,
+          "native_registration": true,
+          "effective_model": true,
+          "offline_settings": true,
+          "native_plan_read_allowed": true,
+          "native_plan_mutations_blocked": true,
+          "native_plan_nested_blocked": true,
+          "native_plan_deferred_blocked": true,
+          "native_plan_core_cooperation": true,
+          "native_plan_saved_exactly": true,
+          "native_plan_loadout_restored": true,
+          "native_remember_append": true,
+          "native_learnings_context": true,
+          "native_eval_remember_absent": true,
+          "native_eval_learnings_pre_io": true,
+          "native_skills_discovery": true,
+          "native_skill_expansion": true,
+          "native_usage_accounting": true,
+          "native_report": true,
+          "native_checkpoint_undo": true,
+          "source_git_index_unchanged": true,
+          "native_resume_custom_state": true,
+          "native_resume_recent_read": true,
+          "native_resume_pending_not_replayed": true,
+          "native_checkpoint_reopen": true,
+          "native_review_guarded": true,
+          "guarded_cli_commands": true,
+          "windows_literal_paths_crlf": true,
+          "windows_context_tools": true,
+          "windows_shape_checkpoint_composition": true,
+          "windows_composed_undo": true,
+          "windows_sol_launcher": true,
+          "structured_results_preserved": true,
+          "no_extension_errors": true,
+          "environment_sanitized": true,
+          "no_ambient_discovery": true
+        },
+        "cleanup": {
+          "fixture_removed": true,
+          "owned_processes_removed": true
+        },
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\windows sol ç-BJ5YSL",
+        "registration": {
+          "session_starts": 6,
+          "flags": {
+            "apex-feature-flags": "",
+            "apex-eval": false
+          },
+          "commands": [
+            "cost",
+            "undo",
+            "plan",
+            "review",
+            "report",
+            "resume-info"
+          ],
+          "local_refreshes_suppressed": 0
+        },
+        "plan": {
+          "read_allowed": true,
+          "direct_write_blocked": true,
+          "bash_blocked": true,
+          "nested_write_blocked": true,
+          "deferred_blocked": true,
+          "core_continuation": false,
+          "literal_markdown_bytes": 85,
+          "entered": true,
+          "saved": true
+        },
+        "accounting": {
+          "source": "Script-seeded native assistant usage, checked against native getSessionStats; no inference or real spend.",
+          "input": null,
+          "output": null,
+          "cache_read": null,
+          "cache_write": null,
+          "known_totals": {
+            "input": 101,
+            "cacheRead": 7,
+            "cacheWrite": 3,
+            "output": 23,
+            "totalTokens": 134,
+            "thinking": 5,
+            "cacheWrite1h": 0
+          },
+          "completeness": {
+            "usage": false,
+            "cost": false,
+            "thinking": false,
+            "issues": [
+              "zero_usage_placeholder"
+            ]
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": null,
+            "knownNativeEstimateUsd": 0.0001492,
+            "pricingEstimateUsd": null,
+            "knownPricingEstimateUsd": 0.0004402
+          },
+          "clean_native_totals": {
+            "input": 101,
+            "cacheRead": 7,
+            "cacheWrite": 3,
+            "output": 23,
+            "totalTokens": 134,
+            "thinking": 5,
+            "cacheWrite1h": null
+          },
+          "clean_native_estimate_usd": 0.0001492,
+          "seeded_native_estimate_usd": 0.0001492,
+          "actual_provider_spend_measured": false
+        },
+        "checkpoint": {
+          "source": "Actual registered native writes, turn_start/finishTurn boundaries, private shadow Git and /undo command.",
+          "dirty_restored": true,
+          "reopened_restored": true,
+          "user_git_index_unchanged": true,
+          "undo_status": "restored"
+        },
+        "resume": {
+          "source": "Native SessionManager.open of exact persisted JSONL; no model prompt or automatic tool replay.",
+          "custom_state_preserved": true,
+          "recent_read_preserved": true,
+          "unfinished_tool_replayed": false
+        },
+        "skills": {
+          "source": "Native resources_discover -> DefaultResourceLoader.extendResources metadata, _expandSkillCommand and registered read.",
+          "names": [
+            "debugging",
+            "test-writing",
+            "profiling",
+            "build-systems",
+            "python-packaging",
+            "numerics",
+            "http",
+            "databases",
+            "git-surgery",
+            "security-hardening"
+          ],
+          "prompt_templates_loaded": 0
+        },
+        "cli": {
+          "source": "Actual bin/apex imports in bounded offline subprocesses; SDK execution and credential reads are trapped.",
+          "denied_statuses": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "report_status": 0,
+          "sdk_initializations": 0
+        },
+        "evidence": {
+          "transcript": "Script-seeded user/assistant records; actual Pi native command handlers, definitions and hooks, no model completion.",
+          "nested": "Actual createToolContext.executeTool uses native nested callable-tool validation and tool hooks; model-disabled direct write is refused by native validation.",
+          "eval": "Actual eval session startup/before_agent_start with learnings path I/O traps; tool absent from registry/callable set.",
+          "discovery": "Explicit fixture context and isolated package manager; selected project skill paths only.",
+          "accounting": "Synthetic seeded token/cost fields are labeled fixtures, not claims about provider spend or benchmark performance."
+        },
+        "extension_errors": [],
+        "pi_version": "0.99.2"
+      }
+    }
+  },
+  "deferred": [
+    "Harbor/Terminal-Bench and two-model performance acceptance",
+    "OCI proposer execution and container-backed evolution",
+    "Unix owned-process survival and process-group cleanup"
+  ],
+  "complete_project_acceptance": false,
+  "preflight": {
+    "schema_version": 1,
+    "kind": "windows_native_preflight",
+    "readiness": "tooling-ready",
+    "target": "windows",
+    "tooling_only": true,
+    "provider_calls": 0,
+    "paid_execution": false,
+    "auth_checked": false,
+    "checks": [
+      {
+        "id": "native-windows",
+        "status": "pass",
+        "required": true,
+        "message": "Run with native Windows Node, not WSL."
+      },
+      {
+        "id": "node",
+        "status": "pass",
+        "required": true,
+        "observed": "24.19.0",
+        "minimum": "22.19.0"
+      },
+      {
+        "id": "pi-pin",
+        "status": "pass",
+        "required": true,
+        "observed": "0.99.2",
+        "expected": "0.99.2"
+      },
+      {
+        "id": "git",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "git-bash",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "ripgrep",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "fd",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "windows-powershell-net",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "private-spill-helper",
+        "status": "pass",
+        "required": true
+      }
+    ],
+    "deferred": [
+      "Harbor/Terminal-Bench and two-model performance acceptance",
+      "OCI proposer execution and container-backed evolution",
+      "Unix owned-process survival and process-group cleanup"
+    ],
+    "scope": "Native tooling only. No installs, containers, credentials, inference, or benchmark acceptance."
+  },
+  "fixture_removed": true
+}

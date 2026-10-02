@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "budget_cap_usd": 1,
+  "confirmed_spend_usd": 0.002482108,
+  "reserved_usd": 0,
+  "currency": "USD",
+  "reservations": [
+    {
+      "run_id": "muse-smoke-001",
+      "model": "openrouter/meta/muse-spark-1.3-contributor",
+      "reserved_usd": 0.02,
+      "status": "reconciled",
+      "purpose": "Native stock Pi SDK four-tool synthetic smoke at xhigh thinking, at most four requests, max6144 completion tokens/request; no benchmark tasks or web search.",
+      "billed_cost_usd": 0.000905606,
+      "receipt_file": "runs/model-smoke/muse-smoke-001/receipts.json"
+    },
+    {
+      "run_id": "muse-smoke-002",
+      "model": "openrouter/meta/muse-spark-1.3-contributor",
+      "reserved_usd": 0.03,
+      "status": "reconciled",
+      "purpose": "Separate native Pi xhigh four-tool synthetic smoke with six-request ceiling, max6144 output tokens/request, bounded32768-byte payload; no benchmark tasks or web search.",
+      "billed_cost_usd": 0.001576502,
+      "receipt_file": "runs/model-smoke/muse-smoke-002/receipts.json"
+    }
+  ],
+  "notes": [
+    "The API key remains in transient runtime memory, outside all files and artifacts.",
+    "Provider generation receipts will reconcile spend; if unavailable, retain the reservation instead of treating unknown usage as free.",
+    "Latest user instruction is free-only: paid evaluations disabled. The unused historical cap is frozen; this continuation adds zero provider requests and zero spend."
+  ],
+  "remaining_usd": 0.997517892,
+  "inference_requests": 9
+}

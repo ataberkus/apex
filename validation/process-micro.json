@@ -1,0 +1,17 @@
+{
+  "kind": "offline_process_contract",
+  "status": "SKIP",
+  "proof": "service survives native tool-host exit",
+  "platform": "win32",
+  "provider_calls": 0,
+  "network_scope": "ephemeral loopback HTTP only",
+  "host": {
+    "exited_successfully": false
+  },
+  "post_exit_health": {
+    "succeeded": false
+  },
+  "cleanup": {},
+  "skip_reason": "requires Linux setsid and nohup",
+  "elapsed_ms": 0
+}

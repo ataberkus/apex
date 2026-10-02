@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "kind": "windows_file_symlink_capability",
+  "status": "BLOCKED",
+  "native_windows": true,
+  "node": "24.19.0",
+  "libuv": "1.52.1",
+  "provider_calls": 0,
+  "elevation_requested": false,
+  "security_policy_changed": false,
+  "file_symlink_boundaries_passed": false,
+  "prerequisite": "Run this probe and the targeted tests in a native Windows environment already allowing unprivileged file symlinks (Developer Mode), or with SeCreateSymbolicLinkPrivilege already available to the non-elevated process token. This probe does not grant privileges, elevate, or change policy.",
+  "reachable_boundaries": [
+    {
+      "id": "write-lexical-and-external-junction-confinement",
+      "link_type": "directory-junction",
+      "status": "PASS"
+    },
+    {
+      "id": "environment-excludes-external-junction",
+      "link_type": "directory-junction",
+      "status": "PASS"
+    },
+    {
+      "id": "learnings-junction-root-refused",
+      "link_type": "directory-junction",
+      "status": "PASS"
+    },
+    {
+      "id": "session-junction-ancestor-refused",
+      "link_type": "directory-junction",
+      "status": "PASS"
+    },
+    {
+      "id": "checkpoint-multiple-file-links-refused",
+      "link_type": "hard-link",
+      "status": "PASS"
+    }
+  ],
+  "node_attempts": [
+    {
+      "name": "node-file",
+      "type": "file",
+      "created": false,
+      "error_code": "EPERM",
+      "errno": -4048,
+      "syscall": "symlink"
+    },
+    {
+      "name": "node-relative",
+      "type": "file",
+      "created": false,
+      "error_code": "EPERM",
+      "errno": -4048,
+      "syscall": "symlink"
+    },
+    {
+      "name": "node-dangling",
+      "type": "file",
+      "created": false,
+      "error_code": "EPERM",
+      "errno": -4048,
+      "syscall": "symlink"
+    }
+  ],
+  "native_api": {
+    "attempts": [
+      {
+        "win32_error": 1314,
+        "flags": 0,
+        "created": false,
+        "name": "file-privileged"
+      },
+      {
+        "win32_error": 1314,
+        "flags": 2,
+        "created": false,
+        "name": "file-unprivileged"
+      },
+      {
+        "win32_error": 1314,
+        "flags": 2,
+        "created": false,
+        "name": "file-relative"
+      },
+      {
+        "win32_error": 1314,
+        "flags": 2,
+        "created": false,
+        "name": "file-dangling"
+      }
+    ],
+    "developer_mode": null,
+    "symlink_privilege_listed": false
+  },
+  "runtime_support": "AVAILABLE",
+  "reason": "ERROR_PRIVILEGE_NOT_HELD",
+  "native_alternative_available": false,
+  "reachable_boundaries_are_file_symlink_evidence": false,
+  "fixture_removed": true
+}

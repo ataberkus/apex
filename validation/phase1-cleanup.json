@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "kind": "owned_fixture_cleanup",
+  "removed_fixture_count": 18,
+  "owned_test_prefixes_only": true,
+  "recorded_loopback_endpoint_unavailable": true,
+  "process_cleanup_report_passed": true,
+  "in_process_absence": true,
+  "fresh_call_absence_verified": true,
+  "pi_core_changes": false,
+  "provider_calls": 0,
+  "additional_usd": 0,
+  "removed": [
+    "phase1-micro-9xnVaN",
+    "phase1-micro-Akrrx5",
+    "phase1-micro-MxaP0K",
+    "phase1-micro-RPfXOe",
+    "phase1-micro-eEgLkP",
+    "phase1-micro-ib3w4o",
+    "phase1-micro-keKhjH",
+    "phase1-micro-t7cpr1",
+    "phase1-micro-x88juu",
+    "process-micro-fault-0EANb9",
+    "process-micro-fault-qOUiiX",
+    "process-micro-fault-s39hvw",
+    "process-micro-jFLgIQ",
+    "process-micro-q3JxY0",
+    "session-micro-Tzzz7x",
+    "session-micro-mO2rfd",
+    "session-micro-wIMY6G",
+    "session-micro-wKoLVs"
+  ],
+  "limits": [
+    "managed filesystem fixture remnants reappeared after child cleanup; removed after all tests completed",
+    "no bare-PID termination or general filesystem/process guarantees"
+  ]
+}

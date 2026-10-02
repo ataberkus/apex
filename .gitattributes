@@ -1,0 +1,5 @@
+evals/datasets/** text eol=lf
+bin/apex text eol=lf
+scripts/*.sh text eol=lf
+# Raw verification output preserves diagnostic blank-line whitespace.
+validation/*.log -whitespace

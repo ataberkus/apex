@@ -1,0 +1,105 @@
+............E....................s.E..............s................E..............................................................E..........................
+======================================================================
+ERROR: test_snapshot_is_consumable_through_harbor_local_registry_path (test_datasets.DatasetTests.test_snapshot_is_consumable_through_harbor_local_registry_path)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Valo\Documents\GitHub\apex\tests\test_datasets.py", line 83, in test_snapshot_is_consumable_through_harbor_local_registry_path
+    from harbor.registry.client.factory import RegistryClientFactory
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\registry\client\__init__.py", line 1, in <module>
+    from harbor.registry.client.factory import RegistryClientFactory
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\registry\client\factory.py", line 3, in <module>
+    from harbor.constants import DEFAULT_REGISTRY_URL
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\constants.py", line 4, in <module>
+    CACHE_DIR = Path("~/.cache/harbor").expanduser()
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 808, in expanduser
+    raise RuntimeError("Could not determine home directory.")
+RuntimeError: Could not determine home directory.
+
+======================================================================
+ERROR: test_empty_regular_file_addition_and_deletion_are_real_tree_changes (test_evolve_integrity.EvolutionIntegrityTests.test_empty_regular_file_addition_and_deletion_are_real_tree_changes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\Valo\Documents\GitHub\apex\tests\test_evolve_integrity.py", line 361, in test_empty_regular_file_addition_and_deletion_are_real_tree_changes
+    self.assertEqual(self.command(deleted, 'cat-file', '-t', second['harness_commit']), b'commit\n')
+                     ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Valo\Documents\GitHub\apex\tests\test_evolve_integrity.py", line 45, in command
+    return subprocess.run(['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost',
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           '-c', 'commit.gpgSign=false', '-c', 'core.autocrlf=false',
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           '-C', str(directory), *arguments], input=data, capture_output=True,
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                          check=True, timeout=30, env=environment).stdout
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 556, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1222, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\subprocess.py", line 1646, in _communicate
+    raise TimeoutExpired(self.args, orig_timeout)
+subprocess.TimeoutExpired: Command '['git', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@localhost', '-c', 'commit.gpgSign=false', '-c', 'core.autocrlf=false', '-C', 'C:\\Users\\Valo\\AppData\\Local\\Temp\\tmpey7sv0xc\\empty-deleted', 'cat-file', '-t', 'ebfffeb581a12d4c373ae5ab5ee0bca2667ac6e6']' timed out after 30 seconds
+
+======================================================================
+ERROR: test_harbor_adapter (unittest.loader._FailedTest.test_harbor_adapter)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_harbor_adapter
+Traceback (most recent call last):
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\unittest\loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\unittest\loader.py", line 339, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\Valo\Documents\GitHub\apex\tests\test_harbor_adapter.py", line 11, in <module>
+    from harbor.agents.installed.pi import Pi
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\installed\pi.py", line 15, in <module>
+    from harbor.agents.installed.base import (
+    ...<2 lines>...
+    )
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\installed\base.py", line 15, in <module>
+    from harbor.agents.base import BaseAgent
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\base.py", line 19, in <module>
+    from harbor.environments.base import BaseEnvironment
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\environments\base.py", line 20, in <module>
+    from harbor.constants import MAIN_SERVICE_NAME
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\constants.py", line 4, in <module>
+    CACHE_DIR = Path("~/.cache/harbor").expanduser()
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 808, in expanduser
+    raise RuntimeError("Could not determine home directory.")
+RuntimeError: Could not determine home directory.
+
+
+======================================================================
+ERROR: test_phase3_adapter (unittest.loader._FailedTest.test_phase3_adapter)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_phase3_adapter
+Traceback (most recent call last):
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\unittest\loader.py", line 396, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\unittest\loader.py", line 339, in _get_module_from_name
+    __import__(name)
+    ~~~~~~~~~~^^^^^^
+  File "C:\Users\Valo\Documents\GitHub\apex\tests\test_phase3_adapter.py", line 13, in <module>
+    from harbor.agents.installed.pi import Pi
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\installed\pi.py", line 15, in <module>
+    from harbor.agents.installed.base import (
+    ...<2 lines>...
+    )
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\installed\base.py", line 15, in <module>
+    from harbor.agents.base import BaseAgent
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\agents\base.py", line 19, in <module>
+    from harbor.environments.base import BaseEnvironment
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\environments\base.py", line 20, in <module>
+    from harbor.constants import MAIN_SERVICE_NAME
+  File "C:\Users\Valo\Documents\GitHub\apex\.tools\uv\harbor\Lib\site-packages\harbor\constants.py", line 4, in <module>
+    CACHE_DIR = Path("~/.cache/harbor").expanduser()
+  File "C:\Users\Valo\AppData\Local\Programs\Python\Python313\Lib\pathlib\_local.py", line 808, in expanduser
+    raise RuntimeError("Could not determine home directory.")
+RuntimeError: Could not determine home directory.
+
+
+----------------------------------------------------------------------
+Ran 157 tests in 235.361s
+
+FAILED (errors=4, skipped=2)

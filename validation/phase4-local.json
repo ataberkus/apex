@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "phase4_local_engineering",
+  "local_scope_status": "implemented-and-smoke-verified",
+  "phase4_empirical_acceptance_criteria_met": false,
+  "project_definition_of_done_met": false,
+  "execution_policy": "offline-only",
+  "paid_runs_enabled": false,
+  "verification": {
+    "focused_checks_passed": 49,
+    "node_checks_passed": 6,
+    "python_checks_passed": 43,
+    "python_checks_skipped": 2,
+    "skip_reason": "host file-symlink privilege restrictions; actual Node directory-junction boundary passes",
+    "actual_cli_smoke": "PASS",
+    "actual_cli_smoke_checks": 14,
+    "actual_cli_smoke_outcomes": "explicitly synthetic; no model or benchmark execution",
+    "retained_history_export": "PASS",
+    "retained_history_commits": 12,
+    "retained_history_runtime_files": 331,
+    "packaged_cli_help_and_offline_denial": "PASS",
+    "packaged_cli_extraction_removed": true,
+    "integrated_check": "FAIL: local pinned Pi package absent",
+    "integrated_unit": "FAIL: missing pinned dependencies and earlier platform-specific assertions",
+    "integrated_micro": "FAIL: native Pi tool gate cannot load pinned package",
+    "standalone_python_full_suite": {
+      "tests_recorded": 157,
+      "passed": 152,
+      "skipped": 2,
+      "errors": 3,
+      "error_reason": "Harbor is not installed"
+    },
+    "model_backed_proposer_exercised": false,
+    "oci_verification_exercised": false,
+    "harbor_benchmarks_exercised": false
+  },
+  "integrity": {
+    "dev_raw_hash_checked": true,
+    "proposer_heldout_raw_access": false,
+    "proposer_tools": ["evolve_read", "evolve_list", "evolve_submit"],
+    "prior_raw_evidence_files": 18,
+    "prior_raw_evidence_hash_mismatches": 0,
+    "historical_spend_ledger_hash_unchanged": true,
+    "working_checkout_promoted": false,
+    "default_flags_promoted": false,
+    "source_git_metadata_present": false,
+    "source_harness_commit": null,
+    "prior_history_source": "artifacts/apex-phase3-local.bundle"
+  },
+  "spend": {
+    "additional_provider_requests": 0,
+    "additional_benchmark_trials": 0,
+    "additional_usd": 0,
+    "historical_requests": 9,
+    "historical_usd": 0.002482108,
+    "remaining_usd": 0.997517892,
+    "remaining_budget_frozen": true,
+    "reserved_usd": 0
+  },
+  "limits": [
+    "Lexical guards do not prove semantic unity or detect arbitrary obfuscated benchmark knowledge.",
+    "Caller-supplied trace/result associations remain explicitly unverified.",
+    "Reviewed hashed receipt evidence does not authenticate invoices or impose a provider-side hard spending cap.",
+    "Failed/interrupted evaluations stop for review; no automatic replay or stale-lock takeover.",
+    "Native proposer and OCI/Harbor execution require renewed authorization and pinned tooling; not exercised here."
+  ],
+  "pending": [
+    "renewed model-execution authorization",
+    "complete real dev/held-out baseline measurements and dev raw trajectories",
+    "reviewed trusted expected-output literal inventory",
+    "local pinned Pi and exact Harbor source dependencies",
+    "configured local Docker evaluator and trusted preinstalled immutable Linux image digest",
+    "actual proposer/evaluator and benchmark acceptance",
+    "top benchmark failure classes, performance targets and two-model final comparison"
+  ],
+  "evidence": [
+    "validation/phase4-micro.json",
+    "validation/phase4-smoke-initial.log",
+    "validation/phase4-node-unit-initial.log",
+    "validation/phase4-python-unit-initial.log",
+    "validation/phase4-retained-history.log",
+    "validation/phase4-package-smoke.json",
+    "validation/phase4-integrated-check.log",
+    "validation/phase4-integrated-unit.log",
+    "validation/phase4-integrated-python.log",
+    "validation/phase4-integrated-micro.log"
+  ]
+}

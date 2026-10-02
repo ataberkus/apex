@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "platform": "win32",
+  "facts": {
+    "profiling": {
+      "timingSites": 1,
+      "benchmarkFiles": 1,
+      "profilingLibraries": [],
+      "runtime": {
+        "node": "24.19.0",
+        "v8": "13.6.233.17-node.51",
+        "architecture": "x64"
+      }
+    },
+    "databases": {
+      "migrationFiles": 1,
+      "schemaSites": 1,
+      "transactionSites": 2,
+      "querySites": 0,
+      "placeholderSites": 0,
+      "declaredClients": []
+    }
+  }
+}

@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "phase": 3,
+  "kind": "phase3_ablation_registry",
+  "execution_policy": "offline-only",
+  "main_model": "openrouter/meta/muse-spark-1.3-contributor",
+  "fast_model": "openrouter/meta/muse-spark-1.3-contributor",
+  "thinking_level": "xhigh",
+  "target": "daily-driver utility without unmeasured default token cost",
+  "target_met": null,
+  "baseline": {
+    "agent": "stock-pi",
+    "feature_flags": "",
+    "model_results": null
+  },
+  "normal_combined_flags": "cost,checkpoints,review,plan,remember,skills,safety,report,resume",
+  "features": [
+    {
+      "flag": "cost",
+      "purpose": "Native usage footer and task/session estimates",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "cost",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "checkpoints,review,plan,remember,skills,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "checkpoints",
+      "purpose": "Persistent shadow-Git turn undo",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "checkpoints",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,review,plan,remember,skills,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "review",
+      "purpose": "Guarded independent diff verification",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "review",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,plan,remember,skills,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "plan",
+      "purpose": "Read-only planning with exact PLAN.md save",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "plan",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,remember,skills,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "remember",
+      "purpose": "Explicit bounded project facts disabled in eval",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "remember",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,plan,skills,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "skills",
+      "purpose": "Ten on-demand static domain skills",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "skills",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,plan,remember,safety,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "safety",
+      "purpose": "TUI annotated action confirmation",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "safety",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,plan,remember,skills,report,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "report",
+      "purpose": "Read-only JSONL token category report",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "report",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,plan,remember,skills,safety,resume",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    },
+    {
+      "flag": "resume",
+      "purpose": "Exact-session inspection and guarded native restore",
+      "default_enabled": false,
+      "promotion_status": "pending-model-evals",
+      "add_variant": {
+        "feature_flags": "resume",
+        "profile": "headless",
+        "eval_mode": true,
+        "independent_attempts": 1
+      },
+      "remove_from_combined_variant": "cost,checkpoints,review,plan,remember,skills,safety,report",
+      "separate_configuration": false,
+      "delta_pass_rate": null,
+      "delta_pass_rate_95_ci": null,
+      "delta_uncached_input_tokens": null,
+      "delta_cache_tokens": null,
+      "delta_output_thinking_tokens": null,
+      "delta_usd": null,
+      "delta_wall_seconds": null,
+      "model_runs_used": 0
+    }
+  ]
+}

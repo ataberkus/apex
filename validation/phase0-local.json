@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "kind": "phase0_local_closure",
+  "created_at": "2026-10-01T13:29:18.918010+00:00",
+  "local_scope_status": "complete",
+  "phase0_exit_criteria_met": false,
+  "execution_policy": "offline-only",
+  "paid_runs_enabled": false,
+  "configuration": {
+    "main_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "fast_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "thinking_level": "xhigh",
+    "pi_version": "0.99.2",
+    "container_environment": null
+  },
+  "verification": {
+    "check": "PASS",
+    "unit_tests_passed": 168,
+    "unit_tests_skipped": 0,
+    "node_tests": 51,
+    "python_tests": 117,
+    "native_tools_passed": 8,
+    "native_process": "PASS",
+    "native_session": "PASS",
+    "session_check_count": 11,
+    "synthetic_pipeline": "PASS",
+    "pipeline_check_count": 24,
+    "independent_review_remaining_material_defects": 0,
+    "local_preflight_readiness": "blocked",
+    "local_preflight_exit_code": 2
+  },
+  "spend": {
+    "additional_provider_calls": 0,
+    "additional_usd": 0,
+    "historical_provider_calls": 9,
+    "historical_usd": 0.002482108,
+    "historical_unused_cap_usd": 0.997517892,
+    "unused_cap_frozen": true
+  },
+  "benchmark_trials": 0,
+  "cloud_resources_created": 0,
+  "system_installations": 0,
+  "pi_core_changes": false,
+  "active_apex_resources": 0,
+  "pending": [
+    "local container host and image digests",
+    "real stock Pi dev/held-out baselines",
+    "milestone full runs if budget allows",
+    "discriminating dev selection",
+    "top five benchmark failure classes",
+    "exact request token-category attribution",
+    "model-dependent micro-evals"
+  ],
+  "limits": [
+    "mechanics and synthetic accounting are not benchmark or model-performance evidence",
+    "fresh SDK restore uses explicit Muse/xhigh selection",
+    "torn-tail fragments skipped rather than reconstructed; no power-loss durability proof",
+    "native Windows and real container runs untested"
+  ],
+  "evidence": [
+    "validation/build-verification.json",
+    "validation/offline-micro.json",
+    "validation/session-micro.json",
+    "validation/pipeline-micro.json",
+    "validation/process-micro.json",
+    "validation/local-preflight.json",
+    "PHASE0_LOCAL.md"
+  ]
+}

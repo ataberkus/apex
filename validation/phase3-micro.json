@@ -1,0 +1,176 @@
+{
+  "kind": "offline_phase3_contract",
+  "status": "PASS",
+  "model": "openrouter/meta/muse-spark-1.3-contributor",
+  "thinking_level": "xhigh",
+  "transcript_source": "Script-seeded native commands/tools/resources/session boundaries; no model completion.",
+  "model_performance_measured": false,
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "network_attempts": 0,
+  "transport_attempts": 0,
+  "resource_discovery_attempts": 0,
+  "attempted_calls": {
+    "network": 0,
+    "auth": 0,
+    "inference": 0,
+    "credentials": 0
+  },
+  "checks": {
+    "default_features_off": true,
+    "native_registration": true,
+    "effective_model": true,
+    "offline_settings": true,
+    "native_plan_read_allowed": true,
+    "native_plan_mutations_blocked": true,
+    "native_plan_nested_blocked": true,
+    "native_plan_deferred_blocked": true,
+    "native_plan_core_cooperation": true,
+    "native_plan_saved_exactly": true,
+    "native_plan_loadout_restored": true,
+    "native_remember_append": true,
+    "native_learnings_context": true,
+    "native_eval_remember_absent": true,
+    "native_eval_learnings_pre_io": true,
+    "native_skills_discovery": true,
+    "native_skill_expansion": true,
+    "native_usage_accounting": true,
+    "native_report": true,
+    "native_checkpoint_undo": true,
+    "source_git_index_unchanged": true,
+    "native_resume_custom_state": true,
+    "native_resume_recent_read": true,
+    "native_resume_pending_not_replayed": true,
+    "native_checkpoint_reopen": true,
+    "native_review_guarded": true,
+    "guarded_cli_commands": true,
+    "structured_results_preserved": true,
+    "no_extension_errors": true,
+    "environment_sanitized": true,
+    "no_ambient_discovery": true
+  },
+  "cleanup": {
+    "fixture_removed": true,
+    "owned_processes_removed": true
+  },
+  "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase3-micro-cOMO2x",
+  "registration": {
+    "session_starts": 5,
+    "flags": {
+      "apex-feature-flags": "",
+      "apex-eval": false
+    },
+    "commands": [
+      "cost",
+      "undo",
+      "plan",
+      "review",
+      "report",
+      "resume-info"
+    ],
+    "local_refreshes_suppressed": 0
+  },
+  "plan": {
+    "read_allowed": true,
+    "direct_write_blocked": true,
+    "bash_blocked": true,
+    "nested_write_blocked": true,
+    "deferred_blocked": true,
+    "core_continuation": false,
+    "literal_markdown_bytes": 85,
+    "entered": true,
+    "saved": true
+  },
+  "accounting": {
+    "source": "Script-seeded native assistant usage, checked against native getSessionStats; no inference or real spend.",
+    "input": null,
+    "output": null,
+    "cache_read": null,
+    "cache_write": null,
+    "known_totals": {
+      "input": 101,
+      "cacheRead": 7,
+      "cacheWrite": 3,
+      "output": 23,
+      "totalTokens": 134,
+      "thinking": 5,
+      "cacheWrite1h": 0
+    },
+    "completeness": {
+      "usage": false,
+      "cost": false,
+      "thinking": false,
+      "issues": [
+        "zero_usage_placeholder"
+      ]
+    },
+    "cost": {
+      "label": "estimate, not invoice",
+      "nativeEstimateUsd": null,
+      "knownNativeEstimateUsd": 0.0001492,
+      "pricingEstimateUsd": null,
+      "knownPricingEstimateUsd": 1.4714e-05
+    },
+    "clean_native_totals": {
+      "input": 101,
+      "cacheRead": 7,
+      "cacheWrite": 3,
+      "output": 23,
+      "totalTokens": 134,
+      "thinking": 5,
+      "cacheWrite1h": null
+    },
+    "clean_native_estimate_usd": 0.0001492,
+    "seeded_native_estimate_usd": 0.0001492,
+    "actual_provider_spend_measured": false
+  },
+  "checkpoint": {
+    "source": "Actual registered native writes, turn_start/finishTurn boundaries, private shadow Git and /undo command.",
+    "dirty_restored": true,
+    "reopened_restored": true,
+    "user_git_index_unchanged": true,
+    "undo_status": "restored"
+  },
+  "resume": {
+    "source": "Native SessionManager.open of exact persisted JSONL; no model prompt or automatic tool replay.",
+    "custom_state_preserved": true,
+    "recent_read_preserved": true,
+    "unfinished_tool_replayed": false
+  },
+  "skills": {
+    "source": "Native resources_discover -> DefaultResourceLoader.extendResources metadata, _expandSkillCommand and registered read.",
+    "names": [
+      "debugging",
+      "test-writing",
+      "profiling",
+      "build-systems",
+      "python-packaging",
+      "numerics",
+      "http",
+      "databases",
+      "git-surgery",
+      "security-hardening"
+    ],
+    "prompt_templates_loaded": 0
+  },
+  "cli": {
+    "source": "Actual bin/apex imports in bounded offline subprocesses; SDK execution and credential reads are trapped.",
+    "denied_statuses": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "report_status": 0,
+    "sdk_initializations": 0
+  },
+  "evidence": {
+    "transcript": "Script-seeded user/assistant records; actual Pi native command handlers, definitions and hooks, no model completion.",
+    "nested": "Actual createToolContext.executeTool uses native nested callable-tool validation and tool hooks; model-disabled direct write is refused by native validation.",
+    "eval": "Actual eval session startup/before_agent_start with learnings path I/O traps; tool absent from registry/callable set.",
+    "discovery": "Explicit fixture context and isolated package manager; selected project skill paths only.",
+    "accounting": "Synthetic seeded token/cost fields are labeled fixtures, not claims about provider spend or benchmark performance."
+  },
+  "extension_errors": [],
+  "pi_version": "0.99.2"
+}

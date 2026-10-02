@@ -1,0 +1,16 @@
+✔ default diagnostic timeouts terminate inherited-output checker descendants within the checker budget (7470.513223ms)
+✔ snapshot explicitly reports distro, shell and current user through safe local sources (391.896113ms)
+✔ an unavailable OS user lookup is labeled without failing environment capture (308.458835ms)
+✔ untrusted ignore patterns cannot throw or stall snapshot discovery (376.931351ms)
+✔ native probes terminate hanging binaries, cap flood output and inherit no secret environment (1225.342765ms)
+✔ native probes preserve UTF-8 characters split across output chunks (376.657878ms)
+✔ native tool lookup excludes PATH directories inside the project (274.392068ms)
+✔ import creates no processes or files and returns promptly (382.663514ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11135.389241

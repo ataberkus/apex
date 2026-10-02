@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "windows_symlink_boundary_inventory",
+  "status": "BLOCKED",
+  "capability_evidence": "validation/windows-symlink-capability.json",
+  "capability_smoke_command": "node scripts/probe-windows-symlink.mjs",
+  "capability_smoke_exit_code": 2,
+  "file_symlink_boundaries_passed": false,
+  "audit_category_count": 15,
+  "node_skipped_tests": 13,
+  "node_fileLink_call_sites": 14,
+  "audit_note": "The existing category includes one Python DIRECTORY-symlink test. It is not a file-symlink boundary. No skipped test was relabeled as passed.",
+  "callers": [
+    {"file": "tests/context-patch.test.mjs", "lines": [86], "test": "file symlink queue alias", "boundary": "patch/native edit realpath queue serialization", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/context-patch.test.mjs", "lines": [122], "test": "outside file symlink rejected", "boundary": "patch confinement and unchanged external bytes", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/context-tools.test.mjs", "lines": [199], "test": "wrapper and native sibling edits serialize against realpath aliases", "boundary": "wrapper/native edit realpath queue serialization", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/core-control.test.mjs", "lines": [83], "test": "dangling file symlink write refused", "boundary": "outside dangling target write confinement", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/core-environment.test.mjs", "lines": [94], "test": "file symlink manifest is never read", "boundary": "external manifest excluded from environment capture", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/core-models.test.mjs", "lines": [154, 155], "test": "default max copies preserve internal symlinks without shared writes and reject external links", "boundary": "internal candidate copy isolation and external-link rejection before attempt", "link_type": "file-symlink", "status": "BLOCKED", "scope_note": "Existing offline legacy test only; no Windows live max support claimed."},
+    {"file": "tests/core-models.test.mjs", "lines": [164], "test": "native read rejects outside file link", "boundary": "native future read confinement", "link_type": "file-symlink", "status": "BLOCKED", "scope_note": "Existing offline auxiliary-inference restriction test; no Muse route/output support claimed."},
+    {"file": "tests/core-state.test.mjs", "lines": [274], "test": "file symlink artifact refused", "boundary": "contract artifact verification refuses symlink", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/features-checkpoints.test.mjs", "lines": [149], "test": "file symlink capture", "boundary": "checkpoint source capture refuses symlink", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/features-learnings.test.mjs", "lines": [26], "test": "file symlink refused without changing target", "boundary": "remember load/append refuse file link without external mutation", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/features-skills.test.mjs", "lines": [101], "test": "file link source excluded", "boundary": "all domain probes exclude file-link sources", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/features-workflows.test.mjs", "lines": [40], "test": "plan write rejects symlink and restores on failure", "boundary": "plan refuses file link and restores tool selection", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/session-report.test.mjs", "lines": [79], "test": "file symlink refused", "boundary": "session report refuses file link", "link_type": "file-symlink", "status": "BLOCKED"},
+    {"file": "tests/test_evolve_comparison.py", "lines": [378], "test": "LeaderboardTests.test_unsafe_file_types_and_symlink_targets_rejected", "boundary": "leaderboard directory symlink/reparse escape rejection", "link_type": "directory-symlink", "status": "BLOCKED", "scope_note": "Not a file-symlink test; directory nonregular-file assertion before the skip is not proof of this boundary."},
+    {"file": "tests/test_evolve_integrity.py", "lines": [417, 424], "test": "EvolutionIntegrityTests.test_symlink_and_reparse_escapes_are_rejected", "boundary": "proposal source and feedback trace file-symlink rejection without external mutation", "link_type": "file-symlink", "status": "BLOCKED"}
+  ],
+  "reachable_smoke_boundaries": [
+    "write lexical/external-junction confinement including absent nested targets",
+    "environment excludes external directory junction",
+    "learnings append/load refuse junction .apex root before external write",
+    "session report refuses directory-junction ancestor",
+    "checkpoint capture refuses actual multiply-linked file without modifying external bytes"
+  ],
+  "reachable_smoke_status": "PASS",
+  "reachable_boundaries_are_file_symlink_evidence": false,
+  "targeted_test_commands_not_run_by_worker": [
+    "node --test tests/context-patch.test.mjs tests/context-tools.test.mjs tests/core-control.test.mjs tests/core-environment.test.mjs tests/core-models.test.mjs tests/core-state.test.mjs tests/features-checkpoints.test.mjs tests/features-learnings.test.mjs tests/features-skills.test.mjs tests/features-workflows.test.mjs tests/session-report.test.mjs",
+    "python -m unittest discover -s tests -p test_evolve_comparison.py",
+    "python -m unittest discover -s tests -p test_evolve_integrity.py"
+  ],
+  "remaining_prerequisite": "A native Windows environment already permitting unprivileged CreateSymbolicLinkW FILE creation with SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE (Developer Mode), or SeCreateSymbolicLinkPrivilege already available to the non-elevated process token; rerun the capability probe and all targeted tests there. No elevation, privilege grant, or security-policy change was requested or performed."
+}

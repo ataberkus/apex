@@ -1,0 +1,344 @@
+
+> @apex-agent/pi@0.0.0 micro
+> node scripts/micro.mjs
+
+....................................................
+----------------------------------------------------------------------
+Ran 52 tests in 0.235s
+
+OK
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.006s
+
+OK
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.012s
+
+OK
+.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.007s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.000s
+
+OK
+...............
+----------------------------------------------------------------------
+Ran 15 tests in 0.290s
+
+OK
+{
+  "schema_version": 1,
+  "kind": "offline_micro_only",
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "tool_contracts": {
+    "kind": "offline_tool_contract",
+    "provider_calls": 0,
+    "results": [
+      {
+        "check": "write",
+        "passed": true
+      },
+      {
+        "check": "read_range",
+        "passed": true
+      },
+      {
+        "check": "batch_edit_apply",
+        "passed": true
+      },
+      {
+        "check": "edit_precondition_preserves_file",
+        "passed": true
+      },
+      {
+        "check": "grep",
+        "passed": true
+      },
+      {
+        "check": "find",
+        "passed": true
+      },
+      {
+        "check": "ls",
+        "passed": true
+      },
+      {
+        "check": "bash",
+        "passed": true
+      }
+    ]
+  },
+  "process_contract": {
+    "kind": "offline_process_contract",
+    "status": "PASS",
+    "proof": "service survives native tool-host exit",
+    "platform": "linux",
+    "provider_calls": 0,
+    "network_scope": "ephemeral loopback HTTP only",
+    "host": {
+      "pid": 73,
+      "exit_code": 0,
+      "signal": null,
+      "exited_successfully": true,
+      "environment_sanitized": true
+    },
+    "post_exit_health": {
+      "succeeded": true,
+      "observed_after_host_exit": true,
+      "environment_sanitized": true,
+      "cwd_matches_fixture": true
+    },
+    "cleanup": {
+      "owned_pid_only": true,
+      "process_terminated": true,
+      "health_unavailable": true,
+      "method": "authenticated self-SIGTERM",
+      "repeated_cleanup_safe": true,
+      "fixture_removed": true
+    },
+    "pi_version": "0.99.2",
+    "fixture": "/workspace/scratch/06581feb7ad4/process-micro-jFLgIQ",
+    "native_bash": {
+      "exit_code": 0
+    },
+    "service": {
+      "pid": 86,
+      "port": 37197,
+      "bound_address": "127.0.0.1"
+    },
+    "elapsed_ms": 1704
+  },
+  "session_contract": {
+    "kind": "offline_session_contract",
+    "status": "PASS",
+    "model": "openrouter/meta/muse-spark-1.3-contributor",
+    "thinking_level": "xhigh",
+    "transcript_source": "script-seeded assistant tool calls with actual native built-in tool results",
+    "summary_source": "deterministic local extension fixture",
+    "model_performance_measured": false,
+    "provider_calls": 0,
+    "benchmark_runs": 0,
+    "network_attempts": 0,
+    "transport_attempts": 0,
+    "resource_discovery_attempts": 0,
+    "attempted_calls": {
+      "network": 0,
+      "auth": 0,
+      "inference": 0,
+      "credentials": 0
+    },
+    "checks": {
+      "no_ambient_discovery": true,
+      "environment_sanitized": true,
+      "native_compaction": true,
+      "recent_context_preserved": true,
+      "summary_contract_preserved": true,
+      "branch_state_preserved": true,
+      "builtin_file_results_verified": true,
+      "fresh_process_reopen": true,
+      "fresh_sdk_restore": true,
+      "partial_tail_recovery": true,
+      "append_after_recovery": true
+    },
+    "cleanup": {
+      "fixture_removed": true
+    },
+    "fixture": "/workspace/scratch/06581feb7ad4/session-micro-uyeBac",
+    "pi_version": "0.99.2",
+    "compaction": {
+      "entry_count": 1,
+      "read_files": [
+        "read-only.txt"
+      ],
+      "modified_files": [
+        "changed.txt",
+        "new.txt"
+      ],
+      "deterministic_summary_only": true,
+      "inferred_summary": false
+    },
+    "recovery": {
+      "malformed_fragment_retained": true,
+      "malformed_fragment_reconstructed": false,
+      "power_loss_durability_tested": false,
+      "scope": "fresh-process transcript/state recovery; no in-flight tool or provider-stream continuation"
+    }
+  },
+  "pipeline_contract": {
+    "benchmark_runs": 0,
+    "checks": {
+      "artifact_content_boundary": true,
+      "clustered_accounting": true,
+      "dev_failure_cli": true,
+      "dev_suggestion_is_provisional": true,
+      "duplicate_trial_rejected": true,
+      "fixture_removed": true,
+      "heldout_ingest": true,
+      "heldout_refused_before_trace_read": true,
+      "identity_attempt_1": true,
+      "identity_attempt_2": true,
+      "ingest_attempt_1": true,
+      "ingest_attempt_2": true,
+      "normalize_attempt_1": true,
+      "normalize_attempt_2": true,
+      "normalized_content_boundary_1": true,
+      "normalized_content_boundary_2": true,
+      "provenance_and_limits_visible": true,
+      "raw_integrity_attempt_1": true,
+      "raw_integrity_attempt_2": true,
+      "report_cli": true,
+      "report_content_boundary": true,
+      "token_accounting": true,
+      "unknown_observations_retained": true,
+      "unknown_pricing_retained": true
+    },
+    "kind": "offline_pipeline_contract",
+    "observations": {
+      "association_status": "caller_supplied",
+      "attempts": 2,
+      "billed_total_usd": null,
+      "ci95": null,
+      "duplicate_rejection_identity": "trial_id",
+      "heldout_refusal": "PermissionError",
+      "known_mean_wall_seconds": 3.0,
+      "known_registry_token_cost_usd": 1.2100000000000001e-05,
+      "mean_wall_seconds": null,
+      "successful_trials": 1,
+      "synthetic_mean_pass_fraction": 0.5,
+      "task_clusters": 1,
+      "thinking_tokens": null,
+      "tokens": {
+        "cache_read": 50,
+        "cache_write": 7,
+        "input": 140,
+        "output": 15,
+        "total": 212
+      },
+      "total_registry_token_cost_usd": null,
+      "trial_binding_verified": false
+    },
+    "provider_calls": 0,
+    "schema_version": 1,
+    "status": "PASS",
+    "synthetic": true,
+    "synthetic_provenance": {
+      "harness_commit": "ffffffffffffffffffffffffffffffffffffffff",
+      "harness_commit_is_synthetic": true,
+      "pricing": "test-only registry; not billing evidence",
+      "usage_and_results": "constructed fixtures; no agent or benchmark executed"
+    }
+  },
+  "phase1_contract": {
+    "kind": "offline_phase1_contract",
+    "status": "PASS",
+    "model": "openrouter/meta/muse-spark-1.3-contributor",
+    "thinking_level": "xhigh",
+    "transcript_source": "script-seeded local native tool calls plus an explicitly synthetic text masking observation",
+    "model_performance_measured": false,
+    "provider_calls": 0,
+    "benchmark_runs": 0,
+    "network_attempts": 0,
+    "transport_attempts": 0,
+    "resource_discovery_attempts": 0,
+    "attempted_calls": {
+      "network": 0,
+      "auth": 0,
+      "inference": 0,
+      "credentials": 0
+    },
+    "checks": {
+      "native_session_start": true,
+      "registered_flag": true,
+      "effective_model": true,
+      "offline_settings": true,
+      "actual_tool_definitions": true,
+      "native_tools_executed": true,
+      "native_result_hook": true,
+      "native_lazy_loadout": true,
+      "codemode_models_disabled": true,
+      "codemode_programmatic_json_intact": true,
+      "native_router": true,
+      "persisted_masking": true,
+      "native_compaction_cancelled": true,
+      "no_extension_errors": true,
+      "environment_sanitized": true,
+      "no_ambient_discovery": true
+    },
+    "cleanup": {
+      "fixture_removed": true
+    },
+    "fixture": "/workspace/scratch/06581feb7ad4/phase1-micro-bsDygh",
+    "pi_version": "0.99.2",
+    "settings": {
+      "cache_warming": "off",
+      "retry_enabled": false,
+      "automatic_compaction_enabled": false
+    },
+    "registration": {
+      "extension_count": 2,
+      "registered_tool_count": 11,
+      "active_tool_count_before_discovery": 9,
+      "callable_tool_count": 8,
+      "names": [
+        "read",
+        "edit",
+        "grep",
+        "find",
+        "ls",
+        "apply_patch",
+        "tool_search",
+        "codemode"
+      ],
+      "post_registration_refreshes_suppressed": 1
+    },
+    "compaction": {
+      "cancelled": true,
+      "hook_calls": 1,
+      "entry_count": 0
+    },
+    "codemode": {
+      "models_global": "undefined",
+      "engine_source": "pinned installed Pi QuickJS worker; no engine installation",
+      "native_script_executed": true,
+      "programmatic_json_bytes": 20481,
+      "programmatic_json_item_count": 4096,
+      "programmatic_nested_call_count": 1,
+      "programmatic_tiny_output": true
+    },
+    "synthetic_metrics": {
+      "shape": {
+        "original_bytes": 38390,
+        "returned_bytes": 6536,
+        "returned_ratio": 0.17025266996613703,
+        "source": "actual native bash hook-visible result"
+      },
+      "mask": {
+        "original_bytes": 26600,
+        "returned_bytes": 177,
+        "returned_ratio": 0.006654135338345865,
+        "source": "synthetic text observation in native persisted projection"
+      },
+      "provider_token_savings_measured": false
+    }
+  },
+  "model_dependent": {
+    "tool_call_correctness_per_model": "pending: paid execution disabled by offline-only policy",
+    "todo_compliance": "pending: paid execution disabled by offline-only policy",
+    "verify_before_finish": "pending: paid execution disabled by offline-only policy",
+    "compaction_survival": "pending: paid execution disabled by offline-only policy",
+    "background_service_survival_after_agent_exit": "pending: paid execution disabled by offline-only policy",
+    "skill_routing_accuracy": "pending: paid execution disabled by offline-only policy"
+  }
+}

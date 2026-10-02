@@ -1,0 +1,113 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {JSDOM} from 'jsdom';
+import {renderMarkdown, renderMessage, safeLink} from '../dashboard/chat-content.mjs';
+import {fileImageType, imageBytes, imageDataUrl, validateImages, MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES} from '../dashboard/attachments.mjs';
+import {promptCommand} from '../dashboard/chat-request.mjs';
+import {modelCatalog} from '../dashboard/catalog.mjs';
+
+export const PNG = {type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSfUAAAAASUVORK5CYII='};
+const imageOfSize = size => {
+  const bytes = Buffer.alloc(size); Buffer.from(PNG.data, 'base64').copy(bytes);
+  return {...PNG, data: bytes.toString('base64')};
+};
+function surface(t) {
+  const dom = new JSDOM('<main></main>', {url: 'http://localhost:4777'});
+  t.after(() => dom.window.close());
+  return dom.window.document.querySelector('main');
+}
+
+test('Markdown supports headings, emphasis, lists, tasks, quotes, tables, links and literal code', t => {
+  const target = surface(t);
+  renderMarkdown(target, '# Title\n\n**Bold** *italic* ~~removed~~ `x < y` &amp; &lt;\n\n> A quote\n\n3. Third\n4. Fourth\n\n- [x] Done\n- [ ] Pending\n\n| File | Status |\n| :--- | ---: |\n| a.js | **OK** |\n\n```js\n<script>alert("code")</script>\n  indented\n```\n\n[Docs](https://example.com/?a=1&b=2)\n\nLine one\nLine two');
+  assert.equal(target.querySelector('h1').textContent, 'Title');
+  assert.equal(target.querySelector('strong').textContent, 'Bold');
+  assert.equal(target.querySelector('em').textContent, 'italic');
+  assert.equal(target.querySelector('del').textContent, 'removed');
+  assert.equal(target.querySelector('code').textContent, 'x < y');
+  assert.match(target.textContent, /& </);
+  assert.equal(target.querySelector('blockquote').textContent, 'A quote');
+  assert.equal(target.querySelector('ol').start, 3);
+  assert.deepEqual([...target.querySelectorAll('input')].map(i => [i.checked, i.disabled]), [[true, true], [false, true]]);
+  assert.equal(target.querySelector('td strong').textContent, 'OK');
+  assert.equal(target.querySelector('td:last-child').style.textAlign, 'right');
+  assert.equal(target.querySelector('pre code').textContent, '<script>alert("code")</script>\n  indented');
+  assert.equal(target.querySelector('pre').tabIndex, 0);
+  assert.equal(target.querySelector('a').rel, 'noopener noreferrer');
+  assert.ok(target.querySelector('br'));
+});
+
+test('raw HTML, dangerous links and SVG images never become executable DOM', t => {
+  const target = surface(t);
+  renderMarkdown(target, '<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n<iframe srcdoc="bad"></iframe>\n\n[run](javascript:alert(1)) [encoded](javascript&#58;alert(1)) [file](file:///C:/secret)\n\n![bad](data:image/svg+xml;base64,PHN2Zy8+)\n\n![bad](javascript:alert(1))');
+  assert.equal(target.querySelector('script, iframe, img, a, [onerror]'), null);
+  assert.match(target.textContent, /<script>alert\(1\)<\/script>/);
+  for (const url of ['javascript:alert(1)', 'java&#x09;script:alert(1)', 'data:text/html,hi', 'file:///x', '//example.com/x', 'https://user:pass@example.com']) assert.equal(safeLink(url, target.ownerDocument), null);
+  assert.equal(safeLink('https://example.com/?a=1&amp;b=2', target.ownerDocument), 'https://example.com/?a=1&b=2');
+});
+
+test('remote Markdown images load only on explicit action, with a safe URL and no referrer', t => {
+  const target = surface(t);
+  renderMarkdown(target, '![Screenshot](https://example.com/screen.png)');
+  assert.equal(target.querySelector('img'), null);
+  target.querySelector('button').click();
+  const image = target.querySelector('img');
+  assert.equal(image.src, 'https://example.com/screen.png');
+  assert.equal(image.referrerPolicy, 'no-referrer');
+  assert.equal(image.alt, 'Screenshot');
+});
+
+test('native image content and image-only history render as accessible previews in content order', t => {
+  const target = surface(t);
+  renderMessage(target, [{type: 'text', text: '**Before**'}, PNG, {...PNG, mimeType: 'image/svg+xml'}, {type: 'text', text: 'After'}]);
+  assert.deepEqual([...target.children].map(e => e.className), ['markdown', 'message-images', 'markdown']);
+  assert.equal(target.querySelector('img').src, imageDataUrl(PNG));
+  assert.equal(target.querySelector('.image-preview').getAttribute('aria-label'), 'Enlarge Attached image 1');
+  assert.match(target.querySelector('.image-error').textContent, /unavailable/);
+  renderMessage(target, [PNG]);
+  assert.equal(target.querySelectorAll('img').length, 1);
+  assert.equal(target.querySelector('.markdown'), null);
+  renderMessage(target, 'Legacy plain text');
+  assert.equal(target.querySelectorAll('img').length, 0);
+  assert.equal(target.textContent, 'Legacy plain text');
+});
+
+test('valid raster formats are accepted and file type fallbacks are conservative', () => {
+  const samples = [['image/png', '\x89PNG\r\n\x1a\n'], ['image/jpeg', '\xff\xd8\xff\xe0'], ['image/gif', 'GIF89a'], ['image/webp', 'RIFF1234WEBP']];
+  for (const [mimeType, header] of samples) {
+    const image = {type: 'image', mimeType, data: Buffer.from(header, 'latin1').toString('base64')};
+    assert.equal(imageBytes(image), header.length);
+    assert.deepEqual(validateImages([{...image, name: 'not forwarded', extra: true}]), [image]);
+  }
+  assert.equal(fileImageType({name: 'PHOTO.JPG', type: ''}), 'image/jpeg');
+  assert.equal(fileImageType({name: 'fake.png', type: 'image/svg+xml'}), 'image/svg+xml');
+  assert.equal(fileImageType({name: 'notes.txt', type: ''}), '');
+});
+
+test('attachment validation rejects invalid base64, mismatched formats, unsupported types, counts and byte limits', () => {
+  for (const images of [null, {}, [{...PNG, data: ''}], [{...PNG, data: 'bad!'}], [{...PNG, data: 'AAAA'}], [{...PNG, mimeType: 'image/jpeg'}], [{...PNG, mimeType: 'image/svg+xml'}], [{...PNG, type: 'text'}]]) assert.throws(() => validateImages(images));
+  assert.throws(() => validateImages(Array(5).fill(PNG)), /up to 4/);
+  assert.throws(() => validateImages([PNG], false), /does not support images/);
+  assert.equal(imageBytes(imageOfSize(MAX_IMAGE_BYTES)), MAX_IMAGE_BYTES);
+  assert.throws(() => imageBytes(imageOfSize(MAX_IMAGE_BYTES + 1)), /5 MB/);
+  const large = imageOfSize(Math.floor(MAX_TOTAL_IMAGE_BYTES / 3) + 1);
+  assert.throws(() => validateImages([large, large, large]), /total 10 MB/);
+  assert.deepEqual(validateImages([], false), []);
+});
+
+test('RPC prompts preserve image content for text+image, image-only and steering messages; text-only stays compatible', () => {
+  const session = {status: 'idle', input: ['text', 'image']};
+  assert.deepEqual(promptCommand({message: 'Inspect this', images: [PNG]}, session), {type: 'prompt', message: 'Inspect this', images: [PNG]});
+  assert.deepEqual(promptCommand({message: '', images: [PNG]}, {...session, status: 'running'}), {type: 'prompt', message: '', images: [PNG], streamingBehavior: 'steer'});
+  assert.deepEqual(promptCommand({message: 'hello'}, {status: 'idle', input: ['text']}), {type: 'prompt', message: 'hello'});
+  assert.throws(() => promptCommand({message: ''}, session), /Write a message/);
+  assert.throws(() => promptCommand({message: 'x'.repeat(100001)}, session), /100,000/);
+  assert.throws(() => promptCommand({message: 'x', images: [PNG]}, {status: 'idle', input: ['text']}), /does not support images/);
+  assert.throws(() => promptCommand({message: 'x', images: [PNG]}, {status: 'idle'}), /does not support images/);
+  assert.throws(() => promptCommand({message: 'x'}, {...session, status: 'done'}), /ended/);
+});
+
+test('dashboard model capabilities are derived from the runtime and unknown models fail closed', () => {
+  const runtime = {getModel: provider => provider === 'openai-codex' ? {input: ['text', 'image']} : undefined};
+  assert.deepEqual(modelCatalog(runtime).map(m => m.input), [['text', 'image'], ['text']]);
+});

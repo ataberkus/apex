@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "kind": "offline_evolution_contract",
+  "status": "PASS",
+  "synthetic": true,
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "checks": {
+    "history_and_raw_feedback_cli": true,
+    "heldout_content_excluded": true,
+    "heldout_identities_excluded": true,
+    "exact_raw_framing_preserved": true,
+    "expected_output_patch_rejected": true,
+    "isolated_candidate_committed": true,
+    "source_checkout_unchanged": true,
+    "dev_noise_and_heldout_gate_cli": true,
+    "synthetic_leaderboard_persisted": true,
+    "synthetic_never_promoted": true,
+    "iteration_cap_enforced": true,
+    "offline_denial_before_allocation": true,
+    "aggregate_decision_boundary": true,
+    "temporary_fixture_removed": true
+  },
+  "provenance": "real temporary Git and CLI; all task text, outcomes and usage are constructed mechanical fixtures"
+}
