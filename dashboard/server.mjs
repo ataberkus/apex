@@ -12,7 +12,7 @@ import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
-import {CodexLogin} from './codex-login.mjs';
+import {createLogins, LOGINS} from './provider-login.mjs';
 import {MAX_SEND_BODY_BYTES} from './attachments.mjs';
 import {promptCommand} from './chat-request.mjs';
 
@@ -28,9 +28,19 @@ const ASSETS = Object.fromEntries(['app.css', 'app.js', 'chat-content.mjs', 'att
   ['/' + name, {path: new URL(name, import.meta.url), type: name.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8'}]));
 ASSETS['/vendor/marked.js'] = {path: fileURLToPath(import.meta.resolve('marked')), type: 'text/javascript; charset=utf-8'};
 const token = randomBytes(18).toString('base64url');
-const codexLogin = new CodexLogin(await ModelRuntime.create({
+const runtime = await ModelRuntime.create({
   authPath: join(agentDir, 'auth.json'), modelsPath: null, allowModelNetwork: false, refreshOnCreate: false,
-}));
+});
+const logins = createLogins(runtime);
+const loginFor = provider => {
+  if (!Object.hasOwn(logins, provider)) throw new Error('Unknown sign-in provider');
+  return logins[provider];
+};
+// Public sign-in metadata plus progress; credentials stay in Pi's auth file.
+const authState = async () => Object.fromEntries(await Promise.all(Object.entries(logins).map(async ([id, login]) => {
+  const {label, site, account, type, code} = LOGINS[id];
+  return [id, {label, site, account, type, code: Boolean(code), ...await login.status()}];
+})));
 
 let saved = (() => { try { return JSON.parse(readFileSync(store, 'utf8')); } catch { return {}; } })();
 let workspaces = saved.workspaces ?? [];
@@ -79,6 +89,8 @@ function codexUsage() {
 const live = new Map();
 const send = (session, command) => session.child.stdin.write(JSON.stringify(command) + '\n');
 const active = session => session.status === 'idle' || session.status === 'running';
+// Apex features and eval isolation were validated against the launch model at xhigh, so those sessions keep both.
+const locked = session => Boolean(session.flags.evalMode) || GROUPS.some(group => session.flags[group.id]?.length);
 
 // Keep drafts until Pi confirms acceptance (image decoding and extension input handlers can reject a prompt).
 function request(session, command) {
@@ -105,7 +117,9 @@ function record(session, line) {
   if (event.type === 'response' && event.id === 'state' && event.success) {
     session.file = event.data.sessionFile ?? session.file;
     session.input = event.data.model?.input ?? ['text'];
+    if (event.data.thinkingLevel) session.thinking = event.data.thinkingLevel;
   }
+  if (event.type === 'response' && event.id === 'levels' && event.success) session.levels = event.data.levels ?? session.levels;
   if (event.type === 'response' && event.id === 'stats' && event.success) {
     const cost = Number(event.data.cost) || 0;
     session.base ??= session.file && session.resumed ? cost : 0; // a resumed file arrives with its earlier cost already recorded
@@ -128,7 +142,7 @@ function record(session, line) {
 
 // Validates the whole launch request, then returns the arguments for bin/apex.
 function launchArguments(body, file) {
-  const model = modelCatalog(codexLogin.runtime).find(candidate => candidate.id === body.model);
+  const model = modelCatalog(runtime).find(candidate => candidate.id === body.model);
   if (!model) throw new Error('Choose a model');
   let thinking = body.thinking ?? 'xhigh';
   if (!THINKING.includes(thinking)) throw new Error('Unknown thinking level');
@@ -145,7 +159,7 @@ function launchArguments(body, file) {
   }
   const anyFeature = Object.values(picked).some(list => list.length);
   if (anyFeature || body.evalMode) {
-    if (!model.apex) throw new Error('Apex features and eval isolation run only on Muse Spark 1.3');
+    if (!model.apex) throw new Error('Apex features and eval isolation run only on Muse Spark 1.3 or, on native Windows, signed-in models');
     thinking = 'xhigh';
     if (model.target) apexArgs.unshift('--apex-target', model.target);
   }
@@ -166,7 +180,7 @@ function startSession(cwd, file, launch) {
   const child = spawn(process.execPath, [join(root, 'bin', 'apex'), ...launch.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
   const session = {id, cwd, child, file, resumed: Boolean(file), title: file ? titleOf(file) : '', status: 'idle', log: [], clients: new Set(), stderr: '',
     pending: new Map(), requests: new Map(), provider: launch.model.provider, model: launch.model.id, input: launch.model.input,
-    thinking: launch.thinking, flags: launch.flags, counted: 0, base: undefined, settled: 0};
+    thinking: launch.thinking, levels: THINKING, flags: launch.flags, counted: 0, base: undefined, settled: 0};
   live.set(id, session);
   let buffered = '';
   child.stdout.setEncoding('utf8');
@@ -191,6 +205,7 @@ function startSession(cwd, file, launch) {
   });
   send(session, {id: 'state', type: 'get_state'});
   send(session, {id: 'commands', type: 'get_commands'});
+  send(session, {id: 'levels', type: 'get_available_thinking_levels'});
   if (file) send(session, {id: 'history', type: 'get_messages'});
   send(session, {id: 'stats', type: 'get_session_stats'});
   return session;
@@ -235,8 +250,8 @@ async function readBody(req, limit = 1_000_000) {
   });
 }
 
-const summary = session => ({id: session.id, cwd: session.cwd, status: session.status, title: session.title, file: session.file, model: session.model, input: session.input,
-  thinking: session.thinking, flags: session.flags, pending: [...session.pending.values()], spent: session.counted, settled: session.settled});
+const summary = session => ({id: session.id, cwd: session.cwd, status: session.status, title: session.title, file: session.file, model: session.model, provider: session.provider, input: session.input,
+  thinking: session.thinking, levels: session.levels, locked: locked(session), flags: session.flags, pending: [...session.pending.values()], spent: session.counted, settled: session.settled});
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -254,7 +269,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       const sessions = [...live.values()].map(summary);
-      return json(res, 200, {thinking: THINKING, models: modelCatalog(codexLogin.runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), codexUsage: codexUsage(), codex: await codexLogin.status(),
+      return json(res, 200, {thinking: THINKING, models: modelCatalog(runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), codexUsage: codexUsage(), auth: await authState(),
         workspaces: workspaces.map(path => ({path, live: sessions.filter(session => session.cwd === path),
           saved: savedSessions(path).filter(entry => !sessions.some(session => session.file === entry.file))}))});
     }
@@ -275,13 +290,23 @@ const server = http.createServer(async (req, res) => {
     if (req.headers.origin !== `http://${req.headers.host}`) return fail(res, 403, 'Origin not allowed');
     const body = await readBody(req, url.pathname === '/api/send' ? MAX_SEND_BODY_BYTES : undefined);
     if (!body || typeof body !== 'object' || Array.isArray(body)) return fail(res, 400, 'Expected a JSON object');
-    if (url.pathname === '/api/codex/login') return json(res, 200, await codexLogin.start());
-    if (url.pathname === '/api/codex/respond') {
-      if (typeof body.value !== 'string' || body.value.length > 8192) return fail(res, 400, 'Paste the full callback URL from OpenAI.');
-      codexLogin.respond(body.loginId, body.value);
-      return json(res, 200, await codexLogin.status());
+    if (url.pathname.startsWith('/api/auth/')) {
+      const login = loginFor(body.provider), oauth = LOGINS[body.provider].type === 'oauth';
+      const action = url.pathname.slice('/api/auth/'.length);
+      if (action === 'logout') return json(res, 200, await login.logout());
+      if (oauth && action === 'login') return json(res, 200, await login.start());
+      if (oauth && action === 'cancel') return json(res, 200, await login.cancel(body.loginId));
+      if (oauth && action === 'respond') {
+        if (typeof body.value !== 'string' || body.value.length > 8192) return fail(res, 400, `Paste the full callback URL from ${LOGINS[body.provider].site}.`);
+        login.respond(body.loginId, body.value);
+        return json(res, 200, await login.status());
+      }
+      if (!oauth && action === 'key') {
+        if (typeof body.value !== 'string' || body.value.length > 1024) return fail(res, 400, 'Paste the API key on one line.');
+        return json(res, 200, await login.save(body.value));
+      }
+      return fail(res, 404, 'Not found');
     }
-    if (url.pathname === '/api/codex/cancel') return json(res, 200, await codexLogin.cancel(body.loginId));
     if (url.pathname === '/api/workspaces') {
       const path = resolve(String(body.path ?? '')).replace(/^[a-z]:/, drive => drive.toUpperCase());
       if (!existsSync(path) || !statSync(path).isDirectory()) return fail(res, 400, 'Folder not found');
@@ -315,9 +340,27 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/send') {
       if (!active(session)) return fail(res, 409, 'This session has ended. Resume it before sending a message.');
       const command = promptCommand(body, session);
-      if (session.provider === 'openai-codex' && !(await codexLogin.status()).signedIn) return fail(res, 401, 'Sign in to Codex using the dashboard button, then send your message again.');
+      const login = logins[session.provider];
+      if (login && !(await login.status()).signedIn) return fail(res, 401, `Sign in to ${LOGINS[session.provider].label} using the dashboard button, then send your message again.`);
       await request(session, command);
       return json(res, 200, {});
+    }
+    if (url.pathname === '/api/settings') { // switch model or thinking level in place; Pi applies it from the next model call
+      if (!active(session)) return fail(res, 409, 'This session has ended. Resume it to change its model.');
+      if (locked(session)) return fail(res, 409, 'Sessions with Apex features or eval isolation keep the model and thinking level they started with.');
+      if (body.model !== undefined && body.model !== session.model) {
+        const model = modelCatalog(runtime).find(candidate => candidate.id === body.model);
+        if (!model) return fail(res, 400, 'Choose a model');
+        const data = await request(session, {type: 'set_model', provider: model.provider, modelId: model.model});
+        Object.assign(session, {model: model.id, provider: model.provider, input: data?.input ?? model.input});
+        session.levels = (await request(session, {type: 'get_available_thinking_levels'}))?.levels ?? THINKING;
+      }
+      if (body.thinking !== undefined) {
+        if (!THINKING.includes(body.thinking)) return fail(res, 400, 'Unknown thinking level');
+        await request(session, {type: 'set_thinking_level', level: body.thinking});
+      }
+      session.thinking = (await request(session, {type: 'get_state'}))?.thinkingLevel ?? session.thinking; // Pi clamps to what the model supports
+      return json(res, 200, summary(session));
     }
     if (url.pathname === '/api/ui-response') {
       if (!session.pending.has(body.requestId)) return fail(res, 409, 'That question was already answered or timed out');
@@ -349,4 +392,4 @@ server.listen(port, '127.0.0.1', () => {
     .on('error', error => console.warn(`Could not open the browser: ${error.message}. Open the URL above instead.`))
     .unref();
 });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { void codexLogin.cancel(codexLogin.state.id); for (const session of live.values()) session.child.stdin.end(); process.exit(0); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { for (const login of Object.values(logins)) if (login.flow) void login.cancel(login.flow.id); for (const session of live.values()) session.child.stdin.end(); process.exit(0); });

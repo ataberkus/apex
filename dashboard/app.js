@@ -7,7 +7,6 @@ const post = (path, body) => fetch(path, {method: 'POST', headers: {'content-typ
   .then(async r => { const data = await r.json(); if (!r.ok) throw new Error(data.error); return data; });
 const ago = ms => { const m = Math.max(0, (Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 const base = p => p.split(/[\\/]/).filter(Boolean).pop() || p;
-const shortPath = p => { const parts = p.split(/[\\/]/).filter(Boolean); return parts.length > 4 ? '...\\' + parts.slice(-4, -1).join('\\') : p; };
 const usd = n => '$' + (n < 0.1 ? n.toFixed(4) : n.toFixed(2));
 const stored = (key, fallback) => { try { return JSON.parse(localStorage[key]) ?? fallback; } catch { return fallback; } };
 
@@ -20,57 +19,103 @@ const modelLabel = id => state.models.find(m => m.id === id)?.label ?? id ?? '';
 
 function newView() { return {todos: new Map(), contract: null, files: new Map(), stats: null, commands: [], statuses: new Map(), widgets: new Map(), report: null}; }
 
-let loginPopup = null, loginPopupFlow = null, loginBusy = false;
-function renderCodex() {
-  const c = state.codex ?? {}, waiting = c.phase === 'waiting';
-  $('codex-status').textContent = waiting ? 'Signing in…' : c.signedIn ? 'Login saved' : 'Not signed in';
-  $('codex-login').textContent = waiting ? 'Continue sign-in' : c.signedIn ? 'Sign in again' : 'Sign in to Codex';
-  for (const id of ['codex-login', 'launch-login', 'login-needed-button', 'codex-retry']) $(id).disabled = loginBusy;
-  $('login-needed').hidden = !sel || sel.model !== 'sol' || c.signedIn;
-  $('launch-auth').hidden = $('launch').querySelector('input[name=model]:checked')?.value !== 'sol' || c.signedIn;
-  $('codex-message').textContent = c.message || (c.signedIn ? 'Codex login is saved on this computer for future sessions.' : 'Sign in with your ChatGPT account. Apex saves the login automatically.');
-  $('codex-open').hidden = !waiting || !c.url;
-  if (c.url) $('codex-open').href = c.url; else $('codex-open').removeAttribute('href');
-  $('codex-fallback').hidden = !waiting || !c.prompt;
-  $('codex-close').textContent = waiting ? 'Cancel sign-in' : c.phase === 'saved' ? 'Done' : 'Close';
-  $('codex-retry').hidden = waiting || c.phase === 'saved';
-  if (waiting && c.url && loginPopup && loginPopupFlow !== c.id) {
-    try { loginPopup.location.replace(c.url); loginPopupFlow = c.id; } catch { /* the visible link also works when a popup is blocked */ }
+let loginPopup = null, loginPopupFlow = null, loginBusy = false, authFor = 'openai-codex';
+const auth = provider => state.auth?.[provider];
+const providerOf = s => s?.provider ?? state.models.find(m => m.id === s?.model)?.provider;
+// Signed in, or a provider the dashboard does not manage (OpenRouter reads its key from the environment).
+const ready = provider => !auth(provider) || auth(provider).signedIn;
+const signInWords = a => a.type === 'oauth' ? `Sign in to ${a.label}` : `Add ${a.label} key`;
+const loginWord = a => a.type === 'oauth' ? 'login' : 'key';
+function renderAuth() {
+  const list = $('accounts'); list.replaceChildren();
+  for (const [id, a] of Object.entries(state.auth ?? {})) {
+    const waiting = a.phase === 'waiting', row = el('div', 'account-row'), who = el('div');
+    who.append(el('strong', '', a.label), el('small', '', waiting ? 'Signing in…' : !a.signedIn ? 'Not signed in' : a.source === 'environment' ? 'Key from environment' : a.type === 'oauth' ? 'Login saved' : 'Key saved'));
+    const b = el('button', 'ghost', waiting ? 'Continue sign-in' : a.signedIn ? 'Manage' : signInWords(a));
+    b.type = 'button'; b.disabled = loginBusy; b.setAttribute('aria-label', `${a.label}: ${b.textContent}`); b.onclick = () => openAuth(id);
+    row.append(who, b); list.append(row);
+  }
+  const need = sel && !ready(providerOf(sel)) ? auth(providerOf(sel)) : null;
+  $('login-needed').hidden = !need;
+  if (need) { $('login-needed-text').textContent = `${signInWords(need)} to send messages. It is saved for future sessions.`; $('login-needed-button').textContent = signInWords(need); }
+  syncLaunchAuth(); renderAuthDialog();
+}
+function renderAuthDialog() {
+  const a = auth(authFor); if (!a) return;
+  const waiting = a.phase === 'waiting', oauth = a.type === 'oauth';
+  $('auth-h').textContent = a.signedIn && !waiting ? a.label : signInWords(a);
+  $('auth-intro').textContent = oauth ? `No API key needed. Sign in on ${a.site} with your ${a.account} account; Apex saves your login for later.`
+    : `Paste your ${a.account} API key from ${a.site}. Apex saves it on this computer and never shows it again.`;
+  $('auth-message').textContent = a.message || (a.signedIn ? `${a.label} ${loginWord(a)} is saved on this computer for future sessions.` : '');
+  $('auth-open').hidden = !waiting || !a.url; $('auth-open').textContent = `Continue on ${a.site}`;
+  if (waiting && a.url) $('auth-open').href = a.url; else $('auth-open').removeAttribute('href');
+  $('auth-fallback').hidden = !waiting || !a.prompt;
+  if (a.prompt) {
+    $('auth-code-label').textContent = a.code ? 'Code or full callback URL' : 'Full callback URL';
+    $('auth-code').placeholder = a.code ? 'code#state' : `${a.prompt.callback}?code=…&state=…`;
+    $('auth-code-help').textContent = `Paste ${a.code ? `the code ${a.site} shows, or ` : ''}the address of the ${a.site} callback page. Never paste a password or API key.`;
+  }
+  $('auth-key-row').hidden = oauth;
+  $('auth-close').textContent = waiting ? 'Cancel sign-in' : a.phase === 'saved' ? 'Done' : 'Close';
+  $('auth-retry').hidden = !oauth || waiting || a.phase === 'saved'; $('auth-retry').textContent = a.signedIn ? 'Sign in again' : a.phase === 'error' ? 'Try again' : 'Sign in';
+  $('auth-signout').hidden = waiting || !a.signedIn || a.source === 'environment'; $('auth-signout').textContent = oauth ? 'Sign out' : 'Remove key';
+  for (const id of ['auth-retry', 'auth-signout', 'login-needed-button', 'launch-login']) $(id).disabled = loginBusy;
+  if (waiting && a.url && loginPopup && loginPopupFlow !== a.id) {
+    try { loginPopup.location.replace(a.url); loginPopupFlow = a.id; } catch { /* the visible link also works when a popup is blocked */ }
   }
   if (!waiting && !loginBusy) {
     loginPopup?.close(); loginPopup = null; loginPopupFlow = null;
-    $('codex-code').value = '';
+    $('auth-code').value = '';
   }
 }
-async function signInToCodex() {
+const authPost = async (action, body = {}) => { state.auth[authFor] = {...auth(authFor), ...await post('/api/auth/' + action, {provider: authFor, ...body})}; stateSig = ''; };
+function openAuth(provider) {
+  const a = auth(provider); if (!a) return;
+  authFor = provider; $('auth-error').textContent = '';
+  if (a.type === 'oauth' && (!a.signedIn || a.phase === 'waiting')) return signIn();
+  if (!$('authdlg').open) $('authdlg').showModal();
+  renderAuthDialog(); if (a.type !== 'oauth') $('auth-key').focus();
+}
+async function signIn() { // runs inside the click so the popup is not blocked
   if (loginBusy) return;
-  loginBusy = true; $('codex-error').textContent = '';
-  if (!$('codexdlg').open) $('codexdlg').showModal();
+  loginBusy = true; $('auth-error').textContent = '';
+  if (!$('authdlg').open) $('authdlg').showModal();
   if (!loginPopup || loginPopup.closed) {
     loginPopup = window.open('about:blank', '_blank');
     if (loginPopup) loginPopup.opener = null;
     loginPopupFlow = null;
   }
-  renderCodex();
-  try { state.codex = await post('/api/codex/login', {}); stateSig = ''; await refresh(); }
-  catch (e) { $('codex-error').textContent = e.message; loginPopup?.close(); loginPopup = null; }
-  finally { loginBusy = false; renderCodex(); }
+  renderAuthDialog();
+  try { await authPost('login'); await refresh(); }
+  catch (e) { $('auth-error').textContent = e.message; loginPopup?.close(); loginPopup = null; }
+  finally { loginBusy = false; renderAuth(); }
 }
-async function closeCodexLogin() {
+async function closeAuth() {
   try {
-    if (state.codex?.phase === 'waiting') state.codex = await post('/api/codex/cancel', {loginId: state.codex.id});
-    $('codexdlg').close(); $('codex-error').textContent = ''; renderCodex(); stateSig = ''; await refresh();
-  } catch (e) { $('codex-error').textContent = e.message; }
+    if (auth(authFor)?.phase === 'waiting') await authPost('cancel', {loginId: auth(authFor).id});
+    $('authdlg').close(); $('auth-error').textContent = ''; $('auth-key').value = ''; renderAuth(); await refresh();
+  } catch (e) { $('auth-error').textContent = e.message; }
 }
-for (const id of ['codex-login', 'launch-login', 'login-needed-button', 'codex-retry']) $(id).onclick = signInToCodex;
-$('codex-close').onclick = closeCodexLogin;
-$('codexdlg').oncancel = e => { e.preventDefault(); closeCodexLogin(); };
-$('codex-form').onsubmit = async e => {
-  e.preventDefault(); $('codex-error').textContent = '';
+$('login-needed-button').onclick = () => openAuth(providerOf(sel));
+$('launch-login').onclick = () => openAuth(chosenModel()?.provider);
+$('auth-retry').onclick = signIn;
+$('auth-close').onclick = closeAuth;
+$('authdlg').oncancel = e => { e.preventDefault(); closeAuth(); };
+$('auth-signout').onclick = async () => {
+  const a = auth(authFor);
+  if (!confirm(`Remove the saved ${a.label} ${loginWord(a)} from this computer? Sessions using it stop working until you sign in again.`)) return;
+  loginBusy = true; $('auth-error').textContent = '';
+  try { await authPost('logout'); await refresh(); } catch (e) { $('auth-error').textContent = e.message; }
+  finally { loginBusy = false; renderAuth(); }
+};
+$('auth-form').onsubmit = async e => {
+  e.preventDefault(); $('auth-error').textContent = '';
+  const oauth = auth(authFor)?.type === 'oauth', field = $(oauth ? 'auth-code' : 'auth-key'), value = field.value.trim();
+  field.value = ''; // never keep a key or code in the page after sending it
   try {
-    state.codex = await post('/api/codex/respond', {loginId: state.codex.id, value: $('codex-code').value.trim()});
-    $('codex-code').value = ''; renderCodex(); stateSig = ''; await refresh();
-  } catch (err) { $('codex-error').textContent = err.message; }
+    await authPost(oauth ? 'respond' : 'key', oauth ? {loginId: auth(authFor).id, value} : {value});
+    renderAuth(); await refresh();
+  } catch (err) { $('auth-error').textContent = err.message; }
 };
 
 // What a session means for the person: one plain word, never colour alone.
@@ -104,7 +149,7 @@ function renderSide() {
     const sec = el('section', 'ws'), head = el('div', 'ws-head'), title = el('div', 'ws-title');
     sec.setAttribute('aria-label', base(w.path));
     const h = el('h3', '', base(w.path)); h.title = w.path;
-    const small = el('small', '', shortPath(w.path)); small.title = w.path; title.append(h, small);
+    const small = el('small', 'ws-path', w.path); small.title = w.path; title.append(h);
     const add = el('button', 'ghost', 'New session'); add.type = 'button'; add.setAttribute('aria-label', 'New session in ' + base(w.path)); add.onclick = () => openLaunch(w.path);
     const more = el('button', 'ghost more', 'More'); more.type = 'button'; more.setAttribute('aria-expanded', 'false');
     const menu = el('div'); menu.hidden = true;
@@ -113,7 +158,7 @@ function renderSide() {
     remove.onclick = async () => { if (confirm(`Remove ${base(w.path)} from the list? Files and sessions stay on disk.`)) { await post('/api/workspaces/remove', {path: w.path}); refresh(); } };
     menu.append(reveal, remove);
     more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); };
-    head.append(title, add, more); sec.append(head, menu);
+    head.append(title, add, more); sec.append(head, small, menu);
     for (const s of w.live) sec.append(sessionButton(s, () => select(s)));
     for (const s of w.saved) {
       const b = el('button', 'row'); b.type = 'button';
@@ -136,7 +181,7 @@ async function refresh() {
   const fresh = state.workspaces.flatMap(w => w.live).find(s => s.id === sel?.id);
   if (fresh) { sel = fresh; seen[sel.id] = sel.settled; localStorage.seen = JSON.stringify(seen); }
   else if (sel) sel = {...sel, status: 'done', pending: []};
-  renderCodex(); header(); renderSide(); renderAsks();
+  renderAuth(); header(); renderSide(); renderAsks();
   if (!sel) { $('log').replaceChildren(); blank(); }
 }
 
@@ -146,6 +191,7 @@ function header() {
   $('where').textContent = empty ? 'Choose one on the left, or start a new one in a workspace.' : `${sel.cwd}, ${modelLabel(sel.model)} at ${sel.thinking}, ${label(sel)[1].toLowerCase()}`;
   const running = sel?.status === 'running', alive = running || sel?.status === 'idle';
   $('stop').hidden = !running; $('end').hidden = !alive;
+  $('where').className = empty ? '' : 'path'; $('form').hidden = empty;
   syncComposer();
 }
 
@@ -156,7 +202,7 @@ function select(s) {
   $('box').value = sessionDraft(s.id).message; $('slash').hidden = true; renderAttachments();
   seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen);
   $('log').replaceChildren(); renderQueued(); header(); renderSide(); renderAsks(); renderInfo();
-  renderCodex();
+  renderAuth();
   document.body.dataset.pane = 'chat';
   source = new EventSource('/api/events?id=' + s.id);
   source.onmessage = e => { const log = $('log'), stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80; handle(JSON.parse(e.data)); if (stick) log.scrollTop = log.scrollHeight; };
@@ -432,7 +478,36 @@ for (const b of document.querySelectorAll('#panes button')) b.onclick = () => { 
 
 /* composer: drafts and attachments belong to a session, including during asynchronous reads/sends. */
 const acceptsImages = () => (sel?.input ?? state.models.find(m => m.id === sel?.model)?.input ?? []).includes('image');
-const canCompose = () => sel && ['idle', 'running'].includes(sel.status) && (sel.model !== 'sol' || state.codex?.signedIn);
+let settingsBusy = false;
+const pickSigs = new Map(); // rebuild options only when they change, so an open list is not reset by polling
+function syncSettings() {
+  const picks = [[$('model-pick'), state.models.map(m => [m.id, `${m.label} (${m.group})`]), sel?.model], [$('thinking-pick'), (sel?.levels ?? state.thinking ?? []).map(t => [t, t]), sel?.thinking]];
+  for (const [select, options, value] of picks) {
+    if (value && !options.some(([id]) => id === value)) options.push([value, value]);
+    const sig = JSON.stringify(options);
+    if (pickSigs.get(select) !== sig) { pickSigs.set(select, sig); select.replaceChildren(...options.map(([id, words]) => { const o = el('option', '', words); o.value = id; return o; })); }
+    select.value = value ?? '';
+    select.disabled = !sel || !['idle', 'running'].includes(sel.status) || Boolean(sel.locked) || settingsBusy;
+  }
+  $('settings-note').hidden = !sel?.locked;
+}
+async function changeSettings(change) {
+  if (!sel || settingsBusy) return;
+  const id = sel.id, draft = sessionDraft(id), before = sel;
+  settingsBusy = true; draft.error = ''; syncComposer();
+  try {
+    const fresh = await post('/api/settings', {id, ...change});
+    if (sel?.id === id) {
+      sel = {...sel, ...fresh};
+      const what = fresh.model !== before.model ? `Model set to ${modelLabel(fresh.model)} at ${fresh.thinking} thinking` : `Thinking set to ${fresh.thinking}`;
+      add('note quiet', what + (sel.status === 'running' ? '. Applies from the next model call.' : '. Applies from your next message.'));
+    }
+  } catch (err) { draft.error = err.message; }
+  finally { settingsBusy = false; if (sel?.id === id) header(); stateSig = ''; refresh(); }
+}
+$('model-pick').onchange = () => changeSettings({model: $('model-pick').value});
+$('thinking-pick').onchange = () => changeSettings({thinking: $('thinking-pick').value});
+const canCompose = () => sel && ['idle', 'running'].includes(sel.status) && ready(providerOf(sel));
 function syncComposer() {
   const draft = sel ? sessionDraft(sel.id) : null, ready = canCompose(), vision = acceptsImages();
   $('box').disabled = !ready || Boolean(draft?.sending);
@@ -443,6 +518,7 @@ function syncComposer() {
   const status = draft?.reading ? 'Preparing images…' : draft?.images.length ? `${draft.images.length} image${draft.images.length === 1 ? '' : 's'} attached.` : '';
   $('attachment-status').textContent = status; $('attachment-status').hidden = !status;
   $('composer-error').textContent = draft?.error || ''; $('composer-error').hidden = !draft?.error;
+  syncSettings();
 }
 function renderAttachments() {
   const list = $('attachments'), draft = sel ? sessionDraft(sel.id) : null;
@@ -562,17 +638,23 @@ const PRESETS = [
   {id: 'daily', label: 'Everyday safety', note: 'Cost, undo, planning and approvals.', set: {context: [], core: [], features: ['cost', 'checkpoints', 'plan', 'safety', 'report', 'resume']}},
 ];
 function checked(group) { return [...launch.querySelectorAll(`input[data-group="${group}"]:checked`)].map(i => i.value); }
-function chosenModel() { return state.models.find(m => m.id === launch.querySelector('input[name=model]:checked')?.value) ?? state.models[0]; }
+function chosenModel() { return state.models.find(m => m.id === $('launch-model').value) ?? state.models[0]; }
+function syncLaunchAuth() {
+  const a = auth(chosenModel()?.provider);
+  $('launch-auth').hidden = !a || a.signedIn;
+  if (a) { $('launch-auth-text').textContent = `${signInWords(a)} to use this model. Apex saves the ${loginWord(a)} on this computer.`; $('launch-login').textContent = signInWords(a); }
+}
 function applyChoice(c) {
   for (const g of ['context', 'core', 'features']) for (const i of launch.querySelectorAll(`input[data-group="${g}"]`)) i.checked = c[g].includes(i.value);
   $('evalmode').checked = Boolean(c.evalMode); syncLaunch();
 }
 function syncLaunch() {
-  $('launch-auth').hidden = chosenModel().id !== 'sol' || state.codex?.signedIn;
+  syncLaunchAuth();
   const model = chosenModel(), usesApex = model.apex;
+  $('launch-model-note').textContent = `${model.billing} ${model.input?.includes('image') ? 'Text and images.' : 'Text only.'}`;
   for (const id of ['presets', 'features', 'evalrow']) $(id).hidden = !usesApex;
   $('feature-note').hidden = usesApex;
-  $('feature-note').textContent = usesApex ? '' : `Apex features run only on ${state.models.find(m => m.apex)?.label}. Choose it above to see them. This model runs as the stock agent.`;
+  $('feature-note').textContent = usesApex ? '' : `Apex features are unavailable for ${model.label} here. ${state.models.filter(m => m.apex).length === 1 ? `They run on ${state.models.find(m => m.apex).label}.` : 'They run on Muse and, on native Windows, the signed-in models.'} This model runs as the stock agent.`;
   for (const i of launch.querySelectorAll('#features input[type=checkbox]')) {
     const unavailable = Boolean(model.unavailable?.includes(i.value)), off = Boolean(i.dataset.blocked) || unavailable;
     if (off) i.checked = false;
@@ -587,12 +669,12 @@ function syncLaunch() {
   for (const d of launch.querySelectorAll('.group')) { const n = d.querySelectorAll('input:checked').length; d.querySelector('em').textContent = n ? `${n} on` : ''; }
 }
 function buildLaunch() {
-  const ms = $('model-set'); ms.replaceChildren(el('legend', '', 'Model')); const wrap = el('div', 'choice');
+  const pick = $('launch-model'), groups = new Map(); // models come from the provider catalogs, grouped by sign-in
   for (const m of state.models) {
-    const l = el('label'), i = el('input'); i.type = 'radio'; i.name = 'model'; i.value = m.id; i.checked = m.id === choice.model; i.onchange = syncLaunch;
-    const b = el('b', '', m.label); l.append(i, b, el('small', '', m.billing), el('small', 'model-input', m.input?.includes('image') ? 'Text and images' : 'Text only')); wrap.append(l);
+    if (!groups.has(m.group)) { const g = el('optgroup'); g.label = m.group; groups.set(m.group, g); }
+    const o = el('option', '', m.label); o.value = m.id; groups.get(m.group).append(o);
   }
-  ms.append(wrap);
+  pick.replaceChildren(...groups.values()); pick.value = state.models.some(m => m.id === choice.model) ? choice.model : state.models[0]?.id ?? ''; pick.onchange = syncLaunch;
   const th = $('thinking'); th.replaceChildren(...state.thinking.map(t => new Option(t, t))); th.value = state.thinking.includes(choice.thinking) ? choice.thinking : 'xhigh';
   const ps = $('presets'); ps.replaceChildren(el('legend', '', 'Start from')); const pw = el('div', 'choice');
   for (const p of PRESETS) {
@@ -626,7 +708,7 @@ function openLaunch(cwd, file, title) {
   $('launch-h').textContent = file ? 'Resume session' : 'New session';
   $('launch-where').textContent = (file ? title + '. ' : '') + cwd;
   $('launch-go').textContent = file ? 'Resume session' : 'Start session';
-  buildLaunch(); launch.showModal(); launch.querySelector('input[name=model]:checked')?.focus();
+  buildLaunch(); launch.showModal(); $('launch-model').focus();
 }
 $('launch-cancel').onclick = () => launch.close();
 $('launch-form').onsubmit = async e => {

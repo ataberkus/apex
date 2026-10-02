@@ -36,7 +36,7 @@ test('headless rejects equals-mode unsupported by Pi and repeated conflicting mo
 });
 
 test('dry-run CLI resolves real pinned Pi without invoking a provider', {skip: !existsSync('node_modules/@earendil-works/pi-coding-agent')}, () => {
-  const result = spawnSync(process.execPath, ['bin/apex', '--apex-dry-run', '--profile', 'headless', 'hello'], {encoding: 'utf8'});
+  const result = spawnSync(process.execPath, ['bin/apex', '--apex-dry-run', '--apex-off', '--profile', 'headless', 'hello'], {encoding: 'utf8'});
   assert.equal(result.status, 0, result.stderr);
   const invocation = JSON.parse(result.stdout);
   assert.equal(invocation.pi_version, '0.99.2');

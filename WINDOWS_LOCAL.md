@@ -25,15 +25,15 @@ npm run smoke:windows-package
 
 `smoke:windows-package` packs the source and installs that tarball with the **exact pinned Pi peer** in a fresh temporary npm prefix. It bootstraps the peer's and Apex's runtime dependency trees from the existing lockfile with offline `npm ci` (dev-only test tooling is pruned), then installs the Apex tarball. It uses only the existing npm cache (`--offline`, preferring `.cache/npm`), disables lifecycle scripts/audit/funding, tests actual PowerShell/Git Bash npm shims and packaged native output recovery, then removes the prefix. No dependency junction is used. Missing cached packages produce BLOCKED, not an online fallback. This is not a global installation.
 
-## Explicit Windows selection
+## Windows selection
 
-No feature is automatically enabled, and existing default/Muse invocations retain their behavior. Inspect an opt-in configuration without inference:
+Plain `apex` on native Windows applies `WINDOWS_AUTO` from `lib/windows-target.mjs` (see README "Native Windows"): every supported flag except `safety`, `compact`, `subagents` and `review`, with `checkpoints` only at a Git repository root and `headless` only with `--profile headless`. Any explicit Apex selection replaces the defaults; `--apex-off` runs stock Pi; non-Windows invocations are unchanged. Inspect an explicit configuration without inference:
 
 ```powershell
 node bin/apex --apex-dry-run --apex-target windows --profile headless --apex-context "read,search,edit,shape" --apex-core "todo,verify" --apex-features "cost,checkpoints,plan,report" "Inspect this project"
 ```
 
-`--apex-target windows` belongs in the Apex option prefix. It requires native Windows and selects exact `openai-codex/gpt-6.1-sol` at xhigh. API-key overrides, other providers/models and nonexact model scopes are rejected. OAuth stays in a private Pi agent directory outside the project/package. The launcher selection is **not an OAuth credential validator, OS sandbox or provider-side spending cap**; it does not authenticate or reserve funds during dry-run. Ordinary non-dry-run prompts can consume account allowance.
+`--apex-target windows` belongs in the Apex option prefix. It requires native Windows and selects exact `openai-codex/gpt-6.1-sol` at xhigh by default. An explicit `--provider` of `openai-codex`, `anthropic` or `opencode-go` with a plain catalog `--model` id selects that model instead, still at xhigh. API-key overrides, other providers, fallback lists, `:thinking` suffixes and model scopes other than the chosen `provider/model` are rejected. OAuth logins and the saved OpenCode Go key stay in a private Pi agent directory outside the project/package. The launcher selection is **not an OAuth credential validator, OS sandbox or provider-side spending cap**; it does not authenticate or reserve funds during dry-run. Ordinary non-dry-run prompts can consume account allowance.
 
 The latest user instruction removes the previous $20 Codex-only testing cap; `evals/codex-budget.json` records no Apex dollar limit and preserves measured usage. OpenRouter spending remains frozen. Automated live tests still require bounded scope and physical requests/usage/deadline limits. The offline Windows gates read neither credentials nor that account and spend nothing. Auxiliary inference, model-generated `/plan`, independent `/review`, inferred compaction, max/recovery and automatic `apex resume` launch remain denied by the original offline policy. Literal `/plan save`, read-only plan enforcement, session inspection and native completed-transcript restoration work offline.
 

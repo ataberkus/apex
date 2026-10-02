@@ -107,7 +107,18 @@ test('RPC prompts preserve image content for text+image, image-only and steering
   assert.throws(() => promptCommand({message: 'x'}, {...session, status: 'done'}), /ended/);
 });
 
-test('dashboard model capabilities are derived from the runtime and unknown models fail closed', () => {
-  const runtime = {getModel: provider => provider === 'openai-codex' ? {input: ['text', 'image']} : undefined};
-  assert.deepEqual(modelCatalog(runtime).map(m => m.input), [['text', 'image'], ['text']]);
+test('dashboard models come from each login provider catalog, Sol first, and unknown capabilities fail closed', () => {
+  const catalogs = {
+    'openai-codex': [{id: 'gpt-6-luna', name: 'GPT-6 Luna', input: ['text', 'image']}, {id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', input: ['text', 'image']}],
+    anthropic: [{id: 'claude-opus-5-5', name: 'Claude Opus 5.5', input: ['text', 'image']}],
+    'opencode-go': [{id: 'kimi-k3', name: 'Kimi K3'}],
+  };
+  const runtime = {getModels: provider => catalogs[provider] ?? [], getModel: () => undefined};
+  const models = modelCatalog(runtime);
+  assert.deepEqual(models.map(m => m.id), ['sol', 'openai-codex/gpt-6-luna', 'anthropic/claude-opus-5-5', 'opencode-go/kimi-k3', 'muse']);
+  assert.deepEqual(models.map(m => m.input), [['text', 'image'], ['text', 'image'], ['text', 'image'], ['text'], ['text']]);
+  const claude = models.find(m => m.provider === 'anthropic');
+  assert.deepEqual([claude.model, claude.label, claude.group, claude.target], ['claude-opus-5-5', 'Claude Opus 5.5', 'Claude', 'windows']);
+  assert.equal(models.find(m => m.id === 'sol').label, 'GPT-6.1 Sol');
+  assert.ok(models.filter(m => m.provider !== 'openrouter').every(m => m.apex === (process.platform === 'win32') && m.unavailable.includes('route')));
 });

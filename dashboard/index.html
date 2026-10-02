@@ -15,10 +15,7 @@
     <h1>Apex</h1>
     <button class="ghost" id="addws" type="button">Add workspace</button>
   </header>
-  <section class="account" aria-label="Codex login">
-    <div><strong>Codex</strong><small id="codex-status">Checking saved login…</small></div>
-    <button class="ghost" id="codex-login" type="button">Sign in to Codex</button>
-  </section>
+  <section class="account" id="accounts" aria-label="Model logins"><small>Checking saved logins…</small></section>
   <section id="queue" class="queue" aria-labelledby="queue-h" hidden>
     <h2 id="queue-h">Needs you <span id="queue-n"></span></h2>
     <div id="queue-list"></div>
@@ -39,8 +36,8 @@
     </div>
   </header>
   <section class="login-needed notice" id="login-needed" hidden>
-    <span>Sign in to Codex to send messages. Your login is saved for future sessions.</span>
-    <button class="btn primary" id="login-needed-button" type="button">Sign in to Codex</button>
+    <span id="login-needed-text">Sign in to send messages. Your login is saved for future sessions.</span>
+    <button class="btn primary" id="login-needed-button" type="button">Sign in</button>
   </section>
   <div id="log" role="log" aria-live="polite" tabindex="0"></div>
   <section id="queued" aria-label="Queued messages" aria-live="polite" tabindex="0" hidden></section>
@@ -54,9 +51,12 @@
       <button class="btn primary" id="send" type="submit" disabled>Send</button>
     </div>
     <div class="composer-tools">
+      <label class="pill"><span>Model</span><select id="model-pick" disabled></select></label>
+      <label class="pill"><span>Thinking</span><select id="thinking-pick" disabled></select></label>
       <button class="btn" id="attach" type="button" aria-describedby="attachment-hint" disabled>Add images</button>
       <small id="attachment-hint">Open a session to attach images.</small>
     </div>
+    <small id="settings-note" hidden>This session uses Apex features, so it keeps the model and thinking level it started with.</small>
     <small id="attachment-status" role="status" hidden></small>
     <p id="composer-error" class="note" role="alert" hidden></p>
   </form>
@@ -83,10 +83,13 @@
   <form id="launch-form" method="dialog">
     <header><h2 id="launch-h">New session</h2><p id="launch-where"></p></header>
     <div class="launch-body">
-      <fieldset id="model-set"><legend>Model</legend></fieldset>
+      <label class="field">Model
+        <select id="launch-model"></select>
+        <small id="launch-model-note"></small>
+      </label>
       <div class="notice" id="launch-auth" hidden>
-        <p>Sign in with your ChatGPT account to use Codex. Apex saves the login on this computer.</p>
-        <button class="btn primary" id="launch-login" type="button">Sign in to Codex</button>
+        <p id="launch-auth-text">Sign in to use this model. Apex saves the login on this computer.</p>
+        <button class="btn primary" id="launch-login" type="button">Sign in</button>
       </div>
       <label class="field">Thinking level
         <select id="thinking"></select>
@@ -122,25 +125,33 @@
   </form>
 </dialog>
 
-<dialog id="codexdlg" aria-labelledby="codexdlg-h">
-  <form id="codex-form">
-    <header><h2 id="codexdlg-h">Sign in to Codex</h2><p>No API key needed. Sign in on OpenAI; Apex saves your login for later.</p></header>
+<dialog id="authdlg" aria-labelledby="auth-h">
+  <form id="auth-form">
+    <header><h2 id="auth-h">Sign in</h2><p id="auth-intro"></p></header>
     <div class="launch-body">
-      <p id="codex-message" role="status"></p>
-      <a class="btn primary" id="codex-open" target="_blank" rel="noopener noreferrer" hidden>Continue on OpenAI</a>
-      <details id="codex-fallback" hidden>
+      <p id="auth-message" role="status"></p>
+      <a class="btn primary" id="auth-open" target="_blank" rel="noopener noreferrer" hidden>Continue</a>
+      <details id="auth-fallback" hidden>
         <summary>Browser did not return?</summary>
-        <label class="field">Full callback URL
-          <input id="codex-code" type="url" autocomplete="off" spellcheck="false" placeholder="http://localhost:1455/auth/callback?code=…&amp;state=…">
-          <small>Paste the address from the OpenAI callback page. Never paste a password or API key.</small>
+        <label class="field"><span id="auth-code-label">Full callback URL</span>
+          <input id="auth-code" type="text" autocomplete="off" spellcheck="false">
+          <small id="auth-code-help">Never paste a password or API key.</small>
         </label>
         <button class="btn" type="submit">Finish sign-in</button>
       </details>
+      <div id="auth-key-row" hidden>
+        <label class="field">API key
+          <input id="auth-key" type="password" autocomplete="off" spellcheck="false">
+          <small>Saved in the agent profile on this computer. The dashboard never shows it again.</small>
+        </label>
+        <button class="btn primary" type="submit">Save key</button>
+      </div>
     </div>
     <footer>
-      <p id="codex-error" class="error" role="alert"></p>
-      <button class="btn" id="codex-close" type="button">Cancel sign-in</button>
-      <button class="btn primary" id="codex-retry" type="button" hidden>Try again</button>
+      <p id="auth-error" class="error" role="alert"></p>
+      <button class="btn quiet" id="auth-signout" type="button" hidden>Sign out</button>
+      <button class="btn" id="auth-close" type="button">Close</button>
+      <button class="btn primary" id="auth-retry" type="button" hidden>Sign in</button>
     </footer>
   </form>
 </dialog>

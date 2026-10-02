@@ -1,11 +1,35 @@
 import assert from 'node:assert/strict';
+import {mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import {buildPiInvocation} from '../lib/launcher.mjs';
-import {WINDOWS_MODEL} from '../lib/windows-target.mjs';
+import {WINDOWS_MODEL, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {runtimePolicy, SELECTED_MODEL} from '../extensions/apex-context/config.mjs';
+const option = (args, name) => args[args.indexOf(name) + 1];
+
+test('bare Windows apex gets every supported prompt-free feature; explicit selection and --apex-off win', t => {
+  const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'apex-auto-')));
+  t.after(() => rmSync(dir, {recursive: true, force: true}));
+  const run = (args, cwd = dir) => buildPiInvocation(withWindowsDefaults(args, {platform: 'win32', cwd}), '/pi.js', {platform: 'win32'}).args;
+  const plain = run(['--profile', 'headless', 'task']);
+  assert.equal(option(plain, '--model'), WINDOWS_MODEL);
+  assert.equal(option(plain, '--apex-core-flags'), 'snapshot,entrypoints,contract,todo,verify,loops,correct,diagnostics,headless');
+  assert.ok(!option(plain, '--apex-feature-flags').includes('checkpoints'), 'no Git root: checkpoints would block every mutation');
+  mkdirSync(path.join(dir, '.git'));
+  writeFileSync(path.join(dir, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+  assert.ok(option(run(['task']), '--apex-feature-flags').endsWith(',checkpoints'));
+  const deep = path.join(dir, 'x'.repeat(160));
+  mkdirSync(path.join(deep, '.git'), {recursive: true});
+  writeFileSync(path.join(deep, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+  assert.ok(!option(run(['task'], deep), '--apex-feature-flags').includes('checkpoints'), 'path past Git limit');
+  assert.equal(option(run(['--apex-features', 'cost', 'task']), '--apex-feature-flags'), 'cost');
+  assert.ok(!run(['--apex-features', 'cost', 'task']).includes('--apex-context-flags'));
+  assert.deepEqual(run(['--apex-off', 'task']), ['task']);
+  assert.deepEqual(withWindowsDefaults(['task'], {platform: 'linux', cwd: dir}), ['task']);
+});
 
 const build = args => buildPiInvocation(['--apex-target', 'windows', ...args], '/pi.js', {platform: 'win32'});
-const option = (args, name) => args[args.indexOf(name) + 1];
 
 test('Windows target selects exact Sol/xhigh without automatically enabling a feature', () => {
   const invocation = build(['--profile', 'headless', 'task']);
@@ -45,6 +69,24 @@ test('Windows selection refuses unavailable flags, nonnative hosts, fallback mod
   assert.throws(() => buildPiInvocation(['--apex-target', 'windows'], 'x', {platform: 'linux'}), /native Windows/);
   assert.throws(() => buildPiInvocation(['--apex-target', 'linux'], 'x'), /only windows/);
   assert.doesNotThrow(() => build(['--models', WINDOWS_MODEL]));
+});
+
+test('Windows target runs any signed-in provider model with an explicit provider and keeps the xhigh policy', () => {
+  for (const [provider, model] of [['anthropic', 'claude-opus-5-5'], ['opencode-go', 'kimi-k3'], ['openai-codex', 'gpt-6-luna']]) {
+    const args = build(['--apex-context', 'read', '--provider', provider, '--model', model, '--models', `${provider}/${model}`, 'task']).args;
+    assert.equal(option(args, '--provider'), provider);
+    assert.equal(option(args, '--model'), model);
+    assert.equal(option(args, '--thinking'), 'xhigh');
+    assert.equal(args.filter(arg => arg === '--provider').length, 1);
+  }
+  for (const args of [
+    ['--model', 'claude-opus-5-5'], // another model needs its provider named
+    ['--provider', 'anthropic'], ['--provider', 'anthropic', '--model', WINDOWS_MODEL],
+    ['--provider', 'anthropic', '--model', 'anthropic/claude-opus-5-5'], ['--provider', 'anthropic', '--model', 'claude-opus-5-5:high'],
+    ['--provider', 'opencode', '--model', 'kimi-k3'], ['--provider', 'opencode-go', '--model', 'kimi-k3', '--thinking', 'low'],
+    ['--provider', 'opencode-go', '--model', 'kimi-k3', '--models', WINDOWS_MODEL],
+    ['--provider', 'opencode-go', '--model', 'kimi-k3', '--api-key', 'must-not-print'],
+  ]) assert.throws(() => build(args), undefined, JSON.stringify(args));
 });
 
 test('Windows option-like task text and Pi values are preserved, not interpreted as target selection', () => {

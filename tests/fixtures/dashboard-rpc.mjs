@@ -5,16 +5,16 @@ import {EventEmitter} from 'node:events';
 import {syncBuiltinESMExports} from 'node:module';
 import {PassThrough, Writable} from 'node:stream';
 import {fileURLToPath} from 'node:url';
-import {CodexLogin} from '../../dashboard/codex-login.mjs';
+import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
 
-CodexLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
+OAuthLogin.prototype.status = ApiKeyLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
 const apex = fileURLToPath(new URL('../../bin/apex', import.meta.url));
 childProcess.spawn = (_command, args) => {
   assert.equal(args[0], apex, 'Only the fixture agent may be started');
   const child = new EventEmitter();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
-  let cost = 0;
+  let cost = 0, thinking = 'xhigh';
   const emit = event => child.stdout.write(JSON.stringify(event) + '\n');
   child.stdin = new Writable({
     write(chunk, _encoding, done) {
@@ -26,8 +26,12 @@ childProcess.spawn = (_command, args) => {
             cost += 0.25;
             emit({type: 'agent_start'});
             emit({type: 'agent_settled'});
+          } else if (command.type === 'set_thinking_level') {
+            thinking = command.level === 'max' ? 'xhigh' : command.level; // like Pi, clamp to what the model supports
+            emit({type: 'response', id: command.id, command: command.type, success: true});
           } else {
-            const data = command.type === 'get_session_stats' ? {cost} : command.type === 'get_messages' ? {messages: []} : command.type === 'get_commands' ? {commands: []} : {};
+            const data = command.type === 'get_state' ? {thinkingLevel: thinking} : command.type === 'get_available_thinking_levels' ? {levels: ['low', 'medium', 'high', 'xhigh']}
+              : command.type === 'set_model' ? {provider: command.provider, id: command.modelId, input: ['text']} : command.type === 'get_session_stats' ? {cost} : command.type === 'get_messages' ? {messages: []} : command.type === 'get_commands' ? {commands: []} : {};
             emit({type: 'response', id: command.id, command: command.type, success: true, data});
           }
         }

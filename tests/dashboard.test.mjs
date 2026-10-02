@@ -57,15 +57,26 @@ test('dashboard refuses requests without the startup token, loopback Host or sam
     await reject({model: 'muse', core: ['time']}, /time budget/i);
     await reject({model: 'muse', core: ['not-a-feature']}, /Unknown/);
     const catalog = JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text);
-    assert.equal(catalog.codex.signedIn, false);
-    for (const path of ['/api/codex/login', '/api/codex/respond', '/api/codex/cancel']) {
-      const request = {method: 'POST', path, body: '{}'};
+    assert.deepEqual(Object.keys(catalog.auth), ['openai-codex', 'anthropic', 'opencode-go']);
+    assert.equal(catalog.auth['openai-codex'].signedIn, false);
+    assert.equal(catalog.auth.anthropic.signedIn, false);
+    assert.deepEqual([catalog.auth.anthropic.type, catalog.auth['opencode-go'].type], ['oauth', 'api_key']);
+    assert.ok(catalog.models.some(m => m.provider === 'anthropic') && catalog.models.some(m => m.provider === 'opencode-go'));
+    for (const path of ['/api/auth/login', '/api/auth/respond', '/api/auth/cancel', '/api/auth/key', '/api/auth/logout']) {
+      const request = {method: 'POST', path, body: JSON.stringify({provider: 'anthropic'})};
       assert.equal((await call(port, request)).status, 403);
       assert.equal((await call(port, {...request, headers: cookie})).status, 403);
     }
-    const expired = await post('/api/codex/respond', {loginId: 'expired', value: 'http://localhost:1455/auth/callback?code=x&state=y'});
-    assert.equal(expired.status, 400);
-    assert.match(expired.text, /no longer active/);
+    for (const provider of ['openai-codex', 'anthropic']) {
+      const expired = await post('/api/auth/respond', {provider, loginId: 'expired', value: 'http://localhost:1455/auth/callback?code=x&state=y'});
+      assert.equal(expired.status, 400);
+      assert.match(expired.text, /no longer active/);
+    }
+    assert.match((await post('/api/auth/login', {provider: 'openrouter'})).text, /Unknown sign-in provider/);
+    assert.match((await post('/api/auth/login', {provider: '__proto__'})).text, /Unknown sign-in provider/);
+    assert.equal((await post('/api/auth/login', {provider: 'opencode-go'})).status, 404, 'API-key providers have no OAuth flow');
+    assert.equal((await post('/api/auth/key', {provider: 'anthropic', value: 'sk-test-value'})).status, 404, 'OAuth providers take no pasted key');
+    assert.match((await post('/api/auth/key', {provider: 'opencode-go', value: 'has spaces in it'})).text, /one line with no spaces/);
   } finally {
     child.kill();
     await rm(home, {recursive: true, force: true});
@@ -106,6 +117,14 @@ test('Codex sessions start and accept prompts above the former cap while usage r
     assert.deepEqual((await state()).codexUsage, {used: 100.25 + budget.observed_catalog_token_cost_usd});
     const saved = JSON.parse(await readFile(join(home, 'dashboard.json'), 'utf8'));
     assert.equal(saved.spend.sol, 100.25);
+    const settings = async body => { const r = await post('/api/settings', {id, ...body}); return {...JSON.parse(r.text), code: r.status}; };
+    const thought = await settings({thinking: 'medium'});
+    assert.equal(thought.code, 200); assert.equal(thought.thinking, 'medium'); assert.deepEqual(thought.levels, ['low', 'medium', 'high', 'xhigh']);
+    assert.equal((await settings({thinking: 'max'})).thinking, 'xhigh', 'the agent clamps unsupported levels and the dashboard reports what it chose');
+    const switched = await settings({model: 'muse'});
+    assert.equal(switched.model, 'muse'); assert.deepEqual(switched.input, ['text']);
+    assert.match((await settings({thinking: 'loud'})).error, /Unknown thinking level/);
+    assert.match((await settings({model: 'nope'})).error, /Choose a model/);
     assert.equal((await post('/api/stop', {id})).status, 200);
     if (process.platform === 'win32') {
       // Without the Windows target the launcher restricts features to Muse, so this start proves Sol gets it.
@@ -113,7 +132,18 @@ test('Codex sessions start and accept prompts above the former cap while usage r
       assert.equal(featured.status, 200, featured.text);
       const session = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(featured.text).id);
       assert.equal(session.thinking, 'xhigh');
+      assert.equal(session.locked, true);
+      const refusedSwitch = await post('/api/settings', {id: session.id, thinking: 'low'});
+      assert.equal(refusedSwitch.status, 409); assert.match(refusedSwitch.text, /keep the model and thinking level/);
       assert.equal((await post('/api/stop', {id: session.id})).status, 200);
+      // The extended Windows target accepts every signed-in provider through the same launcher parser.
+      for (const model of ['anthropic/claude-opus-5-5', 'opencode-go/kimi-k3']) {
+        const other = await post('/api/start', {cwd: home, model, context: ['read'], core: ['todo']});
+        assert.equal(other.status, 200, other.text);
+        const live = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(other.text).id);
+        assert.deepEqual([live.model, live.provider, live.thinking, live.locked], [model, model.split('/')[0], 'xhigh', true]);
+        assert.equal((await post('/api/stop', {id: live.id})).status, 200);
+      }
     }
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
@@ -144,7 +174,7 @@ test('dashboard displays Codex usage estimates instead of a capped allowance', a
     createElement() { return new Element(); },
     querySelectorAll() { return []; },
   };
-  const state = {workspaces: [], models: [], groups: [], codex: {signedIn: false}, codexUsage: {used: 100.25}};
+  const state = {workspaces: [], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}}, codexUsage: {used: 100.25}};
   const script = (await readFile(new URL('../dashboard/app.js', import.meta.url), 'utf8')).replace(/^import .* from .*;\r?\n/gm, '');
   runInNewContext(script, {
     document, localStorage: {}, IMAGE_HELP, MAX_IMAGES, fetch: async () => ({json: async () => state}), setInterval() {},

@@ -43,7 +43,8 @@ test('authenticated image sending forwards native image blocks, honors live capa
     }
     const post = (path, payload, headers = {}) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`, 'content-type': 'application/json', ...headers}, body: JSON.stringify(payload)});
     const state = async () => JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text);
-    assert.ok((await state()).models.every(m => m.input.includes('image')));
+    const vision = (await state()).models.filter(m => ['sol', 'muse'].includes(m.id));
+    assert.equal(vision.length, 2); assert.ok(vision.every(m => m.input.includes('image')));
     for (const cwd of [home, textOnly]) assert.equal((await post('/api/workspaces', {path: cwd})).status, 200);
     const start = async cwd => { const r = await post('/api/start', {cwd, model: 'muse'}); assert.equal(r.status, 200, r.text); return JSON.parse(r.text).id; };
     const id = await start(home), textId = await start(textOnly);

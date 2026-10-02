@@ -7,9 +7,9 @@ import {EventEmitter} from 'node:events';
 import {syncBuiltinESMExports} from 'node:module';
 import {PassThrough, Writable} from 'node:stream';
 import {fileURLToPath} from 'node:url';
-import {CodexLogin} from '../../dashboard/codex-login.mjs';
+import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
 
-CodexLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
+OAuthLogin.prototype.status = ApiKeyLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
 const apex = fileURLToPath(new URL('../../bin/apex', import.meta.url));
 childProcess.spawn = (_command, args, options) => {
   assert.equal(args[0], apex, 'Only the offline fixture agent may be started');
