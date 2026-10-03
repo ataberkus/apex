@@ -85,6 +85,23 @@ public static class ApexPrivateSpill {
         RequirePrivate(Directory.GetAccessControl(path, AccessControlSections.Owner | AccessControlSections.Access), owner);
         return path;
     }
+    // `*` keeps the private root out of `git status`, `git add -A` and ignore-aware search in the user's repository.
+    // CREATE_NEW never follows or replaces an existing entry, so a file the user put there stays as it is.
+    static void IgnoreFile(string apex, SecurityIdentifier owner) {
+        var security = new FileSecurity();
+        security.SetOwner(owner);
+        security.SetAccessRuleProtection(true, false);
+        security.AddAccessRule(new FileSystemAccessRule(owner, FileSystemRights.FullControl, AccessControlType.Allow));
+        try {
+            using (var file = new FileStream(Path.Combine(apex, ".gitignore"), FileMode.CreateNew,
+                FileSystemRights.Write | FileSystemRights.ReadPermissions, FileShare.None, 4096, FileOptions.None, security)) {
+                var bytes = Encoding.ASCII.GetBytes("*\n");
+                file.Write(bytes, 0, bytes.Length);
+            }
+        } catch (IOException error) {
+            if ((error.HResult & 0xFFFF) != 80) throw; // ERROR_FILE_EXISTS
+        }
+    }
     public static void Spill(string root, string name, Stream input) {
         if (!Path.IsPathRooted(root) || !String.Equals(Path.GetFullPath(root), root, StringComparison.OrdinalIgnoreCase) ||
             (name.Length != 0 && !Regex.IsMatch(name, @"^[A-Za-z0-9_-]+-[a-f0-9]{32}\.log$"))) throw new IOException("Invalid Apex spill path");
@@ -100,8 +117,9 @@ public static class ApexPrivateSpill {
                 pins.Add(Pin(ancestor, true));
             }
             var apex = PrivateDirectory(root, ".apex", owner, pins);
-            // Checkpoints and learnings share the same atomic private root. No
-            // dummy log, out directory, or data byte is created in this mode.
+            IgnoreFile(apex, owner);
+            // Checkpoints and learnings share the same atomic private root. Beyond its
+            // .gitignore, no dummy log, out directory, or data byte is created in this mode.
             if (name.Length == 0) return;
             var output = PrivateDirectory(apex, "out", owner, pins);
             temporary = Path.Combine(output, "." + name + ".tmp");

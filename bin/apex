@@ -12,7 +12,7 @@ const HELP = [
   'Core: snapshot,entrypoints,headless,contract,todo,verify,loops,bg,time,correct,diagnostics,subagents,max,recovery.',
   'Features: cost,checkpoints,review,plan,remember,skills,safety,report,resume,autocompact.',
   'Local: apex report SESSION [--json]; apex resume SESSION [--apex-dry-run].',
-  'Native Windows without Apex selection options: Sol plus every supported prompt-free feature (checkpoints at a Git root; not safety/compact/subagents/review). Explicit selection replaces that; --apex-off runs stock Pi. Elsewhere all experiments default off. --apex-dry-run resolves without launching Pi.',
+  'Native Windows without Apex selection options: Sol plus only features that add no prompts, tools or continuations (context cache; core correct, plus headless with --profile headless; features cost,plan,report,resume,autocompact, and checkpoints at a Git root). Explicit selection replaces that; --apex-off runs stock Pi. Elsewhere all experiments default off. --apex-dry-run resolves without launching Pi.',
   'Original experiments: Muse Spark 1.3 Contributor; Windows target: exact openai-codex/gpt-6.1-sol OAuth by default, or --provider openai-codex|anthropic|opencode-go with a plain --model id using saved dashboard logins, native Windows only. --apex-pair provider/model:level,provider/model[:level] plans on the first model and builds on the second (Windows target). Thinking defaults to xhigh; --thinking picks another level, except that route and --apex-eval stay at xhigh. Windows excludes bg/max/recovery and Muse-specific route/output. Auxiliary inference and automatic resume remain disabled. Codex OAuth testing has no Apex spending cap; automated live tests still require bounded scope and operational limits.',
 ].join('\n');
 

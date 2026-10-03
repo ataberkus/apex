@@ -8,13 +8,14 @@ import {WINDOWS_MODEL, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {runtimePolicy, SELECTED_MODEL} from '../extensions/apex-context/config.mjs';
 const option = (args, name) => args[args.indexOf(name) + 1];
 
-test('bare Windows apex gets every supported prompt-free feature; explicit selection and --apex-off win', t => {
+test('bare Windows apex gets only prompt- and tool-neutral features; explicit selection and --apex-off win', t => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'apex-auto-')));
   t.after(() => rmSync(dir, {recursive: true, force: true}));
   const run = (args, cwd = dir) => buildPiInvocation(withWindowsDefaults(args, {platform: 'win32', cwd}), '/pi.js', {platform: 'win32'}).args;
   const plain = run(['--profile', 'headless', 'task']);
   assert.equal(option(plain, '--model'), WINDOWS_MODEL);
-  assert.equal(option(plain, '--apex-core-flags'), 'snapshot,entrypoints,contract,todo,verify,loops,correct,diagnostics,headless');
+  assert.equal(option(plain, '--apex-core-flags'), 'correct,headless');
+  assert.equal(option(run(['task']), '--apex-core-flags'), 'correct');
   assert.ok(!option(plain, '--apex-feature-flags').includes('checkpoints'), 'no Git root: checkpoints would block every mutation');
   mkdirSync(path.join(dir, '.git'));
   writeFileSync(path.join(dir, '.git', 'HEAD'), 'ref: refs/heads/main\n');

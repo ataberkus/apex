@@ -87,7 +87,7 @@
         "cleanup": {
           "fixture_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-hRTGjO",
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-GNnQ18",
         "pi_version": "0.99.2",
         "compaction": {
           "entry_count": 1,
@@ -151,7 +151,7 @@
         "cleanup": {
           "fixture_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-8i0zrT\\phase1-micro-SSt8Mc",
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-WtLw6L\\phase1-micro-enko30",
         "pi_version": "0.99.2",
         "settings": {
           "cache_warming": "off",
@@ -256,7 +256,7 @@
           "owned_processes_removed": true,
           "recovered_owned_ids": 0
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-8i0zrT\\phase2-micro-AERGpe",
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-WtLw6L\\phase2-micro-7NDn9M",
         "gate": {
           "initial_context_can_continue": false,
           "forced_continuations": 2,
@@ -377,7 +377,7 @@
           "fixture_removed": true,
           "owned_processes_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-8i0zrT\\phase3-micro-oWDhYa",
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-WtLw6L\\phase3-micro-zWdLvK",
         "registration": {
           "session_starts": 5,
           "flags": {
@@ -562,7 +562,7 @@
           "fixture_removed": true,
           "owned_processes_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-8i0zrT\\windows sol ç-Ayd0y5",
+        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-WtLw6L\\windows sol ç-j6bFfh",
         "registration": {
           "session_starts": 6,
           "flags": {

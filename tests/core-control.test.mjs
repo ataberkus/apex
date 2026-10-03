@@ -31,6 +31,15 @@ test('pre-schema preparation supports aliases without mutating raw model argumen
   assert.deepEqual(prepareCorrectableArguments('custom', {cmd: 3}), {cmd: 3});
 });
 
+test('null optional arguments count as absent, as strict function schemas send them', async () => {
+  const {prepareCorrectableArguments} = await moduleApi();
+  assert.deepEqual(prepareCorrectableArguments('read', {path: 'file.txt', offset: null, limit: null, mode: null}), {path: 'file.txt'});
+  assert.deepEqual(prepareCorrectableArguments('grep', {pattern: 'x', path: null, glob: null, ignoreCase: null, literal: null, context: null, limit: null}), {pattern: 'x'});
+  assert.deepEqual(prepareCorrectableArguments('bash', {command: 'echo ok', timeout: null}), {command: 'echo ok'});
+  assert.throws(() => prepareCorrectableArguments('read', {path: null}), /path must be a string/);
+  assert.throws(() => prepareCorrectableArguments('read', {path: 'file.txt', offset: 0}), /positive integer/);
+});
+
 test('correction mutates the native input object and supports nested sibling paths independently', async t => {
   const cwd = await fixture(t);
   await writeFile(path.join(cwd, 'one.txt'), 'one');

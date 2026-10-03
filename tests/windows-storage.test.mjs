@@ -95,6 +95,23 @@ test('existing public Windows roots refuse private snapshot/fact writes without 
   assert.equal(await readFile(path.join(cwd, 'source.txt'), 'utf8'), 'untouched');
 });
 
+test('the private root stays out of the user repository status, and a user-edited ignore file is kept', native, async t => {
+  const cwd = await fixture(t);
+  await git(cwd, ['init', '--template=', '-q']);
+  await writeFile(path.join(cwd, 'source.txt'), 'tracked');
+  await git(cwd, ['add', 'source.txt']);
+  const manager = createCheckpointManager({cwd, sessionId: 'status-clean'});
+  t.after(() => manager.shutdown());
+  await manager.capture('1');
+  await manager.finish('1');
+  assert.equal((await git(cwd, ['status', '--porcelain', '--untracked-files=all'])).stdout, 'A  source.txt\n');
+  const ignore = path.join(cwd, '.apex', '.gitignore');
+  assert.equal(await readFile(ignore, 'utf8'), '*\n');
+  await writeFile(ignore, '*\n!keep.md\n');
+  await ensureWindowsPrivateApex(cwd);
+  assert.equal(await readFile(ignore, 'utf8'), '*\n!keep.md\n');
+});
+
 test('cancelled private directory preparation allocates nothing', native, async t => {
   const cwd = await fixture(t), controller = new AbortController(); controller.abort();
   await assert.rejects(ensureWindowsPrivateApex(cwd, controller.signal), /aborted/);

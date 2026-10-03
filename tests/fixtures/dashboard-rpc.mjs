@@ -1,6 +1,7 @@
 // Offline dashboard fixture: no real agent child or provider request can start.
 import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
+import {appendFileSync} from 'node:fs';
 import {EventEmitter} from 'node:events';
 import {syncBuiltinESMExports} from 'node:module';
 import {PassThrough, Writable} from 'node:stream';
@@ -11,6 +12,7 @@ OAuthLogin.prototype.status = ApiKeyLogin.prototype.status = async () => ({phase
 const apex = fileURLToPath(new URL('../../bin/apex', import.meta.url));
 childProcess.spawn = (_command, args) => {
   assert.equal(args[0], apex, 'Only the fixture agent may be started');
+  if (process.env.APEX_FIXTURE_ARGV) appendFileSync(process.env.APEX_FIXTURE_ARGV, JSON.stringify(args.slice(1)) + '\n');
   const child = new EventEmitter();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();

@@ -11,7 +11,7 @@ const usd = n => '$' + (n < 0.1 ? n.toFixed(4) : n.toFixed(2));
 const stored = (key, fallback) => { try { return JSON.parse(localStorage[key]) ?? fallback; } catch { return fallback; } };
 
 let state = {workspaces: [], models: [], groups: []}, stateSig = '', sel = null, source = null, current = null;
-let tools = new Map(), toolArgs = new Map(), view = newView(), seen = stored('seen', {}), asksSig = '';
+let tools = new Map(), toolArgs = new Map(), view = newView(), seen = stored('seen', {}), collapsed = stored('collapsed', {}), asksSig = '';
 const drafts = new Map(), pendingMarkdown = new Map();
 let markdownTimer = 0;
 const sessionDraft = id => { if (!drafts.has(id)) drafts.set(id, {message: '', images: [], reading: 0, sending: false, error: ''}); return drafts.get(id); };
@@ -336,7 +336,17 @@ function renderSide() {
   for (const w of state.workspaces) {
     const sec = el('section', 'ws'), head = el('div', 'ws-head'), title = el('div', 'ws-title');
     sec.setAttribute('aria-label', base(w.path));
-    const h = el('h3', '', base(w.path)); h.title = w.path;
+    const shut = Boolean(collapsed[w.path]), body = el('div', 'ws-body'); body.hidden = shut;
+    const h = el('h3'), toggle = el('button', 'ws-toggle'); h.title = w.path;
+    toggle.type = 'button'; toggle.setAttribute('aria-expanded', String(!shut));
+    const count = w.live.length + w.saved.length;
+    toggle.append(el('span', 'chev', '›'), el('span', 'ws-name', base(w.path)), el('span', 'ws-count', count ? String(count) : ''));
+    toggle.onclick = () => {
+      const open = body.hidden; body.hidden = !open; toggle.setAttribute('aria-expanded', String(open));
+      if (open) delete collapsed[w.path]; else collapsed[w.path] = true;
+      try { localStorage.collapsed = JSON.stringify(collapsed); } catch { /* remembered layout is a convenience */ }
+    };
+    h.append(toggle);
     const small = el('small', 'ws-path', w.path); small.title = w.path; title.append(h);
     const add = el('button', 'ghost', 'New session'); add.type = 'button'; add.setAttribute('aria-label', 'New session in ' + base(w.path)); add.onclick = () => openLaunch(w.path);
     const more = el('button', 'ghost more', 'More'); more.type = 'button'; more.setAttribute('aria-expanded', 'false');
@@ -346,14 +356,14 @@ function renderSide() {
     remove.onclick = async () => { if (confirm(`Remove ${base(w.path)} from the list? Files and sessions stay on disk.`)) { await post('/api/workspaces/remove', {path: w.path}); refresh(); } };
     menu.append(reveal, remove);
     more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); };
-    head.append(title, add, more); sec.append(head, small, menu);
-    for (const s of w.live) sec.append(sessionButton(s, () => select(s)));
+    head.append(title, add, more); body.append(small, menu); sec.append(head, body);
+    for (const s of w.live) body.append(sessionButton(s, () => select(s)));
     for (const s of w.saved) {
       const b = el('button', 'row'); b.type = 'button';
       const m = el('small'); m.append(el('span', 'st saved', 'Saved'), document.createTextNode(', ' + ago(s.mtime)));
-      b.append(el('b', '', s.title), m); b.onclick = () => openLaunch(w.path, s.file, s.title); sec.append(b);
+      b.append(el('b', '', s.title), m); b.onclick = () => openLaunch(w.path, s.file, s.title); body.append(b);
     }
-    if (!w.live.length && !w.saved.length) sec.append(el('p', 'empty', 'No sessions yet.'));
+    if (!w.live.length && !w.saved.length) body.append(el('p', 'empty', 'No sessions yet.'));
     groups.append(sec);
   }
   const usage = state.codexUsage;
@@ -878,15 +888,20 @@ $('route-form').onsubmit = async e => {
 const launch = $('launch');
 let launchFor = null, choice = (() => {
   const saved = stored('launch', {});
-  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'all'};
+  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'default'};
 })();
+// `set` is the picks, a function resolved when the preset applies, or null for every feature the model can run.
+// An unknown remembered preset (such as the earlier default `all`) falls back to the first one.
 const PRESETS = [
-  {id: 'all', label: 'All features', note: 'Every Apex feature this model can run. The default.', set: null},
+  {id: 'default', label: 'Default', note: 'What bare apex runs on Windows: the cache ledger, path and edit checks, cost, plan, report, resume, compaction at 300k, and undo in a Git repository. The default.',
+    set: () => ({...state.defaults, features: [...state.defaults.features, ...(state.workspaces.find(w => w.path === launchFor?.cwd)?.checkpoints ? ['checkpoints'] : [])]})},
+  {id: 'everything', label: 'All features', note: 'Every Apex feature this model can run. Measured at about twice stock Pi\'s cost and time, with no more tasks solved.', set: null},
   {id: 'lean', label: 'Lean context', note: 'Shorter reads, searches, edits and output.', set: {context: ['shape', 'mask', 'read', 'search', 'edit'], core: [], features: []}},
   {id: 'long', label: 'Long tasks', note: 'Todos, criteria, verification and loop checks.', set: {context: [], core: ['snapshot', 'contract', 'todo', 'verify', 'loops'], features: []}},
   {id: 'daily', label: 'Everyday safety', note: 'Cost, undo, planning and approvals.', set: {context: [], core: [], features: ['cost', 'checkpoints', 'plan', 'safety', 'report', 'resume']}},
   {id: 'plain', label: 'Plain agent', note: 'No Apex features. Any thinking level.', set: {context: [], core: [], features: []}},
 ];
+const presetPicks = p => typeof p.set === 'function' ? p.set() : p.set ?? allFeatures();
 function checked(group) { return [...launch.querySelectorAll(`input[data-group="${group}"]:checked`)].map(i => i.value); }
 function allFeatures() { return Object.fromEntries(['context', 'core', 'features'].map(g => [g, [...launch.querySelectorAll(`input[data-group="${g}"]`)].map(i => i.value)])); }
 const launchModels = () => { const r = launchEditor.route; return !r ? [] : (r.mode === 'pair' ? [r.plan.model, r.build.model] : [r.model]).map(modelById).filter(Boolean); };
@@ -927,10 +942,10 @@ function buildLaunch() {
   const known = r => r.mode === 'pair' ? pairable(modelById(r.plan.model)) && pairable(modelById(r.build.model)) && usable(r.plan.model) && usable(r.build.model) : usable(r.model);
   launchEditor.set(known(choice.route) ? choice.route : {mode: 'single', model: (state.models.find(modelReady) ?? state.models[0])?.id, thinking: 'xhigh'});
   const ps = $('presets'); ps.replaceChildren(el('legend', 'sr', 'Start from'));
-  const pw = el('div', 'presets');
+  const pw = el('div', 'presets'), preset = PRESETS.find(p => p.id === choice.preset) ?? PRESETS[0];
   for (const p of PRESETS) {
-    const l = el('label'), i = el('input'); i.type = 'radio'; i.name = 'preset'; i.value = p.id; i.checked = p.id === choice.preset;
-    i.onchange = () => applyChoice({...choice, ...(p.set ?? allFeatures())});
+    const l = el('label'), i = el('input'); i.type = 'radio'; i.name = 'preset'; i.value = p.id; i.checked = p === preset;
+    i.onchange = () => applyChoice({...choice, ...presetPicks(p)});
     l.append(i, el('span', '', p.label)); pw.append(l);
   }
   ps.append(pw);
@@ -954,8 +969,7 @@ function buildLaunch() {
     }
     d.append(items); fe.append(d);
   }
-  const preset = PRESETS.find(p => p.id === choice.preset) ?? PRESETS[0];
-  applyChoice({...choice, ...(preset.set ?? allFeatures())});
+  applyChoice({...choice, ...presetPicks(preset)});
 }
 function openLaunch(cwd, file, title) {
   launchFor = {cwd, file}; $('launch-error').textContent = '';

@@ -9,6 +9,8 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 import {IMAGE_HELP, MAX_IMAGES} from '../dashboard/attachments.mjs';
+import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
+import {withWindowsDefaults} from '../lib/windows-target.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
 
@@ -95,7 +97,7 @@ test('Codex sessions start and accept prompts above the former cap while usage r
   await writeFile(join(home, 'dashboard.json'), JSON.stringify({workspaces: [], spend: {sol: 100}}));
   const port = 48000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
@@ -111,6 +113,9 @@ test('Codex sessions start and accept prompts above the former cap while usage r
     assert.equal((await post('/api/workspaces', {path: home})).status, 200);
     const started = await post('/api/start', {cwd: home, model: 'sol'});
     assert.equal(started.status, 200, started.text);
+    // The child's bin/apex adds the Windows defaults to a launch without selection, so "Plain agent" must opt out.
+    const [plainArgs] = (await readFile(join(home, 'argv.jsonl'), 'utf8')).trim().split('\n').map(JSON.parse);
+    assert.ok(!buildPiInvocation(withWindowsDefaults(plainArgs), resolvePi().cli).args.includes('--extension'), 'nothing picked runs stock Pi');
     const {id} = JSON.parse(started.text);
     const sent = await post('/api/send', {id, message: 'Offline fixture prompt'});
     assert.equal(sent.status, 200, sent.text);

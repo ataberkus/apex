@@ -55,6 +55,8 @@ export function prepareCorrectableArguments(toolName, input) {
   if (!knownTools.has(toolName)) return input;
   if (!record(input)) throw new Error('Tool input must be an object');
   const args = {...input};
+  // Strict function schemas (Codex) send null for every unset optional field; Pi's own tools read that as absent.
+  for (const key of Object.keys(args)) if (args[key] === null) delete args[key];
   if (pathTools.has(toolName)) {
     alias(args, 'path', ['file_path', 'filePath']);
     string(args, 'path', ['read', 'write', 'edit'].includes(toolName));

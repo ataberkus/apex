@@ -9,6 +9,7 @@ import {join, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ModelRuntime} from '@earendil-works/pi-coding-agent';
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
+import {checkpointsUsable, WINDOWS_AUTO, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
@@ -201,6 +202,7 @@ function launchArguments(body, file) {
       : levelFor(model, body.thinking ?? (model.levels.includes('xhigh') ? 'xhigh' : model.levels.at(-1)));
   }
   if (target) apexArgs.unshift('--apex-target', target);
+  else if (!anyFeature && !body.evalMode) apexArgs.unshift('--apex-off'); // nothing picked means stock Pi, not bin/apex's Windows defaults
   let timeBudget;
   if (picked.core.includes('time')) {
     timeBudget = Number(body.timeBudget);
@@ -210,7 +212,7 @@ function launchArguments(body, file) {
   if (body.evalMode) apexArgs.push('--apex-eval');
   const route = pair ? ['--apex-pair', formatPair({plan: pair.plan, build: {provider: pair.build.provider, id: pair.build.id}})] : ['--provider', model.provider, '--model', model.model];
   const args = [...apexArgs, ...route, '--thinking', thinking, '--mode', 'rpc', ...(file ? ['--session', file] : [])];
-  buildPiInvocation([...args], resolvePi().cli); // same parser bin/apex uses, so a refusal reads clearly here instead of as a crashed child
+  buildPiInvocation(withWindowsDefaults(args), resolvePi().cli); // same steps bin/apex takes, so a refusal reads clearly here instead of as a crashed child
   const flags = {...picked, timeBudget, evalMode: Boolean(body.evalMode)};
   return {args, model, pair, thinking, target, flags, request: flags};
 }
@@ -361,8 +363,10 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/state') {
       const sessions = [...live.values()].map(summary);
+      // `defaults` is the set bare `apex` gets on native Windows; each workspace says whether checkpoints can work there.
       return json(res, 200, {thinking: THINKING, models: modelCatalog(runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), codexUsage: codexUsage(), auth: await authState(),
-        workspaces: workspaces.map(path => ({path, live: sessions.filter(session => session.cwd === path),
+        defaults: Object.fromEntries(Object.entries(WINDOWS_AUTO).map(([group, flags]) => [group, flags.split(',')])),
+        workspaces: workspaces.map(path => ({path, checkpoints: checkpointsUsable(path), live: sessions.filter(session => session.cwd === path),
           saved: savedSessions(path).filter(entry => !sessions.some(session => session.file === entry.file))}))});
     }
     if (req.method === 'GET' && url.pathname === '/api/events') {
