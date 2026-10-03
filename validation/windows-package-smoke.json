@@ -83,7 +83,7 @@
     ],
     "scope": "Native tooling only. No installs, containers, credentials, inference, or benchmark acceptance."
   },
-  "package_sha256": "9aa86a673648f21f63f9bb1ed25511b01a9ed2f30aabe30c9fe4f236ba03cbfd",
+  "package_sha256": "72e947aa89a736a5149570d58e03a4f6e2345cd3db9ce72a90606fd521ee457b",
   "spill": {
     "status": "PASS",
     "returned_bytes": 110,

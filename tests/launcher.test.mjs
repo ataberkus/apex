@@ -66,3 +66,17 @@ test('route selection loads its model before Pi selection and still keeps physic
   assert.equal(explicit[explicit.indexOf('--model')+1],'apex/auto');
   assert.equal(explicit[explicit.indexOf('--provider')+1],'apex');
 });
+
+test('--apex-help lists every selectable flag, the pair option and the current thinking policy', async () => {
+  const {CONTEXT_FEATURES} = await import('../extensions/apex-context/config.mjs');
+  const {CORE_FEATURES} = await import('../extensions/apex-core/config.mjs');
+  const {FEATURE_FEATURES} = await import('../extensions/apex-features/config.mjs');
+  const result = spawnSync(process.execPath, [new URL('../bin/apex', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--apex-help'], {encoding: 'utf8'});
+  assert.equal(result.status, 0);
+  const line = prefix => result.stdout.split('\n').find(text => text.startsWith(prefix)) ?? '';
+  assert.deepEqual(line('Context: ').slice(9).replace(/\.$/, '').split(','), [...CONTEXT_FEATURES]);
+  assert.deepEqual(line('Core: ').slice(6).replace(/\.$/, '').split(','), [...CORE_FEATURES]);
+  assert.deepEqual(line('Features: ').slice(10).replace(/\.$/, '').split(','), [...FEATURE_FEATURES]);
+  assert.match(result.stdout, /--apex-pair PLAN,BUILD/);
+  assert.doesNotMatch(result.stdout, /thinking: xhigh\./);
+});

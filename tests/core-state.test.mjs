@@ -141,6 +141,20 @@ test('gate caps forced continuations at two and preserves prior boundary drafts'
   assert.equal(state.snapshot().gateContinuations, 2);
 });
 
+test('unverified gate names the checks it accepts so the model need not guess', async t => {
+  const { state } = await fixture(t);
+  state.observeTool(call('m', 'edit', { path: 'lib/a.js' }));
+  state.observeTool(result('m', 'edit', { path: 'lib/a.js' }));
+  // A passing ad hoc script cannot count: the ledger cannot tell it from a mutation.
+  verify(state, 'adhoc', 'node -e "assert.equal(1, 1)"');
+  const response = await state.beforeSettle(boundary());
+  assert.equal(response.continue, true);
+  const content = response.entries.at(-1).content;
+  for (const accepted of ['npm test', 'node --test', 'pytest', 'tsc --noEmit', 'cargo test', 'go test']) assert.ok(content.includes(accepted), `${accepted} missing from: ${content}`);
+  assert.match(content, /shell operators/);
+  assert.match(content, /ad hoc|node -e/i);
+});
+
 test('aborted/error/pending/malformed boundaries never consume caps or force requests', async t => {
   const { state } = await fixture(t, { enforceTodo: true, enforceContract: true });
   const prior = { type: 'custom', customType: 'keep', data: {} };
@@ -191,6 +205,32 @@ test('verification must be an actual successful known checker after the final mu
   verify(state, 'real', 'node --test tests/*.test.mjs');
   assert.equal((await state.beforeSettle(boundary())).continue, undefined);
   assert.equal(state.snapshot().ledger.verification.toolCallId, 'real');
+});
+
+test('read-only observation chains keep a passing check; any mutating or ambiguous part voids it', async t => {
+  const { state } = await fixture(t);
+  for (const command of ['git status --porcelain=v1 && git status', 'git diff --check; git log -1', 'git log --oneline | head -5', 'git rev-parse HEAD || pwd']) {
+    verify(state, `v:${command}`);
+    state.observeTool(call(`o:${command}`, 'bash', { command }));
+    state.observeTool(result(`o:${command}`, 'bash', { command }, { structuredContent: { exit_code: 0 } }));
+    assert.ok(state.snapshot().ledger.verification, `${command} voided the check`);
+  }
+  for (const command of ['git status && touch x', 'git status & touch x', 'cat a > b', 'git log | xargs rm', 'cat $(touch x)',
+    'git diff --output=x', "git diff '--output=x'", 'rg --pre=sh x', "rg '--pre=sh' x", 'git show --ext-dif\\f']) {
+    verify(state, `v:${command}`);
+    state.observeTool(call(`m:${command}`, 'bash', { command }));
+    assert.equal(state.snapshot().ledger.verification, null, `${command} kept the check`);
+  }
+});
+
+test('only an && chain can carry a verifier success; pipes, || and ; cannot', async t => {
+  const { state } = await fixture(t);
+  verify(state, 'chained', 'npm test && git status --short');
+  assert.equal(state.snapshot().ledger.verification?.toolCallId, 'chained');
+  for (const command of ['npm test | tail -5', 'npm test || git status', 'npm test; git status']) {
+    verify(state, `x:${command}`, command);
+    assert.equal(state.snapshot().ledger.verification, null, `${command} counted as verification`);
+  }
 });
 
 test('unknown bash and apply_patch invalidate stale checks even on error', async t => {

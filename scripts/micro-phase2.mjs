@@ -8,6 +8,7 @@ import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
 import {syncBuiltinESMExports} from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
@@ -478,7 +479,7 @@ export async function runPhase2Micro({fixtureMode = 'success', scope = 'full'} =
     model_performance_measured: false, provider_calls: 0, benchmark_runs: 0, network_attempts: 0, transport_attempts: 0,
     resource_discovery_attempts: 0, attempted_calls: counters(), checks: {},
     cleanup: {fixture_removed: false, owned_processes_removed: true, recovered_owned_ids: 0}};
-  const fixture = await mkdtemp(path.join(root, 'phase2-micro-'));
+  const fixture = await mkdtemp(path.join(os.tmpdir(), 'phase2-micro-'));
   artifact.fixture = fixture;
   let background, backgroundSpec, reaped = false;
   const mergeCounters = value => {

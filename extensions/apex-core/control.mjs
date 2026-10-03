@@ -3,10 +3,13 @@ import {spawn} from 'node:child_process';
 import {constants} from 'node:fs';
 import {lstat, open, readlink, realpath, stat} from 'node:fs/promises';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {createEditToolDefinition} from '@earendil-works/pi-coding-agent';
 
 const knownTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls', 'bash', 'powershell']);
 const pathTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls']);
+// The skills feature advertises these files to the model by absolute path, so read may reach them outside cwd.
+const skillsRoot = fileURLToPath(new URL('../../skills/', import.meta.url));
 const owns = (object, key) => Object.hasOwn(object, key);
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -134,10 +137,14 @@ async function resolvedExistingAncestor(candidate, depth = 0) {
   }
 }
 
-async function confinedPath(cwd, value) {
+async function confinedPath(cwd, value, {readOnly = false} = {}) {
   if (typeof cwd !== 'string' || !cwd) throw new Error('A working directory is required for confined paths');
   const root = path.resolve(cwd);
   const absolute = path.resolve(root, value);
+  if (readOnly && inside(path.resolve(skillsRoot), absolute)) {
+    const resolved = await resolvedExistingAncestor(absolute);
+    if (inside(await realpath(skillsRoot), resolved)) return resolved;
+  }
   if (!inside(root, absolute)) throw new Error('Tool path must be confined to cwd; path is outside the working directory');
   const realRoot = await realpath(root);
   const resolved = await resolvedExistingAncestor(absolute);
@@ -259,7 +266,7 @@ export async function correctToolCall(event, ctx, {headless = true, confirm} = {
   if (!knownTools.has(event?.toolName)) return undefined;
   try {
     const args = prepareCorrectableArguments(event.toolName, event.input);
-    if (pathTools.has(event.toolName)) args.path = await confinedPath(ctx?.cwd, args.path ?? '.');
+    if (pathTools.has(event.toolName)) args.path = await confinedPath(ctx?.cwd, args.path ?? '.', {readOnly: event.toolName === 'read'});
     if (event.toolName === 'edit') {
       const bytes = await boundedFile(args.path);
       if (bytes.includes(0)) throw new Error('Edit precondition requires a text file');

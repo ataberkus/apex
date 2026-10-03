@@ -91,6 +91,22 @@ test('concurrent sibling captures wait for one persistent snapshot and finish is
   assert.equal(captures, 2);
 });
 
+test('undo outlasts a brief Windows sharing lock on the restored file', {skip: process.platform !== 'win32' && 'Requires Windows file sharing modes', timeout: 120000}, async t => {
+  const { cwd, manager } = await fixture(t);
+  await manager.capture('locked');
+  await writeFile(path.join(cwd, 'tracked.txt'), 'agent changed\n');
+  await manager.finish('locked');
+  // Opening without FileShare.Delete is what antivirus and indexers do; a rename onto the file fails until it closes.
+  const shell = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  const target = path.join(cwd, 'tracked.txt').replaceAll("'", "''");
+  const holder = execFile(shell, ['-NoProfile', '-NonInteractive', '-Command',
+    `$f=[System.IO.File]::Open('${target}','Open','Read','Read'); [Console]::Out.WriteLine('locked'); Start-Sleep -Milliseconds 1500; $f.Close()`]);
+  t.after(() => holder.kill());
+  await new Promise((resolve, reject) => { holder.stdout.on('data', text => String(text).includes('locked') && resolve()); holder.once('exit', reject); });
+  assert.equal((await manager.restore('locked')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'dirty source\n');
+});
+
 test('reopen persists records, session isolation and detached list objects', async t => {
   const { cwd, manager } = await fixture(t);
   await manager.capture('persist');

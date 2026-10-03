@@ -6,46 +6,66 @@ import {runtimePolicy,parseCoreFlags} from '../extensions/apex-core/config.mjs';
 
 import {parseLocalCommand,formatSessionReport} from '../lib/commands.mjs';
 
-const incoming = process.argv.slice(2);
-if (incoming[0] === '--apex-help') {
-  console.log('Apex: apex [--apex-off] [--apex-target windows] [--profile default|headless|max] [--apex-context FLAGS] [--apex-core FLAGS] [--apex-features FLAGS] [--apex-eval] [--time-budget SECONDS] [Pi arguments]\nContext: cache,shape,mask,compact,read,search,edit,patch,lazy,route,output.\nCore: snapshot,entrypoints,headless,contract,todo,verify,loops,bg,time,correct,diagnostics,subagents,max,recovery.\nFeatures: cost,checkpoints,review,plan,remember,skills,safety,report,resume.\nLocal: apex report SESSION [--json]; apex resume SESSION [--apex-dry-run].\nNative Windows without Apex selection options: Sol plus every supported prompt-free feature (checkpoints at a Git root; not safety/compact/subagents/review). Explicit selection replaces that; --apex-off runs stock Pi. Elsewhere all experiments default off. --apex-dry-run resolves without launching Pi.\nOriginal experiments: Muse Spark 1.3 Contributor; Windows target: exact openai-codex/gpt-6.1-sol OAuth by default, or --provider openai-codex|anthropic|opencode-go with a plain --model id using saved dashboard logins, native Windows only; thinking: xhigh. Windows excludes bg/max/recovery and Muse-specific route/output. Auxiliary inference and automatic resume remain disabled. Codex OAuth testing has no Apex spending cap; automated live tests still require bounded scope and operational limits.');
-} else {
-  try {
-    const local=parseLocalCommand(incoming);
-    if(local?.kind==='resume'&&!local.dryRun&&!runtimePolicy().paid_runs_enabled)throw Error('Resume launch is disabled by the offline-only policy; inspect with --apex-dry-run.');
-    if(local?.kind==='report'){
-      const {readSessionReport}=await import('../lib/session-report.mjs');
-      const report=await readSessionReport(local.file);console.log(local.json?JSON.stringify(report):formatSessionReport(report));
-    }else{
-    const dryRun = local?.dryRun||incoming[0] === '--apex-dry-run';
-    let resume;
-    if(local){const {inspectResume}=await import('../lib/session-report.mjs');resume=await inspectResume(local.file);if(resume.pendingTools.length||resume.tornTail)throw Error('Session has unresolved tool calls or a torn tail; automatic replay is unavailable.');}
-    const pi = resolvePi();
-    const invocation = buildPiInvocation(local?['--apex-features','resume','--session',resume.file]:withWindowsDefaults(dryRun ? incoming.slice(1) : incoming), pi.cli);
-    if (dryRun) {
-      console.log(JSON.stringify({pi_version: pi.version, ...invocation,...(resume?{resume}:{})}));
-    } else {
-      let profile;
-      const coreIndex=invocation.args.indexOf('--apex-core-flags');
-      const flags=coreIndex<0?[]:parseCoreFlags(invocation.args[coreIndex+1]);
-      if(flags.includes('recovery')){
-        const {createRecoveryProfile}=await import('../lib/recovery-profile.mjs');
-        profile=await createRecoveryProfile({policy:runtimePolicy(),cwd:process.cwd(),env:process.env});
-      }
-      const child = spawn(process.execPath, [invocation.cli, ...invocation.args], {stdio: 'inherit', shell: false,...(profile?{env:profile.env}:{})});
-      child.once('error', async error => {
-        console.error(error.message); process.exitCode = 1;
-        try{await profile?.cleanup();}catch(cleanupError){console.error(cleanupError.message);}
-      });
-      for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
-      child.once('exit', async(code, signal) => {
-        process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1);
-        try{await profile?.cleanup();}catch(error){console.error(error.message);process.exitCode=1;}
-      });
-    }
-    }
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
+const HELP = [
+  'Apex: apex [--apex-off] [--apex-target windows] [--profile default|headless|max] [--apex-context FLAGS] [--apex-core FLAGS] [--apex-features FLAGS] [--apex-eval] [--apex-pair PLAN,BUILD] [--time-budget SECONDS] [Pi arguments]',
+  'Context: cache,shape,mask,compact,read,search,edit,patch,lazy,route,output.',
+  'Core: snapshot,entrypoints,headless,contract,todo,verify,loops,bg,time,correct,diagnostics,subagents,max,recovery.',
+  'Features: cost,checkpoints,review,plan,remember,skills,safety,report,resume,autocompact.',
+  'Local: apex report SESSION [--json]; apex resume SESSION [--apex-dry-run].',
+  'Native Windows without Apex selection options: Sol plus every supported prompt-free feature (checkpoints at a Git root; not safety/compact/subagents/review). Explicit selection replaces that; --apex-off runs stock Pi. Elsewhere all experiments default off. --apex-dry-run resolves without launching Pi.',
+  'Original experiments: Muse Spark 1.3 Contributor; Windows target: exact openai-codex/gpt-6.1-sol OAuth by default, or --provider openai-codex|anthropic|opencode-go with a plain --model id using saved dashboard logins, native Windows only. --apex-pair provider/model:level,provider/model[:level] plans on the first model and builds on the second (Windows target). Thinking defaults to xhigh; --thinking picks another level, except that route and --apex-eval stay at xhigh. Windows excludes bg/max/recovery and Muse-specific route/output. Auxiliary inference and automatic resume remain disabled. Codex OAuth testing has no Apex spending cap; automated live tests still require bounded scope and operational limits.',
+].join('\n');
+
+async function printReport(local) {
+  const {readSessionReport} = await import('../lib/session-report.mjs');
+  const report = await readSessionReport(local.file);
+  console.log(local.json ? JSON.stringify(report) : formatSessionReport(report));
+}
+
+/** `apex resume SESSION` replays nothing: a session with pending tool calls or a torn tail is refused. */
+async function inspectResumable(local) {
+  const {inspectResume} = await import('../lib/session-report.mjs');
+  const resume = await inspectResume(local.file);
+  if (resume.pendingTools.length || resume.tornTail) throw Error('Session has unresolved tool calls or a torn tail; automatic replay is unavailable.');
+  return resume;
+}
+
+/** Run Pi as a child with inherited stdio; the recovery core feature runs it inside a disposable profile. */
+async function launch(invocation) {
+  let profile;
+  const coreIndex = invocation.args.indexOf('--apex-core-flags');
+  const flags = coreIndex < 0 ? [] : parseCoreFlags(invocation.args[coreIndex + 1]);
+  if (flags.includes('recovery')) {
+    const {createRecoveryProfile} = await import('../lib/recovery-profile.mjs');
+    profile = await createRecoveryProfile({policy: runtimePolicy(), cwd: process.cwd(), env: process.env});
   }
+  const cleanup = async () => { try { await profile?.cleanup(); } catch (error) { console.error(error.message); return false; } return true; };
+  const child = spawn(process.execPath, [invocation.cli, ...invocation.args], {stdio: 'inherit', shell: false, ...(profile ? {env: profile.env} : {})});
+  child.once('error', async error => { console.error(error.message); process.exitCode = 1; await cleanup(); });
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
+  child.once('exit', async (code, signal) => {
+    process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1);
+    if (!await cleanup()) process.exitCode = 1;
+  });
+}
+
+async function main(incoming) {
+  if (incoming[0] === '--apex-help') return console.log(HELP);
+  const local = parseLocalCommand(incoming);
+  if (local?.kind === 'resume' && !local.dryRun && !runtimePolicy().paid_runs_enabled) throw Error('Resume launch is disabled by the offline-only policy; inspect with --apex-dry-run.');
+  if (local?.kind === 'report') return printReport(local);
+  const dryRun = local?.dryRun || incoming[0] === '--apex-dry-run';
+  const resume = local ? await inspectResumable(local) : undefined;
+  const pi = resolvePi();
+  const args = resume ? ['--apex-features', 'resume', '--session', resume.file] : withWindowsDefaults(dryRun ? incoming.slice(1) : incoming);
+  const invocation = buildPiInvocation(args, pi.cli);
+  if (dryRun) return console.log(JSON.stringify({pi_version: pi.version, ...invocation, ...(resume ? {resume} : {})}));
+  await launch(invocation);
+}
+
+try {
+  await main(process.argv.slice(2));
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
 }

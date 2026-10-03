@@ -27,7 +27,7 @@ async function acl(cwd, relative) {
   const target = path.join(cwd, relative).replaceAll("'", "''");
   const {stdout} = await exec(executable, ['-NoProfile', '-NonInteractive', '-Command',
     `$a=Get-Acl -LiteralPath '${target}'; $sid=[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $rules=@($a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier])); @{Protected=$a.AreAccessRulesProtected; Owner=$a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; Sid=$sid; Rules=@($rules | ForEach-Object {$_.IdentityReference.Value})} | ConvertTo-Json -Compress`],
-    {env: whitelistedEnvironment(['PATH','SystemRoot','WINDIR','TEMP','TMP']), timeout: 10000});
+    {env: whitelistedEnvironment(['PATH','SystemRoot','WINDIR','TEMP','TMP']), timeout: 30000});
   return JSON.parse(stdout);
 }
 async function shaped(cwd) {
@@ -99,6 +99,57 @@ test('cancelled private directory preparation allocates nothing', native, async 
   const cwd = await fixture(t), controller = new AbortController(); controller.abort();
   await assert.rejects(ensureWindowsPrivateApex(cwd, controller.signal), /aborted/);
   assert.deepEqual(await readdir(cwd), []);
+});
+
+test('warm private storage calls reuse one helper instead of paying PowerShell startup each time', native, async t => {
+  const roots = await Promise.all([1, 2, 3, 4].map(() => fixture(t)));
+  await ensureWindowsPrivateApex(roots[0]);
+  for (const root of roots.slice(1)) {
+    const started = performance.now();
+    await ensureWindowsPrivateApex(root);
+    assert.ok(performance.now() - started < 1500, `warm call took ${Math.round(performance.now() - started)} ms`);
+    assert.deepEqual(await readdir(root), ['.apex']);
+  }
+  const security = await acl(roots[3], '.apex');
+  assert.deepEqual(security.Rules, [security.Sid]);
+});
+
+test('parallel private storage calls on separate roots all complete privately', native, async t => {
+  const roots = await Promise.all([1, 2, 3, 4, 5].map(() => fixture(t)));
+  await Promise.all(roots.map(root => ensureWindowsPrivateApex(root)));
+  // Success already means the helper's RequirePrivate check passed; inspect one root independently.
+  for (const root of roots) assert.deepEqual(await readdir(root), ['.apex']);
+  const security = await acl(roots[4], '.apex');
+  assert.equal(security.Protected, true);
+  assert.deepEqual(security.Rules, [security.Sid]);
+});
+
+test('cancelling while the helper is still starting stops promptly and allocates nothing', native, async t => {
+  const root = await fixture(t);
+  const url = new URL('../lib/windows-private-storage.mjs', import.meta.url).href;
+  // A fresh process guarantees a cold helper, whose startup takes seconds on slow hosts.
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const m = await import(${JSON.stringify(url)}); const controller = new AbortController();
+    setTimeout(() => controller.abort(), 100); const started = performance.now();
+    try { await m.ensureWindowsPrivateApex(${JSON.stringify(root)}, controller.signal); console.log('completed'); }
+    catch (error) { console.log(JSON.stringify({message: error.message, ms: Math.round(performance.now() - started)})); }`],
+    {encoding: 'utf8', timeout: 50000});
+  assert.equal(child.status, 0, child.stderr);
+  const outcome = JSON.parse(child.stdout);
+  assert.match(outcome.message, /aborted/);
+  assert.ok(outcome.ms < 1500, `cancellation took ${outcome.ms} ms`);
+  assert.deepEqual(await readdir(root), []);
+});
+
+test('a process that used private storage still exits on its own', native, async t => {
+  const root = await fixture(t);
+  const url = new URL('../lib/windows-private-storage.mjs', import.meta.url).href;
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e',
+    `const m = await import(${JSON.stringify(url)}); await m.ensureWindowsPrivateApex(${JSON.stringify(root)}); console.log('done');`],
+    {encoding: 'utf8', timeout: 50000});
+  assert.equal(child.error, undefined, 'process did not exit after its last private storage call');
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout.trim(), 'done');
 });
 
 test('Windows private storage helper import performs no process or filesystem work', () => {

@@ -9,7 +9,7 @@
   "spending_policy": "unlimited",
   "budget_cap_usd": null,
   "account_billed_cost_usd": null,
-  "observed_catalog_token_cost_usd": 0.9943172,
+  "observed_catalog_token_cost_usd": 16.6984308,
   "reserved_catalog_token_cost_usd": 46.6944,
   "remaining_catalog_equivalent_usd": null,
   "runs": [
@@ -68,6 +68,39 @@
       "catalog_token_cost_usd": 0.25997,
       "billed_cost_usd": null,
       "summary_file": "runs/model-smoke/windows-sol-live-007/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-smoke-001",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 1 tasks × 1 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 25,
+      "catalog_token_cost_usd": 0.3012496,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-smoke-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-001",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 795,
+      "catalog_token_cost_usd": 8.232368000000001,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-002",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 633,
+      "catalog_token_cost_usd": 7.170495999999999,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-002/summary.json",
       "benchmark_result": false,
       "usage_complete": true
     }

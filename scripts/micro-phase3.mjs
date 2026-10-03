@@ -9,6 +9,7 @@ import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
 import {syncBuiltinESMExports} from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, whitelistedEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
@@ -535,7 +536,9 @@ async function nativeFixture(pi, spec, shared, observed) {
     const denied = [
       ['--profile', 'max', '--apex-core', 'max'],
       ['--apex-features', 'all', '--model', 'openai/gpt-4.1'],
-      ['--apex-features', 'all', '--thinking', 'low'],
+      // Single models take any level; the apex/auto route and eval isolation stay at xhigh.
+      ['--apex-features', 'all', '--apex-context', 'route', '--thinking', 'low'],
+      ['--apex-features', 'all', '--apex-eval', '--thinking', 'low'],
     ].map(args => {try {buildPiInvocation(args, '/unused-offline-cli'); return false;} catch {return true;}});
     const cliDenied = [];
     for (const args of [['--profile', 'max', '--apex-core', 'max'],
@@ -679,7 +682,7 @@ export async function runPhase3Micro({fixtureMode = 'success', selection = 'muse
     model_performance_measured: false, provider_calls: 0, benchmark_runs: 0, network_attempts: 0, transport_attempts: 0,
     resource_discovery_attempts: 0, attempted_calls: counters(), checks: {},
     cleanup: {fixture_removed: false, owned_processes_removed: true}};
-  const fixture = await mkdtemp(path.join(root, selection === 'windows-sol' ? 'windows sol ç-' : 'phase3-micro-'));
+  const fixture = await mkdtemp(path.join(os.tmpdir(), selection === 'windows-sol' ? 'windows sol ç-' : 'phase3-micro-'));
   artifact.fixture = fixture;
   try {
     const result = await runChild({fixture, fixtureMode, selection});

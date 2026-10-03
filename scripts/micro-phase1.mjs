@@ -8,6 +8,7 @@ import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
 import {syncBuiltinESMExports} from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
@@ -390,7 +391,7 @@ export async function runPhase1Micro({fixtureMode = 'success'} = {}) {
     transcript_source: 'script-seeded local native tool calls plus an explicitly synthetic text masking observation',
     model_performance_measured: false, provider_calls: 0, benchmark_runs: 0, network_attempts: 0, transport_attempts: 0,
     resource_discovery_attempts: 0, attempted_calls: counters(), checks: {}, cleanup: {fixture_removed: false}};
-  const fixture = await mkdtemp(path.join(root, 'phase1-micro-'));
+  const fixture = await mkdtemp(path.join(os.tmpdir(), 'phase1-micro-'));
   artifact.fixture = fixture;
   try {
     const result = await runChild({fixture, fixtureMode});

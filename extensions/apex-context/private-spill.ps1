@@ -1,7 +1,9 @@
-param([Parameter(Mandatory=$true)][string]$Root, [string]$Name = '', [switch]$DirectoryOnly)
+param([string]$Root = '', [string]$Name = '', [switch]$DirectoryOnly, [switch]$Serve)
 $ErrorActionPreference = 'Stop'
 try {
-    if (($DirectoryOnly -and $Name) -or (-not $DirectoryOnly -and -not $Name)) { throw 'Select a spill name or DirectoryOnly, not both' }
+    if ($Serve) { if ($Root -or $Name -or $DirectoryOnly) { throw 'Serve takes its requests from stdin' } }
+    elseif (-not $Root) { throw 'Root is required' }
+    elseif (($DirectoryOnly -and $Name) -or (-not $DirectoryOnly -and -not $Name)) { throw 'Select a spill name or DirectoryOnly, not both' }
     # Windows PowerShell/.NET Framework supplies atomic ACL creation. Do not
     # substitute chmod or bypass execution policy/constrained language failures.
     Add-Type -TypeDefinition @'
@@ -83,7 +85,7 @@ public static class ApexPrivateSpill {
         RequirePrivate(Directory.GetAccessControl(path, AccessControlSections.Owner | AccessControlSections.Access), owner);
         return path;
     }
-    public static void Spill(string root, string name) {
+    public static void Spill(string root, string name, Stream input) {
         if (!Path.IsPathRooted(root) || !String.Equals(Path.GetFullPath(root), root, StringComparison.OrdinalIgnoreCase) ||
             (name.Length != 0 && !Regex.IsMatch(name, @"^[A-Za-z0-9_-]+-[a-f0-9]{32}\.log$"))) throw new IOException("Invalid Apex spill path");
         var owner = WindowsIdentity.GetCurrent().User;
@@ -117,7 +119,7 @@ public static class ApexPrivateSpill {
                 var info = Info(file.SafeFileHandle);
                 if ((info.Attributes & 0x410) != 0 || info.Links != 1) throw new IOException("Apex log must be a fresh regular file");
                 RequirePrivate(file.GetAccessControl(), owner);
-                Console.OpenStandardInput().CopyTo(file);
+                input.CopyTo(file);
                 file.Flush(true);
             }
             // Same-directory Move is atomic and never replaces an existing entry.
@@ -132,9 +134,31 @@ public static class ApexPrivateSpill {
             for (int i = pins.Count - 1; i >= 0; --i) pins[i].Dispose();
         }
     }
+    // One long-lived helper pays PowerShell startup and this compilation once. Each request is
+    // one ASCII line: base64(UTF-8 root), the spill name or "-" for DirectoryOnly, base64(raw).
+    public static void Serve() {
+        var input = new StreamReader(Console.OpenStandardInput(), Encoding.ASCII);
+        var output = new StreamWriter(Console.OpenStandardOutput(), Encoding.ASCII);
+        output.AutoFlush = true;
+        output.WriteLine("ready");
+        string line;
+        while ((line = input.ReadLine()) != null) {
+            try {
+                var fields = line.Split(' ');
+                if (fields.Length != 3) throw new IOException("Malformed Apex spill request");
+                var root = Encoding.UTF8.GetString(Convert.FromBase64String(fields[0]));
+                using (var raw = new MemoryStream(Convert.FromBase64String(fields[2]), false))
+                    Spill(root, fields[1] == "-" ? "" : fields[1], raw);
+                output.WriteLine("ok");
+            } catch (Exception error) {
+                output.WriteLine("error " + Convert.ToBase64String(Encoding.UTF8.GetBytes(error.ToString())));
+            }
+        }
+    }
 }
 '@
-    [ApexPrivateSpill]::Spill($Root, $Name)
+    if ($Serve) { [ApexPrivateSpill]::Serve() }
+    else { [ApexPrivateSpill]::Spill($Root, $Name, [Console]::OpenStandardInput()) }
 } catch {
     [Console]::Error.WriteLine($_.Exception.ToString())
     exit 1

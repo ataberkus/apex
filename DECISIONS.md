@@ -1,6 +1,6 @@
 # Apex decisions
 
-No behavior-changing Apex feature is default-on. No pass-rate or cost improvement is claimed.
+Outside native Windows no behavior-changing Apex feature is default-on. On native Windows, plain `apex` turns on the prompt-free `WINDOWS_AUTO` set (commit 47b20ae); its first live measurement against stock Pi is the A/B section at the end. No benchmark pass-rate or cost improvement is claimed.
 
 | Change | Decision | Δpass rate ±95% CI | Δtokens | Δtoken dollars | Δwall time | Evidence |
 |---|---|---|---|---|---|---|
@@ -131,3 +131,52 @@ Finish the Windows milestone in place. Preflight checks the PATH the launcher re
 
 
 The user asked for planning on a stronger model and editing on a cheaper one, specifically Opus 5.5 at high with Sonnet 5.5 at low/medium/high, plus compaction at 300k context tokens. The user then asked for the pair and its thinking levels to be configurable, so `--apex-pair provider/model:level,provider/model[:level]` selects a generic Windows-target virtual model, `apex/pair`; the frozen Muse `apex/auto`/`route` policy and its xhigh restriction are unchanged. It follows Pi's upstream jev-router shape (plan until the first successful edit, then switch once) and adds one rescue switch after three consecutive failed tool calls. The planning level is fixed at launch and the build level is the session thinking level, so Pi's own level control changes the cheaper model live; the virtual model offers exactly the build model's levels. Pi parses extension flags only after loading extensions, so the pair is read from argv and resolved against the offline catalog. The two models may use different logins; the dashboard checks each before sending. A different pair restarts the agent on the same session file, because the virtual model is registered at startup. Pi's cross-model transform turns thinking into text instead of replaying signatures. `autocompact` triggers native manual compaction only at `agent_settled`, because `compact()` aborts first; Pi settings are file-only, and Apex does not rewrite user or project settings. No live request, usage measurement or quality comparison has been made; both features are unmeasured.
+
+## Live A/B against stock Pi, and the Windows fixes it exposed
+
+The user authorized unlimited Sol (`openai-codex/gpt-6.1-sol`, thinking max) for feature testing. `evals/ab/` runs the real `bin/apex` CLI on 12 local coding tasks in fresh Git workspaces under the OS temp folder: stock Pi (`--apex-off`) against the Windows defaults (`--profile headless`, i.e. `WINDOWS_AUTO` plus headless and checkpoints), same model and level, arms interleaved. Verifiers and hidden tests live outside the workspace; `--self-test` proves every fixture fails as given and passes with its reference solution. A long run uses a frozen copy of Apex made by `evals/ab/snapshot.mjs` (`--apex-root`, with `apex-snapshot.json` and the patch kept beside the results). Costs are Pi catalog estimates appended to `evals/codex-budget.json`, not billing. This is a small local suite, not a benchmark result.
+
+A one-task smoke run (`runs/ab/ab-smoke-001`) exposed three Apex bugs; each is fixed test-first:
+
+- **Skills were unreadable.** The `skills` feature advertises packaged `skills/*/SKILL.md` paths, but `correct` confined every `read` to cwd, so all skill reads failed. `read`, and only `read`, may now reach the real package `skills/` tree; writes there and lexical or symlink escapes stay refused.
+- **Private storage cost seconds per call.** Each checkpoint job and output spill spawned Windows PowerShell and recompiled the C# ACL helper: 5–13 s per call on this host, and over its 15 s bound under concurrency, which blocked an edit ("Checkpoint failed; mutation blocked"). One helper process per Node process now serves every request (`-Serve`; requests are base64 lines on stdin) with the same `Spill` code, a 60 s startup bound, a 15 s per-request bound, a neutral cwd and unref'd idle handles. Five parallel calls dropped from 11–17 s to under 2 s. The one-shot `-File helper ROOT NAME` mode is unchanged and still covered.
+- **Undo failed on a brief sharing lock.** Restore renames a prepared backup onto the user's file; Windows refuses that with EPERM while antivirus or an indexer holds the file without share-delete. The three checkpoint renames retry EPERM/EACCES/EBUSY for about five seconds on Windows only. The source check before the rename is unchanged, so a concurrent manual edit inside that window is still not detected.
+
+A later review also fixed a regression in the new helper: a cancel that arrived while the helper was still starting waited for startup (about 2 s) before rejecting. The abort listener is now attached before startup is awaited, so cancellation discards the helper at once. The ab-001 snapshot predates this fix; ab-002's includes it.
+
+### ab-001: 12 tasks × 3 attempts per arm
+
+| Run | Apex snapshot | Passed (stock / apex) | Δpass, paired 95% CI | Δcost | Δtokens (input + cache read + output) | Δwall | Δrequests | Evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ab-001 | `302c1a5d6155` (47b20ae + the smoke fixes) | 34/36 / 35/36 | +3% (+0% to +8%), inconclusive | ×2.80 (×2.22–×3.61) | ×6.92 (×4.89–×9.48) | ×2.85 (×2.21–×3.72) | ×2.59 (×2.38–×2.81) | `runs/ab/ab-001/` (795 requests, $8.23 catalog) |
+| ab-002 | `131c2a6bfef5` (bbc342f, a docs-only change, + the gate and abort fixes below) | 36/36 / 35/36 | −3% (−8% to +0%), inconclusive | ×2.12 (×1.68–×2.76) | ×4.69 (×3.08–×6.87) | ×2.28 (×1.80–×3.00) | ×1.83 (×1.62–×2.05) | `runs/ab/ab-002/` (633 requests, $7.17 catalog) |
+
+Wall times come from a slow host whose CPU other processes held near 100% during both runs. Arms were interleaved, so both were affected, but Apex's extra process spawns weigh more there. Request and token ratios do not depend on host speed.
+
+Verdict: on this suite the Apex Windows defaults bought no measurable pass rate and cost about 2.8× the dollars and wall time of stock Pi. Stock already passes 34/36, so the suite is near its ceiling and cannot show a large solve-rate gain either way. All three failures are `perf-dedupe` `tests_unchanged` (stock #1 and #3, apex #2): each attempt left the existing tests untouched and added a new regression test file under `test/`. The prompt asks to keep "the existing tests in test/ passing and unchanged" while the checker counts any added file, so the checker is stricter than the prompt. The pre-registered result stands; counting additions as allowed, both arms pass 36/36. The check stayed unchanged until ab-002, which reuses the same tasks, had finished (see below).
+
+Where the overhead went: the verification gate continued all 36 Apex attempts, 60 times in total, and 59 of those continuations included "Run a recognized verification action". 299 of Apex's 573 requests (52%) came after the first gate, about 85% of its 351 extra requests over stock, and the post-gate tail averaged 123 s per attempt. The models had usually verified already, with `node -e` assertions or a chained `npm test && git status`. The gate message did not say which checks count, so models searched for a verification tool (65 `tool_search` calls, all after a gate) and re-ran checks in new forms. The packaged skills added 56 `SKILL.md` reads and 57 probe runs, about 25 s each on this host; whether they help is unmeasured.
+
+Fixed from those traces, test-first, after the ab-001 snapshot:
+
+- **The gate names what it accepts.** The unverified item lists the recognized checks, says only a plain bash call without shell operators counts, says ad hoc scripts such as `node -e` do not, and asks the model to say so when none applies instead of inventing one.
+- **Read-only chains no longer void a passing check.** The ledger treated any command with `&&`, `|` or `;` as a possible mutation, so `npm test` followed by `git status --porcelain && git status` reopened the gate. A chain whose parts are all read-only observations now stays an observation. Only an `&&` chain can carry a verifier's success, because only `&&` exits 0 exactly when every verifier in it passed. Redirects, `&`, `$` and backticks still count as mutation.
+- **Write-capable read options are no longer read-only.** `git diff --output=FILE` writes a file, and quoting hid `--pre`, `--ext-diff` and `--textconv` from the option check (`rg '--pre=sh' x`). The check now strips quotes and backslashes the way the shell does, and refuses `--output`.
+
+### ab-002: the same suite with those fixes
+
+Same tasks, model, level and settings; both arms rerun in the same window. Stock barely moved between runs ($0.0661 → $0.0664 per attempt, 158 → 150 s, 6.2 requests both times), so the Apex change is attributable to the fixes. Apex per attempt fell from $0.163 to $0.133 (−18%), from 390 s to 300 s (−23%) and from 15.9 to 11.4 requests (−28%). Gate continuations fell from 60 to 38, those with the unverified item from 59 to 24, post-gate requests from 299 to 149, and the post-gate tail from 123 s to 48 s per attempt. `tool_search` calls fell from 65 to 3 and codemode TypeErrors from 21 to 0. Pass rate did not move: the single failure is again `perf-dedupe` `tests_unchanged` (apex #3, an added `test/dedupe.edge-cases.test.js`), and counting additions as allowed, both arms pass 36/36.
+
+Verdict: the fixes remove about a quarter of Apex's cost with no pass-rate change, but the Windows defaults still cost about 2.1× and take 2.3× the wall time of stock Pi, with no measured pass-rate benefit on this suite. Stock passes 36/36 here, so this suite cannot detect a benefit; that needs tasks stock Pi fails. No gain is claimed. What still costs:
+
+- **Todo gate.** The gate still continues every Apex attempt, and 35 of the 38 continuations list unfinished todos. Models set contract criteria, which become todos, verify the work, then finish without marking the todos done.
+- **Skills.** 54 `SKILL.md` reads and 55 probe runs.
+- **`.apex/` visibility.** `git-revert` costs $0.204 per Apex attempt against $0.031 for stock. All three Apex attempts again edited `.git/info/exclude`, after searching for a way to disable checkpoints (6/6 across both runs).
+- **What the gate proves.** It accepts `node --check`, which is only a syntax check, and now says so. One ab-002 attempt cleared the gate with `node --check lib/codecs.js` after its real check, `node -e` assertions, had already passed. The gate shows that some recognized check ran after the last edit, not that the change works.
+
+After both runs, the `perf-dedupe` check now matches its prompt: every file that existed under `test/` must keep its bytes, and new files are allowed (`existing_tests_unchanged`). The reference solution adds a regression test. `--self-test` now also applies `mustReject` changes on top of the reference fix, and here emptying the existing test file must still fail. A scratch mutation that made the check always pass was caught (`ACCEPTS forbidden change 1`). Runs from ab-003 on use this check; ab-001 and ab-002 keep their recorded verdicts.
+
+Not changed:
+
+- **`.apex/` visibility.** `.apex/` shows as untracked (`?? .apex/`) in a user's repo, so an agent's `git add -A` would stage Apex's private logs and checkpoint shadow repository. In ab-001, all three Apex `git-revert` attempts, which needed a clean `git status`, edited the user's `.git/info/exclude` themselves to hide it. The private-storage contract creates no data byte in directory-only mode, so having Apex write a `.gitignore` inside `.apex/`, or the user's `.git/info/exclude`, is a product decision left to the user.
+- **`tool_search` in codemode.** Inside codemode, Pi's search function is `searchTools()`, and Pi's codemode description documents it. Models still called `tools.tool_search`, which does not exist there. The synchronous TypeError cancelled the whole batch, which happened 21 times in ab-001. Every such search followed a gate, and after the gate fix ab-002 had 3 searches and no TypeErrors; Pi itself is unchanged.

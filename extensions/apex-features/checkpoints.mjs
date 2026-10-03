@@ -6,6 +6,17 @@ import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import {ensureWindowsPrivateApex} from '../../lib/windows-private-storage.mjs';
 
+// Windows refuses a rename while another process (antivirus, an indexer) holds either file without
+// share-delete. Those holds are brief, so retry for about five seconds before failing.
+async function renameRetrying(from, to) {
+  for (let delay = 20; ; delay *= 2) {
+    try { return await rename(from, to); } catch (error) {
+      if (process.platform !== 'win32' || !['EPERM', 'EACCES', 'EBUSY'].includes(error.code) || delay > 2560) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 const exec = promisify(execFile);
 const queues = new Map();
 const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 10000 });
@@ -252,7 +263,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     const temporary = path.join(store, `state-${randomUUID()}.tmp`);
     const handle = await open(temporary, 'wx', 0o600);
     try { await handle.writeFile(data); await handle.sync(); } finally { await handle.close(); }
-    try { await rename(temporary, stateFile); } catch (error) { await unlink(temporary); throw error; }
+    try { await renameRetrying(temporary, stateFile); } catch (error) { await unlink(temporary); throw error; }
   }
   async function shadowReady(signal) {
     await ensureDir(`.apex/checkpoints/${sessionKey}`, true);
@@ -428,7 +439,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
           if (!equal(current?.descriptor, previous.get(relative)?.descriptor)) throw fail('conflict', 'Checkpoint source changed during restoration');
           const value = desired.get(relative);
           await checkedParents(relative, Boolean(value), created);
-          if (value) await rename(path.join(transaction, `before-${i}`), path.join(root, relative));
+          if (value) await renameRetrying(path.join(transaction, `before-${i}`), path.join(root, relative));
           else if (current) await unlink(path.join(root, relative));
           applied.push({ relative, index: i });
         }
@@ -449,7 +460,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
             const current = await sourceFile(relative, rollbackSignal);
             if (!equal(current?.descriptor, desired.get(relative)?.descriptor)) throw fail('conflict', 'Checkpoint rollback refused a concurrent manual edit');
             await checkedParents(relative, Boolean(previous.get(relative)), created);
-            if (previous.get(relative)) await rename(path.join(transaction, `rollback-${index}`), path.join(root, relative));
+            if (previous.get(relative)) await renameRetrying(path.join(transaction, `rollback-${index}`), path.join(root, relative));
             else if (current) await unlink(path.join(root, relative));
           } catch (rollbackError) { failures.push({ path: relative, message: rollbackError.message }); }
         }

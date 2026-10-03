@@ -136,12 +136,25 @@ function classify(name, input) {
   if (['write', 'edit', 'apply_patch', 'patch'].includes(name)) return 'mutation';
   if (name !== 'bash') return ['codemode', 'powershell', 'bg'].includes(name) ? (name === 'codemode' ? 'container' : 'mutation') : 'observation';
   const command = input?.command;
-  // Shell operators, redirects, expansion and substitutions make the result
+  // Redirects, background jobs, expansion and substitutions make the result
   // ambiguous. Never parse/execute a criterion's opaque `check` string here.
-  if (typeof command !== 'string' || /[;&|<>`$\n\r]/.test(command)) return 'mutation';
+  if (typeof command !== 'string' || /[<>`$\n\r]/.test(command)) return 'mutation';
+  const separators = command.match(/&&|\|\||[;|&]/g) ?? [];
+  if (separators.includes('&')) return 'mutation';
+  // Splitting at every separator, quoted or not, still starts a part at each real command.
+  const kinds = command.split(/&&|\|\||[;|]/).map(classifySimple);
+  if (kinds.includes('mutation')) return 'mutation';
+  if (!kinds.includes('verification')) return 'observation';
+  // Only an && chain exits 0 exactly when every verifier in it passed.
+  return separators.every(separator => separator === '&&') ? 'verification' : 'mutation';
+}
+
+function classifySimple(command) {
   const tokens = command.trim().split(/\s+/);
-  if (tokens.some(token => ['--help', '-h', '--version', '-v'].includes(token))) return 'mutation';
-  if (tokens.some(token => /^--(?:pre|ext-diff|textconv)(?:=|$)/.test(token))) return 'mutation';
+  // The shell removes quotes and backslashes, so check options as the program receives them.
+  const options = tokens.map(token => token.replace(/['"\\]/g, ''));
+  if (options.some(token => ['--help', '-h', '--version', '-v'].includes(token))) return 'mutation';
+  if (options.some(token => /^--(?:pre|ext-diff|textconv|output)(?:=|$)/.test(token))) return 'mutation';
   const joined = tokens.join(' ');
   if (/^(?:npm|pnpm|yarn) (?:test(?: .*)?|run (?:test|check|typecheck|lint)(?::[\w-]+)?(?: .*)?)$/.test(joined)
     || /^(?:pytest|ruff|pyright)(?: .*)?$/.test(joined)
@@ -152,6 +165,12 @@ function classify(name, input) {
   if (/^(?:git (?:status|diff|log|show|rev-parse)|(?:rg|cat|head|tail|ls|pwd|wc)(?:\s|$))/.test(joined)) return 'observation';
   return 'mutation';
 }
+
+// Mirrors classify(): naming the accepted checks saves the model from guessing after an ad hoc check.
+const UNVERIFIED = 'Run a recognized verification action successfully after the last file change (with no pending mutations). '
+  + 'Only a plain bash call without shell operators counts: npm test, npm run test|check|typecheck|lint, node --test, node --check, '
+  + 'pytest, python -m pytest|unittest, ruff, pyright, tsc --noEmit, cargo test|check, go test|vet, make test|check. '
+  + 'Ad hoc scripts such as node -e do not count; if none of these applies here, say so instead of inventing one.';
 
 function stepCount(task, criteria) {
   const explicit = (task.match(/(?:^|[\n;:])\s*(?:\d+[.)]|[-*])\s+\S/g) ?? []).length;
@@ -447,7 +466,7 @@ export function createTaskState({ cwd, branch = [], persist = () => {}, policy, 
           if (data.todos.length === 0 && stepCount(data.task, data.contract.criteria) >= 3) unmet.push('Create a todo list for the multi-step task.');
           for (const todo of data.todos) if (!['done', 'dropped'].includes(todo.status) || todo.status === 'dropped' && !nonblank(todo.reason)) unmet.push(`Todo ${todo.id}: ${todo.text}`);
         }
-        if (!data.ledger.verification || data.ledger.verification.sequence <= data.ledger.lastMutation || data.ledger.pending.length) unmet.push('Run a recognized verification action successfully after the last file change (with no pending mutations).');
+        if (!data.ledger.verification || data.ledger.verification.sequence <= data.ledger.lastMutation || data.ledger.pending.length) unmet.push(UNVERIFIED);
         if (enforceContract) {
           if (!data.contract.criteria.length) unmet.push('Set explicit acceptance criteria with the contract tool; automatic extraction is unavailable offline.');
           for (const criterion of data.contract.criteria) if (criterion.artifact) {

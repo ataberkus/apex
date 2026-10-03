@@ -93,6 +93,21 @@ test('confinement rejects lexical escapes, existing symlinks and dangling symlin
   assert.equal(await readFile(path.join(outside, 'file.txt'), 'utf8'), 'outside');
 });
 
+test('confinement lets read, and only read, reach the packaged Apex skills outside cwd', async t => {
+  const cwd = await fixture(t);
+  const skill = path.resolve('skills', 'debugging', 'SKILL.md');
+  const {correctToolCall} = await moduleApi();
+  const read = call('read', {path: skill});
+  assert.equal(await correctToolCall(read, {cwd}), undefined);
+  assert.equal(read.input.path, skill);
+  for (const event of [call('write', {path: skill, content: 'x'}), call('read', {path: path.resolve('package.json')}),
+    call('read', {path: path.join(path.resolve('skills'), '..', 'package.json')})]) {
+    const blocked = await correctToolCall(event, {cwd});
+    assert.equal(blocked?.block, true);
+    assert.match(blocked.reason, /outside|confined/);
+  }
+});
+
 test('edit precondition accepts native multi-edit and native whitespace/BOM/CRLF modes without writing', async t => {
   const cwd = await fixture(t);
   const file = path.join(cwd, 'file.txt');
