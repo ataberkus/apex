@@ -26,9 +26,9 @@ An Electron shell around the existing dashboard server. Chosen over an Edge `--a
 | Unit | Purpose | Depends on |
 |---|---|---|
 | `desktop/main.mjs` | Electron main process: single-instance lock, spawn/supervise the server, own the window, lock down navigation | `electron`, system `node` on PATH, `dashboard/server.mjs` |
-| `desktop/startup.html` | "Starting Apex…" / failure page. Loaded as `startup.html?state=starting` or `?state=failed&detail=<text>`; a small inline script renders `detail` with `textContent`. Retry is a link to `apex:retry`, which main intercepts in `will-navigate` | — |
-| `desktop/icon.ico` | App icon (generated monogram "A"; replaceable) | — |
-| `desktop/install-shortcut.ps1` | Creates Start-menu and desktop shortcuts | Windows PowerShell |
+| `desktop/startup.html` | "Starting Apex…" / failure page. Loaded as `startup.html?state=starting` or `?state=failed&detail=<text>`; a small inline script renders `detail` with `textContent`. Retry is a link to `?state=retry` on the same page, which main intercepts in `will-navigate` | — |
+| `desktop/shell.mjs` | Pure helpers (ready-line parsing, navigation decisions, startup URL, window-bounds restore, stderr tail); no Electron import so node:test covers it | — |
+| `desktop/icon.ico` | App icon (generated monogram "A" by `scripts/make-desktop-icon.mjs`; replaceable) | — |
 | `dashboard/server.mjs` (changed) | Adds `--port` and `--desktop` flags | — |
 | `package.json` (changed) | `electron` pinned devDependency (44.5.1, latest stable at writing); scripts `desktop`, `desktop:shortcut`, `smoke:desktop`; `desktop` added to `files` | — |
 
@@ -55,8 +55,8 @@ An Electron shell around the existing dashboard server. Chosen over an Edge `--a
 
 - `BrowserWindow`: title "Apex", `icon` = `desktop/icon.ico`, default 1400×900, min 900×600; bounds (and maximized state) saved to `app.getPath('userData')/window.json` on close and restored on launch, ignored if off-screen. `autoHideMenuBar: true` with the default application menu retained so Ctrl+R, Ctrl+Shift+I, zoom, and clipboard shortcuts work.
 - `webPreferences`: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, no preload. The page has no Electron access.
-- **Navigation lockdown** — allowed origin is the dashboard origin from the ready line (plus `file:` for `startup.html`):
-  - `will-navigate` to any other URL: `preventDefault`; `apex:retry` restarts the server (startup steps 3–4); if `http:`, `https:` or `mailto:`, `shell.openExternal(url)`; anything else is dropped.
+- **Navigation lockdown** — allowed origin is the dashboard origin from the ready line (plus `startup.html` itself):
+  - `will-navigate` to any other URL: `preventDefault`; a navigation to `startup.html?state=retry` restarts the server (startup steps 3–4); if `http:`, `https:` or `mailto:`, `shell.openExternal(url)`; anything else is dropped.
   - `setWindowOpenHandler`: `http(s)`/`mailto` → `openExternal`, `deny`. `about:blank` → `allow` with `show: false` (the dashboard's sign-in popup pre-open). For that child window, the first navigation to an `http(s)` URL (`will-navigate` / `will-redirect` / `did-start-navigation`) is cancelled, opened with `openExternal`, and the child is closed. Everything else → `deny`.
   - Fallback: if the hidden popup interception does not fire, the sign-in dialog's existing visible link (`#auth-open`) is an ordinary external link and goes through `setWindowOpenHandler`/`will-navigate` above.
 - OAuth completes because Pi's provider login listens on its own localhost callback; the default browser reaches it directly.
@@ -64,7 +64,7 @@ An Electron shell around the existing dashboard server. Chosen over an Edge `--a
 
 ## Shortcut
 
-`npm run desktop:shortcut` runs `powershell -NoProfile -ExecutionPolicy Bypass -File desktop/install-shortcut.ps1`, which creates `Apex.lnk` in the user Start-menu Programs folder and on the desktop: target `<repo>\node_modules\electron\dist\electron.exe`, arguments `"<repo>\desktop\main.mjs"`, working folder `<repo>`, icon `<repo>\desktop\icon.ico`, and the shortcut's `System.AppUserModel.ID` set to `Apex.Desktop` so pinned/taskbar grouping matches the window. Re-running overwrites both shortcuts. Because the shortcut runs this checkout, `git pull` updates the app.
+`npm run desktop:shortcut` runs `electron desktop/main.mjs --install-shortcuts`, which uses Electron's `shell.writeShortcutLink` to create `Apex.lnk` in the user Start-menu Programs folder and on the desktop: target the running `electron.exe` (`process.execPath`, i.e. `<repo>\node_modules\electron\dist\electron.exe`), arguments `"<repo>\desktop\main.mjs"`, working folder `<repo>`, icon `<repo>\desktop\icon.ico`, and `appUserModelId` `Apex.Desktop` so pinned/taskbar grouping matches the window. Re-running overwrites both shortcuts. Because the shortcut runs this checkout, `git pull` updates the app.
 
 ## Error handling summary
 
@@ -84,7 +84,7 @@ An Electron shell around the existing dashboard server. Chosen over an Edge `--a
   - a request with the bound port's Host and the token cookie gets 200 on `/api/state`; a different Host gets 403;
   - closing the child's stdin makes it exit with code 0 within 5 s;
   - without `--desktop`, no ready JSON line is printed and closing stdin does not stop it (then killed by the test).
-- **Electron smoke (`npm run smoke:desktop`, `scripts/smoke-desktop.mjs`):** launches Electron with `desktop/main.mjs --smoke`; in smoke mode main waits for the dashboard to load, checks `document.title === 'Apex'` and that `/api/state` returns 200 from the page, prints a JSON result, and quits through the normal shutdown path. The script then verifies the server child PID no longer exists. Uses a temporary `APEX_DASH_HOME`. Not part of `npm test` (needs a display and Electron binary).
+- **Electron smoke (`npm run smoke:desktop`, `scripts/smoke-desktop.mjs`):** launches Electron with `desktop/main.mjs --smoke`; in smoke mode main waits for the dashboard to load, checks `document.title === 'Apex'` and that `/api/state` returns 200 from the page, then probes the three external-link paths (a sign-in style `about:blank` popup redirected to an https URL, a `target=_blank` link, and a same-window link) with `openExternal` replaced by a recorder so no browser opens, and checks the window is still on the dashboard origin; it prints a JSON result, and quits through the normal shutdown path. The script then verifies the server child PID no longer exists. Uses a temporary `APEX_DASH_HOME`. Not part of `npm test` (needs a display and Electron binary).
 - **Manual acceptance:** launch via the shortcut, screenshot, add a workspace, close the window, confirm no leftover `node.exe` running `dashboard/server.mjs` or `bin/apex`.
 
 ## Out of scope
