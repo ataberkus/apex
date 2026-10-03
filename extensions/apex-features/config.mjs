@@ -1,5 +1,7 @@
 export {runtimePolicy,SELECTED_MODEL} from '../apex-context/config.mjs';
-export const FEATURE_FEATURES=Object.freeze(['cost','checkpoints','review','plan','remember','skills','safety','report','resume']);
+export const FEATURE_FEATURES=Object.freeze(['cost','checkpoints','review','plan','remember','skills','safety','report','resume','autocompact']);
+// Context size at which autocompact asks Pi's native compaction to summarize a settled session.
+export const AUTOCOMPACT_TOKENS=300_000;
 export function parseFeatureFlags(value){
  if(value===undefined||value==='')return Object.freeze([]);
  if(typeof value!=='string')throw Error('Apex features must be a comma-separated string');

@@ -100,6 +100,9 @@ test('RPC prompts preserve image content for text+image, image-only and steering
   assert.deepEqual(promptCommand({message: 'Inspect this', images: [PNG]}, session), {type: 'prompt', message: 'Inspect this', images: [PNG]});
   assert.deepEqual(promptCommand({message: '', images: [PNG]}, {...session, status: 'running'}), {type: 'prompt', message: '', images: [PNG], streamingBehavior: 'steer'});
   assert.deepEqual(promptCommand({message: 'hello'}, {status: 'idle', input: ['text']}), {type: 'prompt', message: 'hello'});
+  assert.deepEqual(promptCommand({message: 'later', mode: 'followUp'}, {...session, status: 'running'}), {type: 'prompt', message: 'later', streamingBehavior: 'followUp'});
+  assert.deepEqual(promptCommand({message: 'now', mode: 'bogus'}, {...session, status: 'running'}), {type: 'prompt', message: 'now', streamingBehavior: 'steer'});
+  assert.deepEqual(promptCommand({message: 'idle', mode: 'followUp'}, session), {type: 'prompt', message: 'idle'});
   assert.throws(() => promptCommand({message: ''}, session), /Write a message/);
   assert.throws(() => promptCommand({message: 'x'.repeat(100001)}, session), /100,000/);
   assert.throws(() => promptCommand({message: 'x', images: [PNG]}, {status: 'idle', input: ['text']}), /does not support images/);

@@ -104,3 +104,15 @@ test('future authorized planning fills task placeholder with literal dollar repl
  createApexFeatures({policy})(h.pi);await h.emit('session_start');const task='Inspect literal $& and $$ replacement strings.';
  const r=await h.commands.get('plan').handler(task,h.ctx);assert.equal(r.prompted,true);assert.ok(prompted.includes(task));await h.emit('session_shutdown');
 });
+test('autocompact compacts a settled session past 300k context tokens, once per settle and never below it',async()=>{
+ const h=fixture('autocompact');createApexFeatures()(h.pi);await h.emit('session_start');
+ const calls=[];h.ctx.compact=options=>calls.push(options);
+ for(const usage of [undefined,{tokens:null,contextWindow:1_000_000},{tokens:300_000,contextWindow:1_000_000},{tokens:310_000,contextWindow:272_000}]){
+  h.ctx.getContextUsage=()=>usage;await h.emit('agent_settled');
+ }
+ assert.equal(calls.length,0,'unknown, at-threshold and small-window usage leave compaction to Pi');
+ h.ctx.getContextUsage=()=>({tokens:300_001,contextWindow:1_000_000});await h.emit('agent_settled');
+ assert.equal(calls.length,1);assert.equal(typeof calls[0].onComplete,'function');assert.equal(typeof calls[0].onError,'function');
+ const off=fixture('cost');createApexFeatures()(off.pi);await off.emit('session_start');off.ctx.compact=()=>assert.fail('not selected');
+ off.ctx.getContextUsage=()=>({tokens:900_000,contextWindow:1_000_000});await off.emit('agent_settled');
+});

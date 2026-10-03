@@ -61,11 +61,12 @@ test('Windows selection refuses unavailable flags, nonnative hosts, fallback mod
     ['--apex-core', 'bg'], ['--apex-core', 'max'], ['--apex-core', 'recovery'], ['--apex-core', 'all'],
     ['--apex-context', 'route'], ['--apex-context', 'output'], ['--apex-context', 'all'],
     ['--provider', 'openai'], ['--provider', 'openrouter'], ['--model', SELECTED_MODEL],
-    ['--model', 'sol'], ['--model', `${WINDOWS_MODEL}:xhigh`], ['--thinking', 'max'], ['--thinking', 'low'],
+    ['--model', 'sol'], ['--model', `${WINDOWS_MODEL}:xhigh`], ['--thinking', 'loud'], ['--apex-eval', '--thinking', 'low'],
     ['--api-key', 'must-not-print'], ['--api-key=must-not-print'], ['--provider=openai-codex'],
     ['--models', '*'], ['--models', `${WINDOWS_MODEL},other/model`],
     ['--apex-target', 'windows'],
   ]) assert.throws(() => build(args), undefined, JSON.stringify(args));
+  for (const level of ['low', 'max']) assert.equal(option(build(['--thinking', level, 'task']).args, '--thinking'), level, 'a single model takes any level');
   assert.throws(() => buildPiInvocation(['--apex-target', 'windows'], 'x', {platform: 'linux'}), /native Windows/);
   assert.throws(() => buildPiInvocation(['--apex-target', 'linux'], 'x'), /only windows/);
   assert.doesNotThrow(() => build(['--models', WINDOWS_MODEL]));
@@ -83,7 +84,7 @@ test('Windows target runs any signed-in provider model with an explicit provider
     ['--model', 'claude-opus-5-5'], // another model needs its provider named
     ['--provider', 'anthropic'], ['--provider', 'anthropic', '--model', WINDOWS_MODEL],
     ['--provider', 'anthropic', '--model', 'anthropic/claude-opus-5-5'], ['--provider', 'anthropic', '--model', 'claude-opus-5-5:high'],
-    ['--provider', 'opencode', '--model', 'kimi-k3'], ['--provider', 'opencode-go', '--model', 'kimi-k3', '--thinking', 'low'],
+    ['--provider', 'opencode', '--model', 'kimi-k3'], ['--provider', 'opencode-go', '--model', 'kimi-k3', '--thinking', 'loud'],
     ['--provider', 'opencode-go', '--model', 'kimi-k3', '--models', WINDOWS_MODEL],
     ['--provider', 'opencode-go', '--model', 'kimi-k3', '--api-key', 'must-not-print'],
   ]) assert.throws(() => build(args), undefined, JSON.stringify(args));

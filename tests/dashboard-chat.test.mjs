@@ -134,6 +134,17 @@ test('cleared queues disappear and rejected sends retain the draft without a pha
   assert.equal(c.$('log').querySelector('.note').textContent, 'Sign in to Codex, then try again.');
 });
 
+test('Add to queue sends a follow-up while running and is hidden when idle', async t => {
+  const c = await chat(t);
+  assert.equal(c.$('queue-send').hidden, false);
+  c.$('box').value = 'Then write the summary';
+  assert.equal(c.$('queue-send').textContent, 'Add to queue');
+  await c.$('form').onsubmit({preventDefault() {}, submitter: c.$('queue-send')});
+  assert.deepEqual(c.requests, [{id: 'first', message: 'Then write the summary', mode: 'followUp'}]);
+  c.select(1);
+  assert.equal(c.$('queue-send').hidden, true);
+});
+
 test('session exit keeps undelivered steering visible with an honest status', async t => {
   const c = await chat(t);
   c.emit(queue(['Do not lose this instruction']));

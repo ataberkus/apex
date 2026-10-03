@@ -17,13 +17,203 @@ let markdownTimer = 0;
 const sessionDraft = id => { if (!drafts.has(id)) drafts.set(id, {message: '', images: [], reading: 0, sending: false, error: ''}); return drafts.get(id); };
 const modelLabel = id => state.models.find(m => m.id === id)?.label ?? id ?? '';
 
+/* model routes: one model, or a planning model and a build model, each at its own thinking level */
+const LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+const PAIR = 'apex/pair'; // a session's model while its plan + build pair is routing
+const modelById = id => state.models.find(m => m.id === id);
+const levelsOf = m => m?.levels ?? state.thinking ?? LEVELS;
+const rank = level => LEVELS.indexOf(level);
+const nearest = (levels, want) => levels.includes(want) ? want : levels.reduce((best, l) => Math.abs(rank(l) - rank(want)) < Math.abs(rank(best) - rank(want)) ? l : best, levels[0]);
+const pairable = m => Boolean(m?.target && m.apex); // pairs run through the Windows target on saved logins
+const shortName = id => (modelById(id)?.label ?? id ?? '').replace(/^Claude /, '').replace(/ \(latest\)$/, '');
+const contextWords = n => !n ? '' : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M context` : `${Math.round(n / 1000)}k context`;
+const routeOf = s => s.model === PAIR && s.pair ? {mode: 'pair', plan: {...s.pair.plan}, build: {model: s.pair.build.model, thinking: s.thinking}} : {mode: 'single', model: s.model, thinking: s.thinking};
+const sameRoute = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const samePair = (route, pair) => Boolean(pair) && route.plan.model === pair.plan.model && route.plan.thinking === pair.plan.thinking && route.build.model === pair.build.model;
+function routeWords(s, levels = true) {
+  const r = routeOf(s);
+  if (r.mode === 'single') return shortName(r.model) + (levels ? ' ' + r.thinking : '');
+  return levels ? `${shortName(r.plan.model)} ${r.plan.thinking} plans, ${shortName(r.build.model)} ${r.build.thinking} builds` : `${shortName(r.plan.model)} and ${shortName(r.build.model)}`;
+}
+const recentModels = () => stored('recentModels', []);
+// Favorites are per browser: catalog ids in localStorage, ignored once a model leaves the catalog.
+const favoriteModels = () => { const ids = stored('favorites', []); return Array.isArray(ids) ? ids.filter(id => modelById(id)) : []; };
+function toggleFavorite(id) {
+  const ids = favoriteModels(), next = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id];
+  try { localStorage.favorites = JSON.stringify(next); } catch { /* without storage there are no favorites */ }
+}
+function rememberModels(r) {
+  const ids = r.mode === 'pair' ? [r.plan.model, r.build.model] : [r.model];
+  try { localStorage.recentModels = JSON.stringify([...new Set([...ids, ...recentModels()])].slice(0, 5)); } catch { /* recent models are a convenience */ }
+}
+// A cheaper sibling for the build slot: Opus builds with Sonnet, Sol with Luna; otherwise the same model at a lower level.
+function suggestBuild(planId) {
+  const plan = modelById(planId), swap = [[/opus/, 'sonnet'], [/-sol$/, '-luna'], [/^sol$/, 'openai-codex/gpt-6-luna']];
+  for (const [from, to] of swap) { const hit = modelById(planId.replace(from, to)); if (hit && hit.id !== planId && pairable(hit)) return hit.id; }
+  return plan?.id;
+}
+
+// The effort ladder: one bar per level the model accepts, taller for more thinking.
+function ladder(levels, value, {role, disabled, onpick, compact} = {}) {
+  const box = el('span', 'ladder' + (compact ? ' compact' : '') + (role ? ' ' + role : ''));
+  if (!compact) { box.setAttribute('role', 'radiogroup'); box.setAttribute('aria-label', 'Thinking level'); }
+  for (const level of levels) {
+    const on = rank(level) <= rank(value), b = el(compact ? 'i' : 'button', 'step' + (on ? ' on' : '') + (level === value ? ' at' : ''));
+    b.style.setProperty?.('--h', 4 + rank(level) * 3.4 + 'px');
+    if (!compact) {
+      b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', String(level === value)); b.disabled = Boolean(disabled?.(level));
+      b.append(el('span', 'rung'), el('span', 'word', level));
+      b.onclick = () => onpick(level);
+      b.onkeydown = ev => {
+        const i = levels.indexOf(level), next = ev.key === 'ArrowRight' || ev.key === 'ArrowUp' ? levels[i + 1] : ev.key === 'ArrowLeft' || ev.key === 'ArrowDown' ? levels[i - 1] : undefined;
+        if (next && !disabled?.(next)) { ev.preventDefault(); onpick(next); box.parentNode?.querySelector('.ladder [aria-checked=true]')?.focus(); }
+      };
+    } else b.append(el('span', 'rung'));
+    box.append(b);
+  }
+  return box;
+}
+
+const SLOT_WORDS = {
+  single: ['Model', 'Answers every request.'],
+  plan: ['Plan', 'Reads and plans each message you send.'],
+  build: ['Build', 'Takes over after the first successful edit.'],
+};
+// Shared by New session and the in-session dialog. opts: strict() keeps one model at xhigh (eval runs, auto route); allow(model, mode) filters the list.
+const editors = []; // a favorite starred in one list shows in every list
+function createEditor(root, opts) {
+  const ed = {route: null, slot: 'single', query: '', ...opts};
+  const modes = el('div', 'modes'), slots = el('div', 'slots'), effort = el('div', 'effort'), search = el('input', 'search'), list = el('div', 'models');
+  modes.setAttribute('role', 'radiogroup'); modes.setAttribute('aria-label', 'How this session uses models');
+  const modeButtons = {};
+  for (const [mode, words, hint] of [['single', 'One model', 'Same model for every step'], ['pair', 'Plan + build', 'A stronger model plans, a cheaper one edits']]) {
+    const b = el('button', 'mode'); b.type = 'button'; b.setAttribute('role', 'radio'); b.append(el('b', '', words), el('small', '', hint));
+    b.onclick = () => ed.setMode(mode); modeButtons[mode] = b; modes.append(b);
+  }
+  search.type = 'search'; search.placeholder = 'Search models'; search.setAttribute('aria-label', 'Search models'); search.autocomplete = 'off';
+  search.oninput = () => { ed.query = search.value.trim().toLowerCase(); drawList(); };
+  search.onkeydown = ev => {
+    const rows = [...list.querySelectorAll('.model')];
+    if (ev.key === 'ArrowDown' && rows.length) { ev.preventDefault(); rows[0].focus(); }
+    if (ev.key === 'Enter') { ev.preventDefault(); rows[0]?.click(); }
+  };
+  list.onkeydown = ev => {
+    if (!['ArrowDown', 'ArrowUp'].includes(ev.key)) return;
+    const rows = [...list.querySelectorAll('.model')], i = rows.indexOf(document.activeElement);
+    ev.preventDefault();
+    if (ev.key === 'ArrowUp' && i <= 0) search.focus(); else rows[Math.min(rows.length - 1, i + (ev.key === 'ArrowDown' ? 1 : -1))]?.focus();
+  };
+  root.replaceChildren(modes, slots, effort, search, list);
+
+  const slotValue = () => ed.slot === 'single' ? ed.route : ed.route[ed.slot];
+  const lockedLevel = () => ed.route.mode === 'single' && ed.strict?.();
+  ed.set = (route, slot) => { ed.route = structuredClone(route); ed.slot = route.mode === 'single' ? 'single' : slot ?? 'plan'; ed.query = ''; search.value = ''; ed.render(); };
+  ed.setMode = mode => {
+    if (mode === ed.route.mode) return;
+    if (mode === 'pair') {
+      const first = pairable(modelById(ed.route.model)) ? ed.route.model : (state.models.find(m => m.id === 'anthropic/claude-opus-5-5' && pairable(m)) ?? state.models.find(pairable))?.id;
+      if (!first) return;
+      const build = suggestBuild(first);
+      ed.route = {mode: 'pair', plan: {model: first, thinking: nearest(levelsOf(modelById(first)), 'high')}, build: {model: build, thinking: nearest(levelsOf(modelById(build)), 'medium')}};
+      ed.slot = 'build';
+    } else {
+      const {model, thinking} = ed.route.plan;
+      ed.route = {mode: 'single', model, thinking: ed.strict?.() ? 'xhigh' : thinking};
+      ed.slot = 'single';
+    }
+    ed.render(); ed.onchange?.();
+  };
+  ed.pick = id => {
+    const target = slotValue(), levels = levelsOf(modelById(id));
+    target.model = id; target.thinking = lockedLevel() ? 'xhigh' : nearest(levels, target.thinking);
+    ed.render(); ed.onchange?.();
+  };
+  ed.level = level => { slotValue().thinking = level; ed.render(); ed.onchange?.(); effort.querySelector('[aria-checked=true]')?.focus(); };
+  ed.render = () => {
+    if (!ed.route) return;
+    const canPair = state.models.some(pairable) && ed.allow?.(null, 'pair') !== false;
+    for (const [mode, b] of Object.entries(modeButtons)) { b.setAttribute('aria-checked', String(ed.route.mode === mode)); b.tabIndex = ed.route.mode === mode ? 0 : -1; }
+    modeButtons.pair.disabled = !canPair; modeButtons.pair.title = canPair ? '' : 'Plan + build runs signed-in models on native Windows';
+    // slot cards
+    slots.replaceChildren();
+    slots.dataset.mode = ed.route.mode;
+    for (const slot of ed.route.mode === 'pair' ? ['plan', 'build'] : ['single']) {
+      const value = slot === 'single' ? ed.route : ed.route[slot], model = modelById(value.model), [role, hint] = SLOT_WORDS[slot];
+      const card = el('button', 'slot ' + slot); card.type = 'button'; card.setAttribute('aria-pressed', String(ed.slot === slot));
+      card.setAttribute('aria-label', `${role}: ${model?.label ?? value.model} at ${value.thinking} thinking. Change`);
+      const top = el('span', 'slot-top'); top.append(el('span', 'role', role), ladder(levelsOf(model), value.thinking, {compact: true, role: slot}), el('span', 'level', value.thinking));
+      card.append(top, el('span', 'name', model?.label ?? value.model ?? 'Choose a model'), el('small', '', hint));
+      card.onclick = () => { ed.slot = slot; ed.render(); search.focus(); };
+      if (slot === 'build') slots.append(el('span', 'then', '→'));
+      slots.append(card);
+    }
+    // effort for the active slot
+    const value = slotValue(), model = modelById(value.model), locked = lockedLevel();
+    effort.replaceChildren();
+    const head = el('div', 'effort-head');
+    head.append(el('b', '', ed.slot === 'single' ? 'Thinking' : `${SLOT_WORDS[ed.slot][0]} thinking`), el('small', '', model?.label ?? ''));
+    effort.append(head, ladder(levelsOf(model), value.thinking, {role: ed.slot, disabled: level => locked && level !== 'xhigh', onpick: ed.level}));
+    const note = locked ? 'Eval isolation and the auto model route run one model at xhigh. Plan + build can use any level.'
+      : ed.slot === 'plan' ? 'Higher levels plan more carefully. The planning model also takes over after three failed tool calls in a row.'
+      : ed.slot === 'build' ? 'Lower levels edit faster and cost less.' : '';
+    if (note) effort.append(el('small', 'effort-note', note));
+    drawList();
+  };
+  let listSig = '';
+  function drawList() {
+    if (!ed.route) return;
+    const current = slotValue().model, other = ed.route.mode === 'pair' ? ed.route[ed.slot === 'plan' ? 'build' : 'plan'].model : null;
+    // Only models whose provider is signed in or has a key; sign-ins live in the sidebar.
+    const usable = state.models.filter(m => modelReady(m) && (ed.route.mode !== 'pair' || pairable(m)) && ed.allow?.(m, ed.route.mode) !== false);
+    const hits = ed.query ? usable.filter(m => `${m.label} ${m.id} ${m.group}`.toLowerCase().includes(ed.query)) : usable;
+    // Favorites lead every list and leave their provider group; Recent repeats only what is not a favorite.
+    const favorites = favoriteModels(), groups = new Map(), pick = ids => ids.map(id => hits.find(m => m.id === id)).filter(Boolean);
+    if (pick(favorites).length) groups.set('Favorites', pick(favorites));
+    if (!ed.query) { const recent = pick(recentModels().filter(id => !favorites.includes(id))); if (recent.length) groups.set('Recent', recent); }
+    for (const m of hits) { if (favorites.includes(m.id)) continue; if (!groups.has(m.group)) groups.set(m.group, []); groups.get(m.group).push(m); }
+    // Rebuild only when something visible changed, so polling never resets a list someone is moving through.
+    const sig = JSON.stringify([[...groups].map(([name, models]) => [name, models.map(m => m.id)]), current, other, ed.slot, ed.query, loginBusy,
+      Object.entries(state.auth ?? {}).map(([id, a]) => [id, a.signedIn, a.type])]);
+    if (sig === listSig) return;
+    listSig = sig;
+    const focused = list.contains?.(document.activeElement) ? [document.activeElement.getAttribute('data-id'), document.activeElement.className] : null;
+    list.replaceChildren();
+    if (!hits.length) list.append(el('p', 'empty', ed.query ? `No model matches “${search.value.trim()}”.` : 'No models yet. Sign in or add a key in the sidebar.'));
+    for (const [name, models] of groups) {
+      const sec = el('section', 'model-group'), head = el('div', 'group-head'), a = ['Favorites', 'Recent'].includes(name) ? null : auth(models[0].provider);
+      head.append(el('b', '', name));
+      if (a) head.append(el('small', 'signed', a.type === 'oauth' ? 'Signed in' : 'Key saved'));
+      sec.append(head);
+      for (const m of models) {
+        const line = el('div', 'model-row'), row = el('button', 'model'); row.type = 'button'; row.setAttribute('aria-pressed', String(m.id === current)); row.setAttribute('data-id', m.id);
+        const meta = [contextWords(m.contextWindow), m.input?.includes('image') ? 'images' : 'text only', ['Favorites', 'Recent'].includes(name) ? m.group : ''].filter(Boolean).join(', ');
+        row.append(el('span', 'name', m.label), el('small', '', meta));
+        if (m.id === other) row.append(el('span', 'tag ' + (ed.slot === 'plan' ? 'build' : 'plan'), ed.slot === 'plan' ? 'Build' : 'Plan'));
+        row.onclick = () => ed.pick(m.id);
+        const loved = favorites.includes(m.id), star = el('button', 'star', loved ? '\u2605' : '\u2606');
+        star.type = 'button'; star.setAttribute('aria-pressed', String(loved)); star.setAttribute('data-id', m.id);
+        star.setAttribute('aria-label', loved ? `Remove ${m.label} from favorites` : `Add ${m.label} to favorites`); star.title = loved ? 'Remove from favorites' : 'Add to favorites';
+        star.onclick = () => { toggleFavorite(m.id); for (const other of editors) other.redrawList(); };
+        line.append(row, star); sec.append(line);
+      }
+      list.append(sec);
+    }
+    if (focused) [...list.querySelectorAll('[data-id]')].find(node => node.getAttribute('data-id') === focused[0] && node.className === focused[1])?.focus();
+  }
+  ed.redrawList = () => { listSig = ''; drawList(); };
+  editors.push(ed);
+  return ed;
+}
+
 function newView() { return {todos: new Map(), contract: null, files: new Map(), stats: null, commands: [], statuses: new Map(), widgets: new Map(), report: null}; }
 
 let loginPopup = null, loginPopupFlow = null, loginBusy = false, authFor = 'openai-codex';
 const auth = provider => state.auth?.[provider];
-const providerOf = s => s?.provider ?? state.models.find(m => m.id === s?.model)?.provider;
 // Signed in, or a provider the dashboard does not manage (OpenRouter reads its key from the environment).
 const ready = provider => !auth(provider) || auth(provider).signedIn;
+const modelReady = m => ready(m.provider) && !m.keyMissing;
+const loginsOfSession = s => s?.logins ?? [s?.provider ?? modelById(s?.model)?.provider].filter(Boolean);
+const missingLogin = s => loginsOfSession(s).find(provider => !ready(provider));
 const signInWords = a => a.type === 'oauth' ? `Sign in to ${a.label}` : `Add ${a.label} key`;
 const loginWord = a => a.type === 'oauth' ? 'login' : 'key';
 function renderAuth() {
@@ -35,10 +225,10 @@ function renderAuth() {
     b.type = 'button'; b.disabled = loginBusy; b.setAttribute('aria-label', `${a.label}: ${b.textContent}`); b.onclick = () => openAuth(id);
     row.append(who, b); list.append(row);
   }
-  const need = sel && !ready(providerOf(sel)) ? auth(providerOf(sel)) : null;
+  const need = sel ? auth(missingLogin(sel)) : null;
   $('login-needed').hidden = !need;
   if (need) { $('login-needed-text').textContent = `${signInWords(need)} to send messages. It is saved for future sessions.`; $('login-needed-button').textContent = signInWords(need); }
-  syncLaunchAuth(); renderAuthDialog();
+  syncLaunchAuth(); syncRouteAuth(); renderAuthDialog(); if (launchEditor.route) launchEditor.render(); if (routeEditor.route) routeEditor.render();
 }
 function renderAuthDialog() {
   const a = auth(authFor); if (!a) return;
@@ -59,7 +249,7 @@ function renderAuthDialog() {
   $('auth-close').textContent = waiting ? 'Cancel sign-in' : a.phase === 'saved' ? 'Done' : 'Close';
   $('auth-retry').hidden = !oauth || waiting || a.phase === 'saved'; $('auth-retry').textContent = a.signedIn ? 'Sign in again' : a.phase === 'error' ? 'Try again' : 'Sign in';
   $('auth-signout').hidden = waiting || !a.signedIn || a.source === 'environment'; $('auth-signout').textContent = oauth ? 'Sign out' : 'Remove key';
-  for (const id of ['auth-retry', 'auth-signout', 'login-needed-button', 'launch-login']) $(id).disabled = loginBusy;
+  for (const id of ['auth-retry', 'auth-signout', 'login-needed-button']) $(id).disabled = loginBusy;
   if (waiting && a.url && loginPopup && loginPopupFlow !== a.id) {
     try { loginPopup.location.replace(a.url); loginPopupFlow = a.id; } catch { /* the visible link also works when a popup is blocked */ }
   }
@@ -96,8 +286,7 @@ async function closeAuth() {
     $('authdlg').close(); $('auth-error').textContent = ''; $('auth-key').value = ''; renderAuth(); await refresh();
   } catch (e) { $('auth-error').textContent = e.message; }
 }
-$('login-needed-button').onclick = () => openAuth(providerOf(sel));
-$('launch-login').onclick = () => openAuth(chosenModel()?.provider);
+$('login-needed-button').onclick = () => openAuth(missingLogin(sel));
 $('auth-retry').onclick = signIn;
 $('auth-close').onclick = closeAuth;
 $('authdlg').oncancel = e => { e.preventDefault(); closeAuth(); };
@@ -127,12 +316,11 @@ function label(s) {
   if (s.settled > (seen[s.id] ?? 0) && s.id !== sel?.id) return ['finished', 'Finished'];
   return ['idle', 'Idle'];
 }
-const meta = s => [label(s)[1], modelLabel(s.model), s.thinking].filter(Boolean).join(', ');
 
 function sessionButton(s, onclick, extra) {
   const b = el('button', 'row'), [kind, words] = label(s);
   b.type = 'button'; b.setAttribute('aria-current', String(s.id === sel?.id));
-  const small = el('small'); small.append(el('span', 'st ' + kind, words), document.createTextNode(extra ?? ', ' + modelLabel(s.model) + ' ' + s.thinking));
+  const small = el('small'); small.append(el('span', 'st ' + kind, words), document.createTextNode(extra ?? ', ' + routeWords(s)));
   b.append(el('b', '', s.title || 'New session'), small); b.onclick = onclick;
   return b;
 }
@@ -188,9 +376,12 @@ async function refresh() {
 function header() {
   const empty = !sel;
   $('title').textContent = sel?.title || (empty ? 'Pick a session' : 'New session');
-  $('where').textContent = empty ? 'Choose one on the left, or start a new one in a workspace.' : `${sel.cwd}, ${modelLabel(sel.model)} at ${sel.thinking}, ${label(sel)[1].toLowerCase()}`;
+  $('where').textContent = empty ? 'Choose one on the left, or start a new one in a workspace.' : `${sel.cwd}, ${label(sel)[1].toLowerCase()}`;
   const running = sel?.status === 'running', alive = running || sel?.status === 'idle';
   $('stop').hidden = !running; $('end').hidden = !alive;
+  const auto = Boolean(sel?.autoApprove); // only sessions with the safety feature ask before tool calls
+  $('auto').hidden = !alive || !sel.flags?.features?.includes('safety');
+  $('auto').textContent = `Auto-approve: ${auto ? 'on' : 'off'}`; $('auto').setAttribute('aria-pressed', String(auto)); $('auto').className = auto ? 'btn auto on' : 'btn auto';
   $('where').className = empty ? '' : 'path'; $('form').hidden = empty;
   syncComposer();
 }
@@ -355,7 +546,7 @@ function handle(r) {
   else if (r.type === 'tool_execution_end') finish(r.toolCallId, r.toolName, r.result, r.isError);
   else if (r.type === 'extension_ui_request') {
     if (r.method === 'notify') add('note ext', r.message);
-    else if (r.method === 'setStatus') r.statusText ? view.statuses.set(r.statusKey, r.statusText) : view.statuses.delete(r.statusKey);
+    else if (r.method === 'setStatus') { r.statusText ? view.statuses.set(r.statusKey, r.statusText) : view.statuses.delete(r.statusKey); if (r.statusKey === 'apex-pair') renderRoute(); }
     else if (r.method === 'setWidget') r.widgetLines?.length ? view.widgets.set(r.widgetKey, r.widgetLines) : view.widgets.delete(r.widgetKey);
     else if (['select', 'confirm', 'input', 'editor'].includes(r.method)) stateSig = '', refresh();
   } else if (r.type === 'response') {
@@ -366,7 +557,8 @@ function handle(r) {
       else if (m.role === 'toolResult') finish(m.toolCallId, m.toolName, m, m.isError);
     } else if (r.command === 'get_session_stats') view.stats = r.data;
     else if (r.command === 'get_commands') view.commands = r.data.commands ?? [];
-  } else if (r.type === 'dashboard_exit') {
+  } else if (r.type === 'dashboard_auto_approved') add('note quiet', 'Auto-approved. ' + String(r.message ?? '').split('\n').slice(0, 2).join('\n'));
+  else if (r.type === 'dashboard_exit') {
     for (const label of $('queued').querySelectorAll('.queued-label')) label.textContent = 'Not delivered — session ended';
     add(r.code === 0 ? 'note quiet' : 'note', r.code === 0 ? 'Session ended. Pick it under Saved to continue.' : `The agent stopped (exit ${r.code}).\n${r.stderr}`);
   }
@@ -394,6 +586,9 @@ function renderAsks() {
     if (q.method === 'confirm') {
       const yes = el('button', 'btn primary', 'Allow'), no = el('button', 'btn', 'Deny');
       yes.type = no.type = 'button'; yes.onclick = () => answer({confirmed: true}); no.onclick = () => answer({confirmed: false}); opts.append(yes, no);
+      if (q.title === 'Confirm tool action') {
+        const all = el('button', 'btn quiet', 'Allow all in this session'); all.type = 'button'; all.onclick = () => autoApprove(true); opts.append(all);
+      }
     } else if (q.method === 'select') {
       for (const o of q.options ?? []) { const b = el('button', 'btn', typeof o === 'string' ? o : o.label ?? o.value); b.type = 'button'; b.onclick = () => answer({value: typeof o === 'string' ? o : o.value ?? o.label}); opts.append(b); }
       const c = el('button', 'btn quiet', 'Cancel'); c.type = 'button'; c.onclick = () => answer({cancelled: true}); opts.append(c);
@@ -429,9 +624,10 @@ function renderInfo() {
   section(plan, 'Files changed');
   if (view.files.size) { const ul = el('ul', 'files'); for (const [path, f] of view.files) { const li = el('li'), name = el('span', '', path); name.title = path; li.append(name, el('span', f.plus ? 'plus' : '', `+${f.plus}`), el('span', 'minus', `\u2212${f.minus}`)); ul.append(li); } plan.append(ul); }
   else hint(plan, 'No edits yet.');
-  if (view.statuses.size || view.widgets.size) {
+  const statuses = [...view.statuses].filter(([key]) => key !== 'apex-pair').map(([, t]) => t); // the route strip shows the pair's phase
+  if (statuses.length || view.widgets.size) {
     section(plan, 'From extensions');
-    for (const t of view.statuses.values()) plan.append(el('p', '', t));
+    for (const t of statuses) plan.append(el('p', '', t));
     for (const lines of view.widgets.values()) plan.append(el('p', '', lines.join('\n')));
     plan.lastChild.style.whiteSpace = 'pre-wrap';
   }
@@ -477,48 +673,20 @@ for (const t of document.querySelectorAll('.tabs button')) t.onclick = () => {
 for (const b of document.querySelectorAll('#panes button')) b.onclick = () => { document.body.dataset.pane = b.dataset.pane; };
 
 /* composer: drafts and attachments belong to a session, including during asynchronous reads/sends. */
-const acceptsImages = () => (sel?.input ?? state.models.find(m => m.id === sel?.model)?.input ?? []).includes('image');
-let settingsBusy = false;
-const pickSigs = new Map(); // rebuild options only when they change, so an open list is not reset by polling
-function syncSettings() {
-  const picks = [[$('model-pick'), state.models.map(m => [m.id, `${m.label} (${m.group})`]), sel?.model], [$('thinking-pick'), (sel?.levels ?? state.thinking ?? []).map(t => [t, t]), sel?.thinking]];
-  for (const [select, options, value] of picks) {
-    if (value && !options.some(([id]) => id === value)) options.push([value, value]);
-    const sig = JSON.stringify(options);
-    if (pickSigs.get(select) !== sig) { pickSigs.set(select, sig); select.replaceChildren(...options.map(([id, words]) => { const o = el('option', '', words); o.value = id; return o; })); }
-    select.value = value ?? '';
-    select.disabled = !sel || !['idle', 'running'].includes(sel.status) || Boolean(sel.locked) || settingsBusy;
-  }
-  $('settings-note').hidden = !sel?.locked;
-}
-async function changeSettings(change) {
-  if (!sel || settingsBusy) return;
-  const id = sel.id, draft = sessionDraft(id), before = sel;
-  settingsBusy = true; draft.error = ''; syncComposer();
-  try {
-    const fresh = await post('/api/settings', {id, ...change});
-    if (sel?.id === id) {
-      sel = {...sel, ...fresh};
-      const what = fresh.model !== before.model ? `Model set to ${modelLabel(fresh.model)} at ${fresh.thinking} thinking` : `Thinking set to ${fresh.thinking}`;
-      add('note quiet', what + (sel.status === 'running' ? '. Applies from the next model call.' : '. Applies from your next message.'));
-    }
-  } catch (err) { draft.error = err.message; }
-  finally { settingsBusy = false; if (sel?.id === id) header(); stateSig = ''; refresh(); }
-}
-$('model-pick').onchange = () => changeSettings({model: $('model-pick').value});
-$('thinking-pick').onchange = () => changeSettings({thinking: $('thinking-pick').value});
-const canCompose = () => sel && ['idle', 'running'].includes(sel.status) && ready(providerOf(sel));
+const acceptsImages = () => (sel?.input ?? modelById(sel?.model)?.input ?? []).includes('image');
+const canCompose = () => sel && ['idle', 'running'].includes(sel.status) && !missingLogin(sel);
 function syncComposer() {
   const draft = sel ? sessionDraft(sel.id) : null, ready = canCompose(), vision = acceptsImages();
   $('box').disabled = !ready || Boolean(draft?.sending);
   $('send').disabled = !ready || Boolean(draft?.sending || draft?.reading) || (!vision && Boolean(draft?.images.length)) || (!$('box').value.trim() && !draft?.images.length);
   $('attach').disabled = $('image-files').disabled = !ready || !vision || Boolean(draft?.sending || draft?.reading) || (draft?.images.length ?? 0) >= MAX_IMAGES;
   $('send').textContent = draft?.sending ? 'Sending…' : sel?.status === 'running' ? 'Steer' : 'Send';
-  $('attachment-hint').textContent = !sel ? 'Open a session to attach images.' : !vision ? `${modelLabel(sel.model)} accepts text only. Image attachments are unavailable.` : IMAGE_HELP + ' Paste or drop images here.';
+  $('queue-send').hidden = sel?.status !== 'running'; $('queue-send').disabled = $('send').disabled;
+  $('attachment-hint').textContent = !sel ? 'Open a session to attach images.' : !vision ? `${routeWords(sel, false)} ${sel.model === PAIR ? 'accept' : 'accepts'} text only, so images are unavailable.` : IMAGE_HELP + ' Paste or drop images here.';
   const status = draft?.reading ? 'Preparing images…' : draft?.images.length ? `${draft.images.length} image${draft.images.length === 1 ? '' : 's'} attached.` : '';
   $('attachment-status').textContent = status; $('attachment-status').hidden = !status;
   $('composer-error').textContent = draft?.error || ''; $('composer-error').hidden = !draft?.error;
-  syncSettings();
+  renderRoute();
 }
 function renderAttachments() {
   const list = $('attachments'), draft = sel ? sessionDraft(sel.id) : null;
@@ -598,16 +766,16 @@ $('box').onkeydown = e => {
     if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && list.length && $('box').value !== '/' + list[slashAt].name.replace(/^\//, ''))) { e.preventDefault(); pick('/' + list[slashAt].name.replace(/^\//, '')); return; }
     if (e.key === 'Escape') { slash.hidden = true; return; }
   }
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('form').requestSubmit(e.altKey && !$('queue-send').hidden ? $('queue-send') : undefined); }
 };
 $('form').onsubmit = async e => {
   e.preventDefault(); if (!canCompose()) return;
-  const id = sel.id, draft = sessionDraft(id), messageText = $('box').value.trim();
+  const id = sel.id, draft = sessionDraft(id), messageText = $('box').value.trim(), followUp = e.submitter?.value === 'followUp';
   if (draft.sending || draft.reading || (!messageText && !draft.images.length)) return;
   draft.message = $('box').value; draft.sending = true; draft.error = ''; syncComposer(); renderAttachments();
   try {
     const images = draft.images.map(({type, data, mimeType}) => ({type, data, mimeType}));
-    await post('/api/send', {id, message: messageText, ...(images.length ? {images} : {})});
+    await post('/api/send', {id, message: messageText, ...(images.length ? {images} : {}), ...(followUp ? {mode: 'followUp'} : {})});
     draft.message = ''; draft.images = [];
     if (sel?.id === id) { $('box').value = ''; slash.hidden = true; }
   } catch (err) { draft.error = err.message; if (sel?.id === id) add('note', err.message); }
@@ -615,6 +783,8 @@ $('form').onsubmit = async e => {
   setTimeout(() => { stateSig = ''; refresh(); }, 300);
 };
 $('stop').onclick = () => post('/api/abort', {id: sel.id});
+const autoApprove = on => post('/api/auto-approve', {id: sel.id, on}).then(() => { stateSig = ''; refresh(); }, e => add('note', e.message));
+$('auto').onclick = () => autoApprove(!sel.autoApprove);
 $('end').onclick = async () => { await post('/api/stop', {id: sel.id}); setTimeout(() => { stateSig = ''; refresh(); }, 800); };
 
 /* workspaces */
@@ -628,58 +798,140 @@ $('ws-form').onsubmit = async e => {
   catch (err) { $('ws-error').textContent = err.message + '. Check the path exists and is a folder.'; }
 };
 
+/* the route strip above the message box, and the dialog that changes a running session's models */
+function renderRoute() {
+  const strip = $('route'); strip.replaceChildren();
+  const alive = sel && ['idle', 'running'].includes(sel.status);
+  $('settings-note').textContent = sel?.lock ?? ''; $('settings-note').hidden = !sel?.lock;
+  if (!sel) return;
+  const r = routeOf(sel), status = view.statuses.get('apex-pair') ?? '';
+  const phase = r.mode !== 'pair' ? '' : / building$/.test(status) ? 'build' : status ? 'plan' : '';
+  const slots = r.mode === 'pair' ? [['plan', r.plan], ['build', r.build]] : [['single', r]];
+  for (const [slot, value] of slots) {
+    const b = el('button', 'chip ' + slot); b.type = 'button'; b.disabled = !alive || Boolean(sel.lock);
+    const role = r.mode === 'pair' ? SLOT_WORDS[slot][0] : '';
+    b.setAttribute('aria-label', `${role ? role + ' model' : 'Model'}: ${modelLabel(value.model)} at ${value.thinking} thinking.${phase === slot ? ' Working now.' : ''} Change models`);
+    if (phase === slot) b.classList.add('now');
+    if (role) b.append(el('span', 'role', role));
+    b.append(el('span', 'name', shortName(value.model)), ladder(levelsOf(modelById(value.model)), value.thinking, {compact: true, role: slot}), el('span', 'level', value.thinking));
+    b.title = sel.lock ?? (phase === slot ? 'Working now. ' : '') + 'Change models';
+    b.onclick = () => openRoute(slot);
+    if (slot === 'build') strip.append(el('span', 'then', '→'));
+    strip.append(b);
+  }
+}
+const routeDialog = $('routedlg');
+const routeEditor = createEditor($('route-editor'), {
+  allow: (m, mode) => !m || mode === 'pair' || !sel?.target || pairable(m), // the Windows target stays on signed-in models
+  onchange: () => syncRoute(),
+});
+function openRoute(slot) {
+  if (!sel || sel.lock) return;
+  $('route-error').textContent = ''; $('route-where').textContent = sel.title || sel.cwd;
+  const r = routeOf(sel); routeEditor.set(r, slot === 'single' ? undefined : slot);
+  syncRoute(); routeDialog.showModal(); routeDialog.querySelector('.slot[aria-pressed=true]')?.focus();
+}
+let routeBusy = false;
+function syncRoute() {
+  if (!sel || !routeEditor.route) return;
+  const r = routeEditor.route, before = routeOf(sel), restart = r.mode === 'pair' && !samePair(r, sel.pair), running = sel.status === 'running';
+  $('route-go').textContent = restart ? 'Restart with these models' : 'Switch now';
+  $('route-go').disabled = routeBusy || sameRoute(r, before) || (restart && running);
+  $('route-effect').textContent = sameRoute(r, before) ? 'This is the current setup.'
+    : restart ? (running ? 'Wait for this run to finish, or stop it. The new pair needs a restart.' : 'The agent restarts on this conversation with the new pair. Your Apex features stay on.')
+    : running ? 'Applies from the next model call.' : 'Applies from your next message.';
+  syncRouteAuth();
+}
+function syncRouteAuth() { authNotice($('route-auth'), routeEditor.route); }
+// Sign-in buttons for every login a route needs and does not have yet.
+function authNotice(box, r) {
+  const needed = !r ? [] : [...new Set((r.mode === 'pair' ? [r.plan.model, r.build.model] : [r.model]).map(id => modelById(id)?.provider))].filter(p => p && !ready(p));
+  box.replaceChildren(); box.hidden = !needed.length;
+  if (!needed.length) return;
+  box.append(el('p', '', needed.length > 1 ? 'These models need sign-ins. Apex saves each one on this computer.' : `${signInWords(auth(needed[0]))} to use this model. Apex saves it on this computer.`));
+  for (const provider of needed) { const b = el('button', 'btn primary', signInWords(auth(provider))); b.type = 'button'; b.disabled = loginBusy; b.onclick = () => openAuth(provider); box.append(b); }
+}
+$('route-cancel').onclick = () => routeDialog.close();
+$('route-form').onsubmit = async e => {
+  e.preventDefault(); if (!sel || routeBusy) return;
+  const r = routeEditor.route, id = sel.id;
+  routeBusy = true; $('route-error').textContent = ''; syncRoute();
+  try {
+    const body = r.mode === 'pair' ? {pair: {plan: r.plan, build: r.build}} : {model: r.model, thinking: r.thinking};
+    const fresh = await post('/api/settings', {id, ...body});
+    rememberModels(r); routeDialog.close();
+    const words = r.mode === 'pair' ? `${shortName(r.plan.model)} plans at ${fresh.pair?.plan.thinking ?? r.plan.thinking}, ${shortName(r.build.model)} builds at ${fresh.thinking}` : `${modelLabel(fresh.model)} at ${fresh.thinking} thinking`;
+    stateSig = ''; await refresh();
+    if (fresh.relaunched) {
+      const next = state.workspaces.flatMap(w => w.live).find(s => s.id === fresh.id);
+      if (next) { if (sel) drafts.set(next.id, sessionDraft(id)); select(next); }
+      add('note quiet', `Restarted on the same conversation. Now ${words}.`);
+    } else if (sel?.id === id) {
+      sel = {...sel, ...fresh}; header();
+      add('note quiet', `Now ${words}. ` + (sel.status === 'running' ? 'Applies from the next model call.' : 'Applies from your next message.'));
+    }
+  } catch (err) { $('route-error').textContent = err.message; }
+  finally { routeBusy = false; syncRoute(); }
+};
+
 /* launching a session */
 const launch = $('launch');
-let launchFor = null, choice = stored('launch', {model: 'sol', thinking: 'xhigh', context: [], core: [], features: [], timeBudget: 600, evalMode: false});
+let launchFor = null, choice = (() => {
+  const saved = stored('launch', {});
+  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'all'};
+})();
 const PRESETS = [
-  {id: 'plain', label: 'Plain agent', note: 'No Apex features.', set: {context: [], core: [], features: []}},
+  {id: 'all', label: 'All features', note: 'Every Apex feature this model can run. The default.', set: null},
   {id: 'lean', label: 'Lean context', note: 'Shorter reads, searches, edits and output.', set: {context: ['shape', 'mask', 'read', 'search', 'edit'], core: [], features: []}},
   {id: 'long', label: 'Long tasks', note: 'Todos, criteria, verification and loop checks.', set: {context: [], core: ['snapshot', 'contract', 'todo', 'verify', 'loops'], features: []}},
   {id: 'daily', label: 'Everyday safety', note: 'Cost, undo, planning and approvals.', set: {context: [], core: [], features: ['cost', 'checkpoints', 'plan', 'safety', 'report', 'resume']}},
+  {id: 'plain', label: 'Plain agent', note: 'No Apex features. Any thinking level.', set: {context: [], core: [], features: []}},
 ];
 function checked(group) { return [...launch.querySelectorAll(`input[data-group="${group}"]:checked`)].map(i => i.value); }
-function chosenModel() { return state.models.find(m => m.id === $('launch-model').value) ?? state.models[0]; }
-function syncLaunchAuth() {
-  const a = auth(chosenModel()?.provider);
-  $('launch-auth').hidden = !a || a.signedIn;
-  if (a) { $('launch-auth-text').textContent = `${signInWords(a)} to use this model. Apex saves the ${loginWord(a)} on this computer.`; $('launch-login').textContent = signInWords(a); }
-}
+function allFeatures() { return Object.fromEntries(['context', 'core', 'features'].map(g => [g, [...launch.querySelectorAll(`input[data-group="${g}"]`)].map(i => i.value)])); }
+const launchModels = () => { const r = launchEditor.route; return !r ? [] : (r.mode === 'pair' ? [r.plan.model, r.build.model] : [r.model]).map(modelById).filter(Boolean); };
+const launchApex = () => launchEditor.route?.mode === 'pair' || Boolean(launchModels()[0]?.apex);
+// Eval runs and the apex/auto router keep one model at xhigh; other Apex features take any level.
+const strictLaunch = () => launchApex() && ($('evalmode').checked || checked('context').includes('route'));
+const launchEditor = createEditor($('launch-editor'), {strict: strictLaunch, onchange: () => syncLaunch()});
+function syncLaunchAuth() { authNotice($('launch-auth'), launchEditor.route); }
 function applyChoice(c) {
   for (const g of ['context', 'core', 'features']) for (const i of launch.querySelectorAll(`input[data-group="${g}"]`)) i.checked = c[g].includes(i.value);
   $('evalmode').checked = Boolean(c.evalMode); syncLaunch();
 }
 function syncLaunch() {
   syncLaunchAuth();
-  const model = chosenModel(), usesApex = model.apex;
-  $('launch-model-note').textContent = `${model.billing} ${model.input?.includes('image') ? 'Text and images.' : 'Text only.'}`;
-  for (const id of ['presets', 'features', 'evalrow']) $(id).hidden = !usesApex;
-  $('feature-note').hidden = usesApex;
-  $('feature-note').textContent = usesApex ? '' : `Apex features are unavailable for ${model.label} here. ${state.models.filter(m => m.apex).length === 1 ? `They run on ${state.models.find(m => m.apex).label}.` : 'They run on Muse and, on native Windows, the signed-in models.'} This model runs as the stock agent.`;
+  const models = launchModels(), apex = launchApex(), first = models[0];
+  $('feature-pick').hidden = !apex; $('feature-note').hidden = apex;
+  $('feature-note').textContent = apex || !first ? '' : `Apex features are unavailable for ${first.label} here. ${state.models.filter(m => m.apex).length === 1 ? `They run on ${state.models.find(m => m.apex).label}.` : 'They run on Muse and, on native Windows, the signed-in models.'} This model runs as the stock agent.`;
   for (const i of launch.querySelectorAll('#features input[type=checkbox]')) {
-    const unavailable = Boolean(model.unavailable?.includes(i.value)), off = Boolean(i.dataset.blocked) || unavailable;
+    const unavailable = Boolean(first?.unavailable?.includes(i.value)), off = Boolean(i.dataset.blocked) || unavailable;
     if (off) i.checked = false;
     i.disabled = off; i.closest('.check')?.classList.toggle('off', off);
-    const note = i.closest('.check')?.querySelector('.unavailable'); if (note) { note.hidden = !unavailable; note.textContent = `Not available with ${model.label}`; }
+    const note = i.closest('.check')?.querySelector('.unavailable'); if (note) { note.hidden = !unavailable; note.textContent = `Not available with ${first.label}`; }
   }
-  const any = usesApex && (['context', 'core', 'features'].some(g => checked(g).length) || $('evalmode').checked);
-  const th = $('thinking'), locked = usesApex && any;
-  if (locked) th.value = 'xhigh';
-  th.disabled = locked; $('thinking-note').textContent = locked ? 'Apex experiments run at xhigh.' : '';
+  // Eval runs and the auto route hold one model at xhigh; the editor locks its ladder, so keep the route in step.
+  const r = launchEditor.route;
+  if (r?.mode === 'single' && strictLaunch() && r.thinking !== 'xhigh') { r.thinking = 'xhigh'; launchEditor.render(); }
+  else launchEditor.render();
   const tb = $('timebox'); if (tb) tb.hidden = !launch.querySelector('input[value=time]')?.checked;
-  for (const d of launch.querySelectorAll('.group')) { const n = d.querySelectorAll('input:checked').length; d.querySelector('em').textContent = n ? `${n} on` : ''; }
+  let total = 0;
+  for (const d of launch.querySelectorAll('.group')) { const n = d.querySelectorAll('input:checked').length; total += n; d.querySelector('em').textContent = n ? `${n} on` : ''; }
+  $('feature-count').textContent = total ? `${total} on` : 'none on';
+  const preset = PRESETS.find(p => launch.querySelector(`input[name=preset][value=${p.id}]`)?.checked);
+  $('preset-note').textContent = preset?.note ?? 'Your own selection.';
 }
 function buildLaunch() {
-  const pick = $('launch-model'), groups = new Map(); // models come from the provider catalogs, grouped by sign-in
-  for (const m of state.models) {
-    if (!groups.has(m.group)) { const g = el('optgroup'); g.label = m.group; groups.set(m.group, g); }
-    const o = el('option', '', m.label); o.value = m.id; groups.get(m.group).append(o);
-  }
-  pick.replaceChildren(...groups.values()); pick.value = state.models.some(m => m.id === choice.model) ? choice.model : state.models[0]?.id ?? ''; pick.onchange = syncLaunch;
-  const th = $('thinking'); th.replaceChildren(...state.thinking.map(t => new Option(t, t))); th.value = state.thinking.includes(choice.thinking) ? choice.thinking : 'xhigh';
-  const ps = $('presets'); ps.replaceChildren(el('legend', '', 'Start from')); const pw = el('div', 'choice');
+  // A remembered route stays only while its models are listed in the picker; otherwise start on the first usable model.
+  const usable = id => { const m = modelById(id); return Boolean(m) && modelReady(m); };
+  const known = r => r.mode === 'pair' ? pairable(modelById(r.plan.model)) && pairable(modelById(r.build.model)) && usable(r.plan.model) && usable(r.build.model) : usable(r.model);
+  launchEditor.set(known(choice.route) ? choice.route : {mode: 'single', model: (state.models.find(modelReady) ?? state.models[0])?.id, thinking: 'xhigh'});
+  const ps = $('presets'); ps.replaceChildren(el('legend', 'sr', 'Start from'));
+  const pw = el('div', 'presets');
   for (const p of PRESETS) {
-    const l = el('label'), i = el('input'); i.type = 'radio'; i.name = 'preset'; i.value = p.id; i.onchange = () => applyChoice({...choice, ...p.set});
-    l.append(i, el('b', '', p.label), el('small', '', p.note)); pw.append(l);
+    const l = el('label'), i = el('input'); i.type = 'radio'; i.name = 'preset'; i.value = p.id; i.checked = p.id === choice.preset;
+    i.onchange = () => applyChoice({...choice, ...(p.set ?? allFeatures())});
+    l.append(i, el('span', '', p.label)); pw.append(l);
   }
   ps.append(pw);
   const fe = $('features'); fe.replaceChildren();
@@ -688,7 +940,8 @@ function buildLaunch() {
     sum.append(el('span', '', g.title), el('small', '', g.blurb), el('em')); d.append(sum);
     const items = el('div', 'items');
     for (const f of g.features) {
-      const l = el('label', 'check'), i = el('input'); i.type = 'checkbox'; i.value = f.flag; i.dataset.group = g.id; i.onchange = syncLaunch;
+      const l = el('label', 'check'), i = el('input'); i.type = 'checkbox'; i.value = f.flag; i.dataset.group = g.id;
+      i.onchange = () => { for (const r of launch.querySelectorAll('input[name=preset]')) r.checked = false; syncLaunch(); };
       if (f.blocked) { i.dataset.blocked = '1'; }
       const s = el('span'); s.append(el('b', '', f.label), el('small', '', f.summary));
       const limit = f.blocked ? 'Blocked by the offline-only policy' : f.limited; if (limit) s.append(el('small', 'limit', limit));
@@ -701,30 +954,42 @@ function buildLaunch() {
     }
     d.append(items); fe.append(d);
   }
-  applyChoice(choice);
+  const preset = PRESETS.find(p => p.id === choice.preset) ?? PRESETS[0];
+  applyChoice({...choice, ...(preset.set ?? allFeatures())});
 }
 function openLaunch(cwd, file, title) {
   launchFor = {cwd, file}; $('launch-error').textContent = '';
   $('launch-h').textContent = file ? 'Resume session' : 'New session';
   $('launch-where').textContent = (file ? title + '. ' : '') + cwd;
   $('launch-go').textContent = file ? 'Resume session' : 'Start session';
-  buildLaunch(); launch.showModal(); $('launch-model').focus();
+  buildLaunch(); launch.showModal(); launch.querySelector('.slot')?.focus();
 }
 $('launch-cancel').onclick = () => launch.close();
 $('launch-form').onsubmit = async e => {
-  e.preventDefault(); const model = chosenModel(), go = $('launch-go');
-  const pickedFor = group => model.apex ? checked(group) : [];
-  const body = {...launchFor, model: model.id, thinking: $('thinking').value, context: pickedFor('context'), core: pickedFor('core'), features: pickedFor('features'),
-    timeBudget: Number($('timebudget')?.value), evalMode: model.apex && $('evalmode').checked};
+  e.preventDefault(); const r = launchEditor.route, go = $('launch-go');
+  const apex = launchApex(), pickedFor = group => apex ? checked(group) : [];
+  const route = r.mode === 'pair' ? {pair: {plan: r.plan, build: r.build}} : {model: r.model, thinking: r.thinking};
+  const body = {...launchFor, ...route, context: pickedFor('context'), core: pickedFor('core'), features: pickedFor('features'),
+    timeBudget: Number($('timebudget')?.value), evalMode: apex && $('evalmode').checked};
   go.disabled = true;
   try {
     const {id} = await post('/api/start', body);
-    choice = {model: model.id, thinking: body.thinking, context: body.context, core: body.core, features: body.features, timeBudget: body.timeBudget || 600, evalMode: body.evalMode};
-    localStorage.launch = JSON.stringify(choice);
+    const preset = launch.querySelector('input[name=preset]:checked')?.value ?? choice.preset;
+    choice = {route: structuredClone(r), timeBudget: body.timeBudget || 600, evalMode: body.evalMode, preset};
+    try { localStorage.launch = JSON.stringify(choice); } catch { /* remembered choices are a convenience */ }
+    rememberModels(r);
     stateSig = ''; await refresh(); launch.close();
     const s = state.workspaces.flatMap(w => w.live).find(x => x.id === id); if (s) select(s);
   } catch (err) { $('launch-error').textContent = err.message; }
   go.disabled = false;
+};
+
+/* theme: a per-browser preference; the inline script in index.html applies it before first paint */
+$('theme').value = stored('theme', 'dark');
+$('theme').onchange = () => {
+  const theme = $('theme').value;
+  try { localStorage.theme = JSON.stringify(theme); } catch { /* storage blocked: the choice lasts until reload */ }
+  if (theme === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', theme);
 };
 
 refresh().then(renderInfo); setInterval(refresh, 3000);

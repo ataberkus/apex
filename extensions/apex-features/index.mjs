@@ -1,6 +1,6 @@
 import {fileURLToPath} from 'node:url';
 import {markFeatureMode} from './lifecycle.mjs';
-import {parseFeatureFlags,runtimePolicy} from './config.mjs';
+import {AUTOCOMPACT_TOKENS,parseFeatureFlags,runtimePolicy} from './config.mjs';
 
 const READ_ONLY=new Set(['read','grep','find','ls','tool_search']);
 const SKILLS=['debugging','test-writing','profiling','build-systems','python-packaging','numerics','http','databases','git-surgery','security-hardening'];
@@ -114,7 +114,15 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
     return checkpointed(()=>plan.finish(event,ctx),ctx);
    return plan.finish(event,ctx);
   });
-  pi.on('agent_settled',async(_event,ctx)=>{await closeTurn();updateCost(ctx);});
+  pi.on('agent_settled',async(_event,ctx)=>{
+   await closeTurn();updateCost(ctx);
+   // Settled means no retry, continuation or compaction is pending, so Pi's abort-first manual compaction loses no work.
+   const usage=flags.has('autocompact')&&!plan?.isActive()?ctx.getContextUsage?.():undefined;
+   if(usage?.tokens>AUTOCOMPACT_TOKENS&&usage.contextWindow>AUTOCOMPACT_TOKENS)ctx.compact({
+    onComplete:()=>{notify(ctx,`Compacted at ${Math.round(usage.tokens/1000)}k context tokens.`);updateCost(ctx);},
+    onError:error=>notify(ctx,'Autocompact failed: '+reason(error)),
+   });
+  });
   pi.on('session_shutdown',async(_event,ctx)=>{
    try{await closeTurn();await plan?.shutdown(ctx);}finally{releaseMode();await checkpoints?.shutdown();if(flags.has('cost')&&ctx.hasUI)ctx.ui?.setStatus?.('apex-cost',undefined);}
    flags=new Set();checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;

@@ -131,20 +131,94 @@ test('Codex sessions start and accept prompts above the former cap while usage r
       const featured = await post('/api/start', {cwd: home, model: 'sol', thinking: 'low', context: ['read', 'search'], features: ['checkpoints']});
       assert.equal(featured.status, 200, featured.text);
       const session = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(featured.text).id);
-      assert.equal(session.thinking, 'xhigh');
-      assert.equal(session.locked, true);
-      const refusedSwitch = await post('/api/settings', {id: session.id, thinking: 'low'});
-      assert.equal(refusedSwitch.status, 409); assert.match(refusedSwitch.text, /keep the model and thinking level/);
-      assert.equal((await post('/api/stop', {id: session.id})).status, 200);
+      assert.equal(session.thinking, 'low', 'features keep the chosen thinking level');
+      assert.deepEqual([session.lock, session.target], [undefined, 'windows']);
+      const raised = await settings({id: session.id, thinking: 'high'});
+      assert.deepEqual([raised.code, raised.thinking], [200, 'high'], 'features change thinking live');
+      const opus = await settings({id: session.id, model: 'anthropic/claude-opus-5-5'});
+      assert.deepEqual([opus.code, opus.model, opus.thinking, opus.logins, opus.relaunched], [200, 'anthropic/claude-opus-5-5', 'high', ['anthropic'], false], 'features switch signed-in models live, keeping the level');
+      assert.match((await settings({id: session.id, model: 'muse'})).error, /switch between signed-in models/);
+      // A pair the agent did not load restarts it on the same session, keeping the features.
+      const pair = {plan: {model: 'anthropic/claude-opus-5-5', thinking: 'high'}, build: {model: 'anthropic/claude-sonnet-5-5', thinking: 'low'}};
+      const paired = await settings({id: session.id, pair});
+      assert.equal(paired.code, 200, paired.error);
+      assert.equal(paired.relaunched, true); assert.notEqual(paired.id, session.id);
+      assert.deepEqual([paired.model, paired.pair.plan, paired.pair.build.model, paired.logins, paired.flags.features], ['apex/pair', pair.plan, pair.build.model, ['anthropic'], ['checkpoints']]);
+      assert.equal(paired.thinking, 'low', 'the build level comes from the restart');
+      const single = await settings({id: paired.id, model: 'sol'});
+      assert.deepEqual([single.model, single.relaunched, single.pair.plan.model], ['sol', false, pair.plan.model], 'the loaded pair stays available');
+      const back = await settings({id: paired.id, pair: {...pair, build: {...pair.build, thinking: 'medium'}}});
+      assert.deepEqual([back.model, back.relaunched, back.thinking, back.logins], ['apex/pair', false, 'medium', ['anthropic']], 'the same pair comes back live at a new build level');
+      assert.match((await settings({id: paired.id, pair: {...pair, plan: {...pair.plan, thinking: 'off'}}})).error, /Opus 5.5 planning runs at low, medium, high, xhigh, max/);
+      assert.equal((await post('/api/stop', {id: paired.id})).status, 200);
+      const started = await post('/api/start', {cwd: home, pair: {plan: {model: 'anthropic/claude-opus-5-5', thinking: 'high'}, build: {model: 'openai-codex/gpt-6-luna'}}});
+      assert.equal(started.status, 200, started.text);
+      const mixed = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(started.text).id);
+      assert.deepEqual([mixed.model, mixed.thinking, mixed.logins], ['apex/pair', 'medium', ['anthropic', 'openai-codex']]);
+      assert.equal((await post('/api/stop', {id: mixed.id})).status, 200);
       // The extended Windows target accepts every signed-in provider through the same launcher parser.
-      for (const model of ['anthropic/claude-opus-5-5', 'opencode-go/kimi-k3']) {
+      // Without a chosen level a model starts at xhigh, or at its top level when it has no xhigh.
+      for (const [model, level] of [['anthropic/claude-opus-5-5', 'xhigh'], ['opencode-go/kimi-k3', 'max']]) {
         const other = await post('/api/start', {cwd: home, model, context: ['read'], core: ['todo']});
         assert.equal(other.status, 200, other.text);
         const live = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(other.text).id);
-        assert.deepEqual([live.model, live.provider, live.thinking, live.locked], [model, model.split('/')[0], 'xhigh', true]);
+        assert.deepEqual([live.model, live.provider, live.thinking], [model, model.split('/')[0], level]);
         assert.equal((await post('/api/stop', {id: live.id})).status, 200);
       }
     }
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise(resolve => child.once('exit', resolve));
+      child.kill();
+      await exited;
+    }
+    await rm(home, {recursive: true, force: true});
+  }
+});
+
+test('auto-approve answers safety prompts for one session, including waiting ones, and never catastrophic confirmations', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'apex-dash-auto-'));
+  const port = 49000 + Math.floor(Math.random() * 1000);
+  const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
+  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  try {
+    const token = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
+      child.once('error', error => { clearTimeout(timer); reject(error); });
+      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
+    });
+    const login = await call(port, {path: `/?t=${token}`});
+    const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
+    const post = (path, body) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
+    assert.equal((await post('/api/workspaces', {path: home})).status, 200);
+    const {id} = JSON.parse((await post('/api/start', {cwd: home, model: 'sol'})).text);
+    const session = async () => JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text).workspaces.flatMap(w => w.live).find(s => s.id === id);
+    const titles = async () => (await session()).pending.map(p => p.title).sort();
+    const log = () => new Promise(resolve => {
+      const req = http.get({host: '127.0.0.1', port, path: `/api/events?id=${id}`, headers: {host: `127.0.0.1:${port}`, ...cookie}}, res => {
+        let text = ''; res.on('data', chunk => { text += chunk; }); res.on('error', () => {});
+        setTimeout(() => { resolve(text); req.destroy(); }, 200);
+      });
+      req.on('error', () => {});
+    });
+    assert.equal((await session()).autoApprove, false);
+    assert.equal((await post('/api/send', {id, message: 'needs approval'})).status, 200);
+    assert.deepEqual(await titles(), ['Confirm catastrophic command', 'Confirm tool action'], 'off by default');
+    const on = await post('/api/auto-approve', {id, on: true});
+    assert.equal(on.status, 200, on.text); assert.equal(JSON.parse(on.text).autoApprove, true);
+    assert.deepEqual(await titles(), ['Confirm catastrophic command'], 'the waiting safety prompt is answered; the catastrophic one still asks');
+    assert.equal((await post('/api/send', {id, message: 'needs approval'})).status, 200);
+    assert.deepEqual(await titles(), ['Confirm catastrophic command', 'Confirm catastrophic command']);
+    let text = await log();
+    assert.match(text, /answered Confirm tool action#0\.25 true/); assert.match(text, /answered Confirm tool action#0\.5 true/);
+    assert.doesNotMatch(text, /answered Confirm catastrophic/);
+    assert.equal((text.match(/dashboard_auto_approved/g) ?? []).length, 2);
+    assert.equal(JSON.parse((await post('/api/auto-approve', {id, on: false})).text).autoApprove, false);
+    assert.equal((await post('/api/send', {id, message: 'needs approval'})).status, 200);
+    assert.ok((await titles()).includes('Confirm tool action'), 'turning it off asks again');
+    text = await log();
+    assert.doesNotMatch(text, /answered Confirm tool action#0\.75/);
+    assert.equal((await post('/api/stop', {id})).status, 200);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = new Promise(resolve => child.once('exit', resolve));

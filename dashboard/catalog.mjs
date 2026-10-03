@@ -4,6 +4,7 @@ import {CONTEXT_FEATURES} from '../extensions/apex-context/config.mjs';
 import {CORE_FEATURES} from '../extensions/apex-core/config.mjs';
 import {FEATURE_FEATURES} from '../extensions/apex-features/config.mjs';
 import {WINDOWS_UNAVAILABLE} from '../lib/windows-target.mjs';
+import {levelsOf} from '../extensions/apex-router/pair.mjs';
 import {LOGINS} from './provider-login.mjs';
 
 const f = (flag, label, summary, extra = {}) => ({flag, label, summary, ...extra});
@@ -48,6 +49,7 @@ export const GROUPS = [
     f('safety', 'Ask before risky tool calls', 'Pauses risky calls and asks you here before they run. A guardrail, not a sandbox.'),
     f('report', 'Token report', 'Adds /report with token categories for this session.', {commands: ['/report']}),
     f('resume', 'Session inspection', 'Adds /resume-info to check a session file without replaying tools.', {commands: ['/resume-info']}),
+    f('autocompact', 'Compact at 300k', 'Summarizes the session with Pi\'s own compaction once a finished run passes 300k context tokens, so later requests send less.'),
   ]},
 ];
 
@@ -59,6 +61,7 @@ for (const [group, expected] of [['context', CONTEXT_FEATURES], ['core', CORE_FE
 // Login providers list every chat model in the installed Pi catalog, the same one the agent child resolves, so new
 // models appear when Pi does. Ids are provider/model except the two original entries, which keep their saved ids.
 // Each runs Apex features only through the native Windows target (xhigh, Muse-only and Unix-only flags refused).
+// `levels` are the thinking levels Pi accepts for the model; any two of these models can also run as a plan + build pair.
 const BILLING = {
   'openai-codex': 'Your ChatGPT subscription, signed in with OAuth.',
   anthropic: 'Your Claude Pro or Max subscription, signed in with OAuth.',
@@ -69,9 +72,12 @@ export function modelCatalog(runtime) {
   const signedIn = Object.keys(LOGINS).flatMap(provider => runtime.getModels(provider).map(model => {
     const sol = provider === 'openai-codex' && model.id === 'gpt-6.1-sol';
     return {id: sol ? 'sol' : `${provider}/${model.id}`, provider, model: model.id, label: sol ? 'GPT-6.1 Sol' : model.name ?? model.id,
-      group: LOGINS[provider].label, billing: BILLING[provider], input: [...(model.input ?? ['text'])], ...windows};
+      group: LOGINS[provider].label, billing: BILLING[provider], input: [...(model.input ?? ['text'])], levels: levelsOf(model), contextWindow: model.contextWindow, ...windows};
   })).sort((a, b) => (b.id === 'sol') - (a.id === 'sol')); // Sol stays the default
   const muse = {id: 'muse', provider: 'openrouter', model: 'meta/muse-spark-1.3-contributor', label: 'Muse Spark 1.3', group: 'OpenRouter',
     billing: 'OpenRouter. Needs OPENROUTER_API_KEY in the environment that started the dashboard.', apex: true, unavailable: []};
-  return [...signedIn, {...muse, input: [...(runtime.getModel(muse.provider, muse.model)?.input ?? ['text'])]}];
+  const museModel = runtime.getModel(muse.provider, muse.model);
+  // `keyMissing` hides Muse from the picker until an OpenRouter key is available to the agent.
+  const keyMissing = !process.env.OPENROUTER_API_KEY && !runtime.hasConfiguredAuth?.(muse.provider);
+  return [...signedIn, {...muse, keyMissing, input: [...(museModel?.input ?? ['text'])], levels: museModel ? levelsOf(museModel) : ['xhigh'], contextWindow: museModel?.contextWindow}];
 }

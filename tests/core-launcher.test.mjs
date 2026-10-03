@@ -18,8 +18,10 @@ test('Phase 1 and 2 flags compose, and time is only enabled by explicit feature'
   assert.equal(args.filter(x=>x==='--extension').length,3);
   for(const bad of [['--time-budget','10'],['--apex-core','todo','--time-budget','10'],
     ['--apex-core','time','--time-budget','0'],['--apex-core','time','--time-budget','10','--time-budget','10'],
-    ['--apex-core','todo','--model','other/model'],['--apex-core','todo','--thinking','low'],
-    ['--apex-core','todo','--apex-core','verify']])assert.throws(()=>buildPiInvocation(bad,'/pi.js'));
+    ['--apex-core','todo','--model','other/model'],['--apex-core','todo','--apex-context','route','--thinking','low'],
+    ['--apex-core','todo','--apex-core','verify'],['--apex-core','todo','--thinking','loud']])assert.throws(()=>buildPiInvocation(bad,'/pi.js'));
+  const low=buildPiInvocation(['--apex-core','todo','--thinking','low','task'],'/pi.js').args;
+  assert.equal(low[low.indexOf('--thinking')+1],'low');
 });
 test('Apex options in literal task and Pi values retain their meanings',()=>{
   assert.deepEqual(buildPiInvocation(['--system-prompt','--apex-core','all'],'/pi.js').args,['--system-prompt','--apex-core','all']);

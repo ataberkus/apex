@@ -7,7 +7,7 @@ import {FEATURE_FEATURES,parseFeatureFlags} from '../extensions/apex-features/co
 import {parseLocalCommand} from '../lib/commands.mjs';
 
 test('nine Phase 3 flags are default off and strictly parsed',()=>{
- assert.equal(FEATURE_FEATURES.length,9);assert.deepEqual(parseFeatureFlags(),[]);
+ assert.equal(FEATURE_FEATURES.length,10);assert.deepEqual(parseFeatureFlags(),[]);
  assert.deepEqual(parseFeatureFlags('all'),FEATURE_FEATURES);
  for(const v of ['cost,cost','unknown',' cost',null,[]])assert.throws(()=>parseFeatureFlags(v));
 });
@@ -28,7 +28,9 @@ test('combined extensions retain context core features order and route',()=>{
 test('Phase 3 default forwards and selected variants reject model overrides',()=>{
  assert.deepEqual(buildPiInvocation(['--','--apex-features','all'],'x').args,['--','--apex-features','all']);
  assert.deepEqual(buildPiInvocation(['--system-prompt','--apex-features','all'],'x').args,['--system-prompt','--apex-features','all']);
- for(const a of [['--apex-features','cost','--model','other/model'],['--apex-features','cost','--thinking','low'],['--apex-features','cost','--apex-features','report'],['--apex-features','cost','--apex-eval=true']])assert.throws(()=>buildPiInvocation(a,'x'));
+ for(const a of [['--apex-features','cost','--model','other/model'],['--apex-features','cost','--apex-eval','--thinking','low'],['--apex-features','cost','--apex-features','report'],['--apex-features','cost','--apex-eval=true']])assert.throws(()=>buildPiInvocation(a,'x'));
+ const low=buildPiInvocation(['--apex-features','cost','--thinking','low','task'],'x').args;
+ assert.equal(low[low.indexOf('--thinking')+1],'low');
 });
 test('report and resume are exact local verbs with bounded literal option parser',()=>{
  assert.equal(parseLocalCommand(['--print','report']),null);

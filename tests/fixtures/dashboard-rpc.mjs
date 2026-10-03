@@ -14,7 +14,7 @@ childProcess.spawn = (_command, args) => {
   const child = new EventEmitter();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
-  let cost = 0, thinking = 'xhigh';
+  let cost = 0, thinking = args.includes('--thinking') ? args[args.indexOf('--thinking') + 1] : 'xhigh';
   const emit = event => child.stdout.write(JSON.stringify(event) + '\n');
   child.stdin = new Writable({
     write(chunk, _encoding, done) {
@@ -25,7 +25,11 @@ childProcess.spawn = (_command, args) => {
             emit({type: 'response', id: command.id, command: 'prompt', success: true, data: {disposition: 'started'}});
             cost += 0.25;
             emit({type: 'agent_start'});
+            if (command.message === 'needs approval') for (const title of ['Confirm tool action', 'Confirm catastrophic command'])
+              emit({type: 'extension_ui_request', id: `${title}#${cost}`, method: 'confirm', title, message: 'Tool: bash\nArguments: {}'});
             emit({type: 'agent_settled'});
+          } else if (command.type === 'extension_ui_response') {
+            emit({type: 'extension_ui_request', id: 'answer-' + command.id, method: 'notify', message: `answered ${command.id} ${command.confirmed}`});
           } else if (command.type === 'set_thinking_level') {
             thinking = command.level === 'max' ? 'xhigh' : command.level; // like Pi, clamp to what the model supports
             emit({type: 'response', id: command.id, command: command.type, success: true});

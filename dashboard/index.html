@@ -6,6 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Apex</title>
 <link rel="stylesheet" href="/app.css">
+<script>try{var theme=JSON.parse(localStorage.theme||'"dark"')}catch(e){theme='dark'}if(theme!=='system')document.documentElement.setAttribute('data-theme',theme)</script>
 </head>
 <body data-pane="chat">
 <a class="skip" href="#box">Skip to message box</a>
@@ -22,6 +23,7 @@
   </section>
   <div id="groups"></div>
   <footer id="codex-usage" class="usage-summary"></footer>
+  <label class="theme-row">Theme<select id="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">Same as browser</option></select></label>
 </nav>
 
 <main id="chat" aria-label="Conversation">
@@ -31,6 +33,7 @@
       <p id="where"></p>
     </div>
     <div class="actions">
+      <button class="btn auto" id="auto" type="button" aria-pressed="false" title="Answer this session's tool approvals with Allow. Catastrophic commands still ask." hidden>Auto-approve: off</button>
       <button class="btn" id="stop" type="button" hidden>Stop turn</button>
       <button class="btn quiet" id="end" type="button" hidden>End session</button>
     </div>
@@ -47,16 +50,16 @@
     <input id="image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled>
     <div id="attachments" class="attachment-list" role="list" aria-label="Images to send" hidden></div>
     <div class="composer-row">
-      <textarea id="box" rows="2" placeholder="Message the agent. Type / for commands. Enter sends, Shift+Enter adds a line." aria-label="Message" aria-describedby="attachment-hint" disabled></textarea>
+      <textarea id="box" rows="2" placeholder="Message the agent. Type / for commands. Enter sends, Alt+Enter queues while running, Shift+Enter adds a line." aria-label="Message" aria-describedby="attachment-hint" disabled></textarea>
+      <button class="btn" id="queue-send" type="submit" value="followUp" title="Send after the agent finishes (Alt+Enter)" hidden disabled>Add to queue</button>
       <button class="btn primary" id="send" type="submit" disabled>Send</button>
     </div>
     <div class="composer-tools">
-      <label class="pill"><span>Model</span><select id="model-pick" disabled></select></label>
-      <label class="pill"><span>Thinking</span><select id="thinking-pick" disabled></select></label>
+      <div id="route" class="route" role="group" aria-label="Models for this session"></div>
       <button class="btn" id="attach" type="button" aria-describedby="attachment-hint" disabled>Add images</button>
-      <small id="attachment-hint">Open a session to attach images.</small>
     </div>
-    <small id="settings-note" hidden>This session uses Apex features, so it keeps the model and thinking level it started with.</small>
+    <small id="attachment-hint">Open a session to attach images.</small>
+    <small id="settings-note" hidden></small>
     <small id="attachment-status" role="status" hidden></small>
     <p id="composer-error" class="note" role="alert" hidden></p>
   </form>
@@ -79,31 +82,46 @@
   <button data-pane="info" type="button">Details</button>
 </nav>
 
-<dialog id="launch" aria-labelledby="launch-h">
+<dialog id="launch" class="wide" aria-labelledby="launch-h">
   <form id="launch-form" method="dialog">
     <header><h2 id="launch-h">New session</h2><p id="launch-where"></p></header>
-    <div class="launch-body">
-      <label class="field">Model
-        <select id="launch-model"></select>
-        <small id="launch-model-note"></small>
-      </label>
-      <div class="notice" id="launch-auth" hidden>
-        <p id="launch-auth-text">Sign in to use this model. Apex saves the login on this computer.</p>
-        <button class="btn primary" id="launch-login" type="button">Sign in</button>
-      </div>
-      <label class="field">Thinking level
-        <select id="thinking"></select>
-        <small id="thinking-note"></small>
-      </label>
-      <fieldset id="presets"><legend>Start from</legend></fieldset>
-      <div id="feature-note" class="notice" hidden></div>
-      <div id="features"></div>
-      <label class="check" id="evalrow"><input type="checkbox" id="evalmode"><span><b>Evaluation isolation</b><small>Turns off remembered project facts, so a run does not depend on earlier sessions.</small></span></label>
+    <div class="launch-body launch-grid">
+      <section class="pane-models" aria-labelledby="launch-models-h">
+        <h3 id="launch-models-h" class="sub">Models</h3>
+        <div id="launch-editor" class="editor"></div>
+        <div class="notice auth-needed" id="launch-auth" role="status" hidden></div>
+      </section>
+      <section class="pane-features" aria-labelledby="launch-features-h">
+        <h3 id="launch-features-h" class="sub">Apex features</h3>
+        <div id="feature-note" class="notice" hidden></div>
+        <div id="feature-pick">
+          <fieldset id="presets"><legend class="sr">Start from</legend></fieldset>
+          <p id="preset-note" class="preset-note"></p>
+          <details id="customize" class="customize"><summary>Choose features one by one <em id="feature-count"></em></summary><div id="features"></div></details>
+          <label class="check" id="evalrow"><input type="checkbox" id="evalmode"><span><b>Evaluation isolation</b><small>Turns off remembered project facts, so a run does not depend on earlier sessions.</small></span></label>
+        </div>
+      </section>
     </div>
     <footer>
       <p id="launch-error" class="error" role="alert"></p>
       <button class="btn" value="cancel" type="button" id="launch-cancel">Cancel</button>
       <button class="btn primary" type="submit" id="launch-go">Start session</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="routedlg" aria-labelledby="route-h">
+  <form id="route-form">
+    <header><h2 id="route-h">Models for this session</h2><p id="route-where"></p></header>
+    <div class="launch-body">
+      <div id="route-editor" class="editor"></div>
+      <div class="notice auth-needed" id="route-auth" role="status" hidden></div>
+    </div>
+    <footer>
+      <p id="route-effect" class="effect"></p>
+      <p id="route-error" class="error" role="alert"></p>
+      <button class="btn" type="button" id="route-cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="route-go">Switch now</button>
     </footer>
   </form>
 </dialog>

@@ -51,10 +51,12 @@ test('Phase 1 prefix selects individual flags and exact Muse/xhigh without chang
   assert.equal(invocation.args[invocation.args.indexOf('--thinking')+1],'xhigh');
   assert.deepEqual(invocation.args.slice(-3),['--','--apex-context','all']);
 });
-test('Phase 1 rejects wrong models, thinking, unknown and repeated feature options before Pi', () => {
+test('Phase 1 rejects wrong models, route thinking, unknown and repeated feature options before Pi', () => {
   for(const args of [['--apex-context','unknown'],['--apex-context','shape','--apex-context','read'],
-    ['--apex-context','read','--model','other/model'],['--apex-context','read','--thinking','low'],
+    ['--apex-context','read','--model','other/model'],['--apex-context','route','--thinking','low'],
     ['--apex-context','read','--provider','other']]) assert.throws(()=>buildPiInvocation(args,'/pi.js'));
+  const low=buildPiInvocation(['--apex-context','read','--thinking','low','task'],'/pi.js').args;
+  assert.equal(low[low.indexOf('--thinking')+1],'low');
   assert.deepEqual(buildPiInvocation(['--system-prompt','--apex-context','all'],'/pi.js').args,['--system-prompt','--apex-context','all']);
 });
 test('route selection loads its model before Pi selection and still keeps physical policy', () => {

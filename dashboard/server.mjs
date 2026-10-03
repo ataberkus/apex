@@ -12,6 +12,7 @@ import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
+import {formatPair} from '../extensions/apex-router/pair.mjs';
 import {createLogins, LOGINS} from './provider-login.mjs';
 import {MAX_SEND_BODY_BYTES} from './attachments.mjs';
 import {promptCommand} from './chat-request.mjs';
@@ -24,6 +25,8 @@ const budgetFile = join(root, 'evals', 'codex-budget.json');
 const port = Number(process.env.APEX_DASH_PORT ?? 4777);
 const THINKING = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const DIALOGS = new Set(['select', 'confirm', 'input', 'editor']);
+// Auto-approve answers only the safety gate's per-call prompt; catastrophic-command confirmations always ask.
+const SAFETY_PROMPT = 'Confirm tool action';
 const ASSETS = Object.fromEntries(['app.css', 'app.js', 'chat-content.mjs', 'attachments.mjs'].map(name =>
   ['/' + name, {path: new URL(name, import.meta.url), type: name.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/javascript; charset=utf-8'}]));
 ASSETS['/vendor/marked.js'] = {path: fileURLToPath(import.meta.resolve('marked')), type: 'text/javascript; charset=utf-8'};
@@ -89,8 +92,12 @@ function codexUsage() {
 const live = new Map();
 const send = (session, command) => session.child.stdin.write(JSON.stringify(command) + '\n');
 const active = session => session.status === 'idle' || session.status === 'running';
-// Apex features and eval isolation were validated against the launch model at xhigh, so those sessions keep both.
-const locked = session => Boolean(session.flags.evalMode) || GROUPS.some(group => session.flags[group.id]?.length);
+const PAIR = 'apex/pair'; // the session model id while a plan + build pair is routing
+// Eval isolation and Muse experiments keep their launch model and level. Apex features on the Windows target
+// switch freely between signed-in models and thinking levels.
+const lockOf = session => session.flags.evalMode ? 'Sessions with eval isolation keep the model and thinking level they started with.'
+  : !session.target && GROUPS.some(group => session.flags[group.id]?.length) ? 'Muse experiments keep the model and thinking level they started with.' : undefined;
+const loginsOf = session => [...new Set(session.model === PAIR ? [session.pair.plan.provider, session.pair.build.provider] : [session.provider])].filter(provider => Object.hasOwn(LOGINS, provider));
 
 // Keep drafts until Pi confirms acceptance (image decoding and extension input handlers can reject a prompt).
 function request(session, command) {
@@ -106,9 +113,17 @@ function request(session, command) {
   });
 }
 
+const autoApproves = (session, event) => session.autoApprove && event.type === 'extension_ui_request' && event.method === 'confirm' && event.title === SAFETY_PROMPT;
+function approve(session, event) {
+  session.pending.delete(event.id);
+  send(session, {type: 'extension_ui_response', id: event.id, confirmed: true});
+  record(session, JSON.stringify({type: 'dashboard_auto_approved', message: event.message}));
+}
+
 function record(session, line) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
+  const auto = autoApproves(session, event);
   if (event.type === 'agent_start') session.status = 'running';
   if (event.type === 'agent_settled') { session.status = 'idle'; session.settled++; }
   if (event.type === 'agent_settled' || event.type === 'turn_end') send(session, {id: 'stats', type: 'get_session_stats'});
@@ -124,10 +139,10 @@ function record(session, line) {
     const cost = Number(event.data.cost) || 0;
     session.base ??= session.file && session.resumed ? cost : 0; // a resumed file arrives with its earlier cost already recorded
     const delta = Math.max(0, cost - session.base);
-    if (session.provider === 'openai-codex' && delta > session.counted) { spend.sol += delta - session.counted; persist(); }
+    if (loginsOf(session).includes('openai-codex') && delta > session.counted) { spend.sol += delta - session.counted; persist(); }
     session.counted = Math.max(session.counted, delta);
   }
-  if (event.type === 'extension_ui_request' && DIALOGS.has(event.method)) {
+  if (event.type === 'extension_ui_request' && DIALOGS.has(event.method) && !auto) {
     session.pending.set(event.id, event);
     if (event.timeout) setTimeout(() => session.pending.delete(event.id), event.timeout + 500).unref(); // the agent auto-resolves after its timeout
   }
@@ -138,14 +153,32 @@ function record(session, line) {
   session.log.push(line);
   if (session.log.length > 20000) session.log.shift(); // ponytail: replay drops oldest events past 20k; reload via get_messages if this matters
   for (const client of session.clients) client.write(`data: ${line}\n\n`);
+  if (auto) approve(session, event);
+}
+
+const pickModel = (catalog, id) => {
+  const model = catalog.find(candidate => candidate.id === id);
+  if (!model) throw new Error('Choose a model');
+  return model;
+};
+const levelFor = (model, thinking, role = '') => {
+  if (!THINKING.includes(thinking)) throw new Error('Unknown thinking level');
+  if (model.levels && !model.levels.includes(thinking)) throw new Error(`${model.label}${role} runs at ${model.levels.join(', ')} thinking`);
+  return thinking;
+};
+// body.pair = {plan: {model, thinking}, build: {model, thinking}} with catalog ids; each model runs on its own saved login.
+function pairOf(catalog, pair) {
+  const [plan, build] = [pickModel(catalog, pair?.plan?.model), pickModel(catalog, pair?.build?.model)];
+  if (!plan.target || !build.target || !plan.apex || !build.apex) throw new Error('Plan + build pairs run signed-in models on native Windows');
+  return {plan: {model: plan.id, provider: plan.provider, id: plan.model, thinking: levelFor(plan, pair.plan.thinking ?? 'high', ' planning')},
+    build: {model: build.id, provider: build.provider, id: build.model, thinking: levelFor(build, pair.build.thinking ?? 'medium', ' building')}};
 }
 
 // Validates the whole launch request, then returns the arguments for bin/apex.
 function launchArguments(body, file) {
-  const model = modelCatalog(runtime).find(candidate => candidate.id === body.model);
-  if (!model) throw new Error('Choose a model');
-  let thinking = body.thinking ?? 'xhigh';
-  if (!THINKING.includes(thinking)) throw new Error('Unknown thinking level');
+  const catalog = modelCatalog(runtime);
+  const pair = body.pair ? pairOf(catalog, body.pair) : undefined;
+  const model = pair ? undefined : pickModel(catalog, body.model);
   const picked = {}, apexArgs = [];
   for (const group of GROUPS) {
     const wanted = new Set(Array.isArray(body[group.id]) ? body[group.id] : []);
@@ -158,11 +191,16 @@ function launchArguments(body, file) {
     if (picked[group.id].length) apexArgs.push(group.option, picked[group.id].join(','));
   }
   const anyFeature = Object.values(picked).some(list => list.length);
-  if (anyFeature || body.evalMode) {
-    if (!model.apex) throw new Error('Apex features and eval isolation run only on Muse Spark 1.3 or, on native Windows, signed-in models');
-    thinking = 'xhigh';
-    if (model.target) apexArgs.unshift('--apex-target', model.target);
+  let target, thinking;
+  if (pair) [target, thinking] = ['windows', pair.build.thinking];
+  else {
+    if ((anyFeature || body.evalMode) && !model.apex) throw new Error('Apex features and eval isolation run only on Muse Spark 1.3 or, on native Windows, signed-in models');
+    if (anyFeature || body.evalMode) target = model.target;
+    // Eval runs and the apex/auto router keep xhigh (Pi clamps it for a model without it); otherwise any level.
+    thinking = body.evalMode || picked.context?.includes('route') ? 'xhigh'
+      : levelFor(model, body.thinking ?? (model.levels.includes('xhigh') ? 'xhigh' : model.levels.at(-1)));
   }
+  if (target) apexArgs.unshift('--apex-target', target);
   let timeBudget;
   if (picked.core.includes('time')) {
     timeBudget = Number(body.timeBudget);
@@ -170,17 +208,19 @@ function launchArguments(body, file) {
     apexArgs.push('--time-budget', String(timeBudget));
   }
   if (body.evalMode) apexArgs.push('--apex-eval');
-  const args = [...apexArgs, '--provider', model.provider, '--model', model.model, '--thinking', thinking, '--mode', 'rpc', ...(file ? ['--session', file] : [])];
+  const route = pair ? ['--apex-pair', formatPair({plan: pair.plan, build: {provider: pair.build.provider, id: pair.build.id}})] : ['--provider', model.provider, '--model', model.model];
+  const args = [...apexArgs, ...route, '--thinking', thinking, '--mode', 'rpc', ...(file ? ['--session', file] : [])];
   buildPiInvocation([...args], resolvePi().cli); // same parser bin/apex uses, so a refusal reads clearly here instead of as a crashed child
-  return {args, model, thinking, flags: {...picked, timeBudget, evalMode: Boolean(body.evalMode)}};
+  const flags = {...picked, timeBudget, evalMode: Boolean(body.evalMode)};
+  return {args, model, pair, thinking, target, flags, request: flags};
 }
 
 function startSession(cwd, file, launch) {
   const id = randomBytes(4).toString('hex');
   const child = spawn(process.execPath, [join(root, 'bin', 'apex'), ...launch.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
   const session = {id, cwd, child, file, resumed: Boolean(file), title: file ? titleOf(file) : '', status: 'idle', log: [], clients: new Set(), stderr: '',
-    pending: new Map(), requests: new Map(), provider: launch.model.provider, model: launch.model.id, input: launch.model.input,
-    thinking: launch.thinking, levels: THINKING, flags: launch.flags, counted: 0, base: undefined, settled: 0};
+    pending: new Map(), requests: new Map(), provider: launch.model?.provider ?? 'apex', pair: launch.pair, model: launch.model?.id ?? PAIR, input: launch.model?.input ?? ['text'],
+    thinking: launch.thinking, levels: THINKING, flags: launch.flags, request: launch.request, target: launch.target, autoApprove: false, counted: 0, base: undefined, settled: 0};
   live.set(id, session);
   let buffered = '';
   child.stdout.setEncoding('utf8');
@@ -250,8 +290,60 @@ async function readBody(req, limit = 1_000_000) {
   });
 }
 
+// `pair` is the pair the agent process loaded, kept while the session runs a single model so it can switch back live.
+// `lock` explains a session whose model cannot change.
 const summary = session => ({id: session.id, cwd: session.cwd, status: session.status, title: session.title, file: session.file, model: session.model, provider: session.provider, input: session.input,
-  thinking: session.thinking, levels: session.levels, locked: locked(session), flags: session.flags, pending: [...session.pending.values()], spent: session.counted, settled: session.settled});
+  thinking: session.thinking, levels: session.levels, lock: lockOf(session),
+  pair: session.pair && {plan: {model: session.pair.plan.model, thinking: session.pair.plan.thinking}, build: {model: session.pair.build.model}},
+  target: session.target, logins: loginsOf(session), flags: session.flags, pending: [...session.pending.values()], autoApprove: session.autoApprove, spent: session.counted, settled: session.settled});
+
+const conflict = message => Object.assign(new Error(message), {status: 409});
+const samePair = (a, b) => Boolean(a && b) && a.plan.model === b.plan.model && a.plan.thinking === b.plan.thinking && a.build.model === b.build.model;
+// Restarts the agent on the session file with another launch; only between runs, so no work is cut off.
+async function relaunch(session, launchBody) {
+  if (session.status !== 'idle') throw conflict('Wait for the agent to finish this run, then change the pair.');
+  const file = session.file && existsSync(session.file) ? session.file : undefined;
+  const launch = launchArguments({...session.request, ...launchBody}, file);
+  await new Promise(done => {
+    session.child.once('close', done);
+    session.child.stdin.end();
+    setTimeout(() => session.child.kill(), 5000).unref();
+  });
+  const next = startSession(session.cwd, file, launch);
+  next.title ||= session.title; next.autoApprove = session.autoApprove;
+  return next;
+}
+
+// Applies a route in place when the running agent can (Pi switches from the next model call); otherwise relaunches.
+async function changeRoute(session, body) {
+  if (!active(session)) throw conflict('This session has ended. Resume it to change its model.');
+  const lock = lockOf(session);
+  if (lock) throw conflict(lock);
+  const catalog = modelCatalog(runtime);
+  if (body.pair) {
+    const pair = pairOf(catalog, body.pair);
+    if (!samePair(pair, session.pair)) return relaunch(session, {pair: body.pair});
+    if (session.model !== PAIR) await request(session, {type: 'set_model', provider: 'apex', modelId: 'pair'});
+    Object.assign(session, {model: PAIR, provider: 'apex'});
+    await request(session, {type: 'set_thinking_level', level: pair.build.thinking});
+  } else {
+    const model = body.model === undefined || body.model === session.model ? undefined : pickModel(catalog, body.model);
+    // The Windows target (features or a pair) stays on signed-in models; a pair session can switch back to its pair live.
+    if (model && session.target && !model.target) throw conflict('Sessions on the Windows target switch between signed-in models.');
+    const current = model ?? catalog.find(candidate => candidate.id === session.model);
+    const thinking = body.thinking === undefined ? undefined : levelFor(current ?? {label: 'This model'}, body.thinking);
+    if (model) {
+      const data = await request(session, {type: 'set_model', provider: model.provider, modelId: model.model});
+      Object.assign(session, {model: model.id, provider: model.provider, input: data?.input ?? model.input});
+    }
+    if (thinking !== undefined) await request(session, {type: 'set_thinking_level', level: thinking});
+  }
+  session.levels = (await request(session, {type: 'get_available_thinking_levels'}))?.levels ?? THINKING;
+  const state = await request(session, {type: 'get_state'});
+  session.thinking = state?.thinkingLevel ?? session.thinking; // Pi clamps to what the model supports
+  if (state?.model?.input) session.input = state.model.input;
+  return session;
+}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -340,27 +432,15 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/send') {
       if (!active(session)) return fail(res, 409, 'This session has ended. Resume it before sending a message.');
       const command = promptCommand(body, session);
-      const login = logins[session.provider];
-      if (login && !(await login.status()).signedIn) return fail(res, 401, `Sign in to ${LOGINS[session.provider].label} using the dashboard button, then send your message again.`);
+      for (const provider of loginsOf(session)) {
+        if (!(await logins[provider].status()).signedIn) return fail(res, 401, `Sign in to ${LOGINS[provider].label} using the dashboard button, then send your message again.`);
+      }
       await request(session, command);
       return json(res, 200, {});
     }
-    if (url.pathname === '/api/settings') { // switch model or thinking level in place; Pi applies it from the next model call
-      if (!active(session)) return fail(res, 409, 'This session has ended. Resume it to change its model.');
-      if (locked(session)) return fail(res, 409, 'Sessions with Apex features or eval isolation keep the model and thinking level they started with.');
-      if (body.model !== undefined && body.model !== session.model) {
-        const model = modelCatalog(runtime).find(candidate => candidate.id === body.model);
-        if (!model) return fail(res, 400, 'Choose a model');
-        const data = await request(session, {type: 'set_model', provider: model.provider, modelId: model.model});
-        Object.assign(session, {model: model.id, provider: model.provider, input: data?.input ?? model.input});
-        session.levels = (await request(session, {type: 'get_available_thinking_levels'}))?.levels ?? THINKING;
-      }
-      if (body.thinking !== undefined) {
-        if (!THINKING.includes(body.thinking)) return fail(res, 400, 'Unknown thinking level');
-        await request(session, {type: 'set_thinking_level', level: body.thinking});
-      }
-      session.thinking = (await request(session, {type: 'get_state'}))?.thinkingLevel ?? session.thinking; // Pi clamps to what the model supports
-      return json(res, 200, summary(session));
+    if (url.pathname === '/api/settings') { // {model, thinking} or {pair}; a different pair restarts the agent under a new id
+      const changed = await changeRoute(session, body);
+      return json(res, 200, {...summary(changed), relaunched: changed !== session});
     }
     if (url.pathname === '/api/ui-response') {
       if (!session.pending.has(body.requestId)) return fail(res, 409, 'That question was already answered or timed out');
@@ -368,6 +448,11 @@ const server = http.createServer(async (req, res) => {
       const answer = body.cancelled ? {cancelled: true} : body.confirmed !== undefined ? {confirmed: Boolean(body.confirmed)} : {value: String(body.value ?? '')};
       session.child.stdin.write(JSON.stringify({type: 'extension_ui_response', id: body.requestId, ...answer}) + '\n');
       return json(res, 200, {});
+    }
+    if (url.pathname === '/api/auto-approve') { // {on}: answer safety prompts with Allow until turned off, including ones already waiting
+      session.autoApprove = body.on === true;
+      for (const event of [...session.pending.values()]) if (autoApproves(session, event)) approve(session, event);
+      return json(res, 200, summary(session));
     }
     if (url.pathname === '/api/abort') { send(session, {type: 'abort'}); return json(res, 200, {}); }
     if (url.pathname === '/api/stop') {
