@@ -9,7 +9,7 @@
   "spending_policy": "unlimited",
   "budget_cap_usd": null,
   "account_billed_cost_usd": null,
-  "observed_catalog_token_cost_usd": 49.390932,
+  "observed_catalog_token_cost_usd": 51.815544,
   "reserved_catalog_token_cost_usd": 46.6944,
   "remaining_catalog_equivalent_usd": null,
   "runs": [
@@ -189,6 +189,17 @@
       "catalog_token_cost_usd": 4.490736400000001,
       "billed_cost_usd": null,
       "summary_file": "runs/ab/ab-009/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-010",
+      "purpose": "Live A/B: apex vs apex-no-headless, 5 tasks × 5 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 275,
+      "catalog_token_cost_usd": 2.424612,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-010/summary.json",
       "benchmark_result": false,
       "usage_complete": true
     }
