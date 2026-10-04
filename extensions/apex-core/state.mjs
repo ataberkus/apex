@@ -365,7 +365,8 @@ export function createTaskState({ cwd, branch = [], persist = () => {}, policy, 
         } };
     },
     todoTool() {
-      return { name: 'todo', label: 'Task todo', description: 'Manage task steps. add(text,id optional), update(id,text/status optional), done(id), drop(id,reason required), list. Each contract criterion is already a todo with the same id; update it instead of adding it. Updates display only changed items; dropping requires a concrete reason.',
+      return { name: 'todo', label: 'Task todo', description: 'Manage task steps. add(text,id optional), update(id,text/status optional), done(id), drop(id,reason required), list.' +
+        (enforceContract ? ' Each contract criterion is already a todo with the same id; update it instead of adding it.' : '') + ' Updates display only changed items; dropping requires a concrete reason.',
         promptSnippet: 'Track task steps and report only changes.', executionMode: 'sequential', annotations: { readOnlyHint: false },
         parameters: { type: 'object', properties: { action: { type: 'string', enum: ['list', 'add', 'update', 'done', 'drop'] }, id: schemaString, text: schemaString, status: { type: 'string', enum: STATUSES }, reason: schemaString }, required: ['action'], additionalProperties: false }, outputSchema: resultSchema,
         execute(_id, params, signal) {
