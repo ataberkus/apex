@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Summarize runs/ab/<run-id>/results.jsonl: per-arm totals, paired per-task deltas with bootstrap CIs over tasks. */
+/** Summarize runs/ab/<run-id>/results.jsonl: per-arm totals and, for every pair of arms, paired per-task deltas with bootstrap CIs over tasks. */
 import {readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -32,7 +32,7 @@ const signedPct = value => Number.isFinite(value) ? (value >= 0 ? '+' : '') + (v
 export function report(runDir) {
   const rows = readFileSync(path.join(runDir, 'results.jsonl'), 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
   const meta = JSON.parse(readFileSync(path.join(runDir, 'meta.json'), 'utf8'));
-  const arms = meta.arms, [base, treat] = arms;
+  const arms = meta.arms;
   const valid = rows.filter(row => !row.harnessError);
   const byArm = Object.fromEntries(arms.map(arm => [arm, valid.filter(row => row.arm === arm)]));
   const tasks = [...new Set(valid.map(row => row.task))].sort();
@@ -48,31 +48,33 @@ export function report(runDir) {
       cacheHitRate: sum(list.map(row => row.cacheRead)) / Math.max(1, sum(list.map(row => row.cacheRead + row.input + row.cacheWrite)))}];
   }));
 
-  // Paired per-task means: each task contributes one (base, treat) pair regardless of attempt count.
-  const paired = tasks.map(task => {
-    const pick = (arm, key) => mean(byArm[arm].filter(row => row.task === task).map(row => typeof row[key] === 'boolean' ? Number(row[key]) : row[key]));
-    return {task, pass: [pick(base, 'pass'), pick(treat, 'pass')], cost: [pick(base, 'costUsd'), pick(treat, 'costUsd')],
-      wall: [pick(base, 'wallSec'), pick(treat, 'wallSec')], tokens: [pick(base, 'input') + pick(base, 'cacheRead') + pick(base, 'output'),
-        pick(treat, 'input') + pick(treat, 'cacheRead') + pick(treat, 'output')], requests: [pick(base, 'requests'), pick(treat, 'requests')],
-      n: [byArm[base].filter(row => row.task === task).length, byArm[treat].filter(row => row.task === task).length]};
-  }).filter(pair => pair.n[0] && pair.n[1]);
+  const taskMean = (arm, task, key) => mean(byArm[arm].filter(row => row.task === task).map(row => typeof row[key] === 'boolean' ? Number(row[key]) : row[key]));
+  const tokens = (arm, task) => taskMean(arm, task, 'input') + taskMean(arm, task, 'cacheRead') + taskMean(arm, task, 'output');
   const passDelta = list => mean(list.map(pair => pair.pass[1] - pair.pass[0]));
   const logRatio = key => list => mean(list.map(pair => Math.log(pair[key][1] / pair[key][0])));
-  const deltas = {
-    passRate: {estimate: passDelta(paired), ci: bootstrap(paired, passDelta)},
-    ...Object.fromEntries(['cost', 'wall', 'tokens', 'requests'].map(key => {
-      const usable = paired.filter(pair => pair[key][0] > 0 && pair[key][1] > 0);
-      const [low, high] = bootstrap(usable, logRatio(key));
-      return [key, {ratio: Math.exp(logRatio(key)(usable)), ci: [Math.exp(low), Math.exp(high)], tasks: usable.length}];
-    })),
-  };
+  // Every later arm against every earlier one, on paired per-task means: each task contributes one pair regardless of attempt count.
+  const comparisons = arms.flatMap((base, i) => arms.slice(i + 1).map(treat => {
+    const both = value => [value(base), value(treat)];
+    const paired = tasks.map(task => ({task, pass: both(arm => taskMean(arm, task, 'pass')), cost: both(arm => taskMean(arm, task, 'costUsd')),
+      wall: both(arm => taskMean(arm, task, 'wallSec')), tokens: both(arm => tokens(arm, task)), requests: both(arm => taskMean(arm, task, 'requests'))}))
+      .filter(pair => pair.pass.every(Number.isFinite));
+    const deltas = {
+      passRate: {estimate: passDelta(paired), ci: bootstrap(paired, passDelta)},
+      ...Object.fromEntries(['cost', 'wall', 'tokens', 'requests'].map(key => {
+        const usable = paired.filter(pair => pair[key][0] > 0 && pair[key][1] > 0);
+        const [low, high] = bootstrap(usable, logRatio(key));
+        return [key, {ratio: Math.exp(logRatio(key)(usable)), ci: [Math.exp(low), Math.exp(high)], tasks: usable.length}];
+      })),
+    };
+    return {base, treat, paired, deltas};
+  }));
 
   const lines = [];
-  lines.push(`## A/B ${meta.runId}: ${base} vs ${treat}`, '',
+  lines.push(`## A/B ${meta.runId}: ${arms.join(' vs ')}`, '',
     `${meta.model} at thinking ${meta.thinking}; ${tasks.length} tasks × ${meta.attempts} attempts per arm; harness ${meta.harnessCommit?.slice(0, 7)}${meta.harnessDirty ? ' (dirty tree)' : ''}${meta.apexSnapshot ? `, snapshot ${meta.apexSnapshot.treeSha256.slice(0, 12)}` : ''}. ` +
     `Costs are Pi catalog estimates, not billing. CIs: Wilson for pass rates, paired bootstrap over tasks for deltas.`, '',
-    `| Metric | ${base} | ${treat} |`, '|---|---:|---:|');
-  const row = (label, f) => lines.push(`| ${label} | ${f(armStats[base])} | ${f(armStats[treat])} |`);
+    `| Metric | ${arms.join(' | ')} |`, `|---|${'---:|'.repeat(arms.length)}`);
+  const row = (label, f) => lines.push(`| ${label} | ${arms.map(arm => f(armStats[arm])).join(' | ')} |`);
   row('Passed', s => `${s.passes}/${s.attempts} (${pct(s.passRate)}, CI ${pct(s.passCI[0])}–${pct(s.passCI[1])})`);
   row('Timeouts', s => String(s.timeouts));
   row('Total catalog cost', s => '$' + fmt(s.totalCostUsd, 3));
@@ -89,17 +91,19 @@ export function report(runDir) {
   row('Mean tool calls', s => fmt(s.meanToolCalls, 1));
   row('Tool error rate', s => pct(s.toolErrorRate));
   row('Compactions', s => String(s.compactions));
-  lines.push('', `**Paired deltas (${treat} relative to ${base}, ${paired.length} tasks):** pass rate ${signedPct(deltas.passRate.estimate)} ` +
+  for (const {base, treat, paired, deltas} of comparisons) lines.push('', `**Paired deltas (${treat} relative to ${base}, ${paired.length} tasks):** pass rate ${signedPct(deltas.passRate.estimate)} ` +
     `(CI ${signedPct(deltas.passRate.ci[0])} to ${signedPct(deltas.passRate.ci[1])}); ` +
     ['cost', 'tokens', 'wall', 'requests'].map(key => `${key} ×${fmt(deltas[key].ratio)} (CI ×${fmt(deltas[key].ci[0])}–×${fmt(deltas[key].ci[1])})`).join('; ') +
-    '. A CI that crosses 0 (or ×1.00) is inconclusive.', '',
-    `| Task | ${base} pass | ${treat} pass | ${base} $ | ${treat} $ | ${base} s | ${treat} s |`, '|---|---:|---:|---:|---:|---:|---:|');
-  for (const pair of paired) lines.push(`| ${pair.task} | ${pct(pair.pass[0])} | ${pct(pair.pass[1])} | ${fmt(pair.cost[0], 4)} | ${fmt(pair.cost[1], 4)} | ${fmt(pair.wall[0], 0)} | ${fmt(pair.wall[1], 0)} |`);
+    '. A CI that crosses 0 (or ×1.00) is inconclusive.');
+  const columns = [['pass', (arm, task) => pct(taskMean(arm, task, 'pass'))], ['$', (arm, task) => fmt(taskMean(arm, task, 'costUsd'), 4)],
+    ['s', (arm, task) => fmt(taskMean(arm, task, 'wallSec'), 0)]];
+  lines.push('', `| Task | ${columns.flatMap(([unit]) => arms.map(arm => `${arm} ${unit}`)).join(' | ')} |`, `|---|${'---:|'.repeat(columns.length * arms.length)}`);
+  for (const task of tasks) lines.push(`| ${task} | ${columns.flatMap(([, cell]) => arms.map(arm => cell(arm, task))).join(' | ')} |`);
   const failures = valid.filter(row => !row.pass).map(row => `- ${row.task} / ${row.arm} #${row.attempt}: ${row.timedOut ? 'timeout' : (row.failed ?? []).join(', ') || 'unknown'}`);
   if (failures.length) lines.push('', '**Failed attempts**', ...failures);
   const harness = rows.filter(row => row.harnessError);
   if (harness.length) lines.push('', `**Harness errors (excluded):** ${harness.length}`);
-  const summary = {meta, armStats, deltas, paired, failures: valid.filter(row => !row.pass).map(row => ({task: row.task, arm: row.arm, attempt: row.attempt, failed: row.failed, timedOut: row.timedOut})), harnessErrors: harness.length};
+  const summary = {meta, armStats, comparisons, failures: valid.filter(row => !row.pass).map(row => ({task: row.task, arm: row.arm, attempt: row.attempt, failed: row.failed, timedOut: row.timedOut})), harnessErrors: harness.length};
   writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2) + '\n');
   const markdown = lines.join('\n') + '\n';
   writeFileSync(path.join(runDir, 'report.md'), markdown);

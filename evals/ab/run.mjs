@@ -10,8 +10,9 @@
  *                         [--model openai-codex/gpt-6.1-sol] [--thinking max] [--timeout-min 20] [--apex-root DIR] [--max-usd N]
  *   node evals/ab/run.mjs --run-id ab-001 --resume    # rerun only attempts missing from results.jsonl
  *
- * Arms: `stock` (--apex-off), `apex` (the Windows defaults) and `apex-no-FLAG` (the defaults minus one flag, e.g.
- * `--arms apex,apex-no-checkpoints`). The report compares the first arm with the second.
+ * Arms: `stock` (--apex-off), `apex` (the Windows defaults), `apex-no-FLAG` (the defaults minus one flag, e.g.
+ * `--arms apex,apex-no-checkpoints`) and `apex+FLAG[+FLAG…]` (the defaults plus flags, e.g. `apex+todo+verify`).
+ * The report pairs every later arm with every earlier one.
  *
  * --apex-root runs a frozen copy made by `node evals/ab/snapshot.mjs DIR`, so editing Apex mid-run changes nothing;
  * its apex-snapshot.json and patch are recorded with the results. --resume reuses the run's stored settings.
@@ -32,15 +33,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const DEFAULT_MODEL = 'openai-codex/gpt-6.1-sol';
 
+/** Tasks live in tasks/<id>.mjs. Named tasks import only their own files, so a broken sibling cannot stop them. */
 export async function loadTasks(names) {
-  const files = readdirSync(path.join(here, 'tasks')).filter(name => name.endsWith('.mjs')).sort();
-  const tasks = [];
-  for (const file of files) tasks.push((await import(pathToFileURL(path.join(here, 'tasks', file)).href)).default);
-  if (!names) return tasks;
-  const wanted = names.split(',');
-  const unknown = wanted.filter(name => !tasks.some(task => task.id === name));
+  const dir = path.join(here, 'tasks');
+  const ids = (names ? [...new Set(names.split(','))] : readdirSync(dir).filter(name => name.endsWith('.mjs')).map(name => name.slice(0, -4))).sort();
+  const unknown = ids.filter(id => !existsSync(path.join(dir, id + '.mjs')));
   if (unknown.length) throw Error('Unknown task(s): ' + unknown.join(', '));
-  return tasks.filter(task => wanted.includes(task.id));
+  const tasks = [];
+  for (const id of ids) {
+    const task = (await import(pathToFileURL(path.join(dir, id + '.mjs')).href)).default;
+    if (task.id !== id) throw Error(`tasks/${id}.mjs declares id ${task.id}`);
+    tasks.push(task);
+  }
+  return tasks;
 }
 
 const workspace = (label) => mkdtempSync(path.join(os.tmpdir(), `ab-${label}-`));
@@ -79,23 +84,28 @@ async function selfTest(tasks) {
   return ok;
 }
 
-/** `apex-no-FLAG` is the snapshot's Windows default minus FLAG, so one run can pair it with `apex`. */
-function armArgs(arm, {model, thinking, sessionDir, prompt, cwd, defaults}) {
+/** `apex-no-FLAG` is the snapshot's Windows default minus FLAG and `apex+FLAG[+FLAG…]` the default plus those flags,
+ * so one run can pair either with `apex`. `groups` maps each selection option to the flag names it takes. */
+export function armArgs(arm, {model, thinking, sessionDir, prompt, cwd, defaults, groups}) {
   const [provider, id] = model.split(/\/(.*)/s);
   const route = ['--provider', provider, '--model', id, '--thinking', thinking, '--session-dir', sessionDir, prompt];
   if (arm === 'stock') return ['--apex-off', '--print', '--mode', 'json', ...route];
   if (arm === 'apex') return ['--profile', 'headless', ...route];
   const ablated = /^apex-no-([a-z]+)$/.exec(arm)?.[1];
-  if (!ablated) throw Error('Unknown arm ' + arm);
-  const selection = defaults(['--profile', 'headless'], {cwd}), args = [];
+  const added = /^apex(\+[a-z]+)+$/.test(arm) ? arm.split('+').slice(1) : [];
+  if (!ablated && !added.length) throw Error('Unknown arm ' + arm);
+  const selection = defaults(['--profile', 'headless'], {cwd}), args = [], unplaced = new Set(added);
   let removed = false;
   for (let i = 0; i < selection.length; i++) {
-    if (!/^--apex-(context|core|features)$/.test(selection[i])) { args.push(selection[i]); continue; }
-    const flags = selection[++i].split(','), kept = flags.filter(flag => flag !== ablated);
-    removed ||= kept.length < flags.length;
-    if (kept.length) args.push(selection[i - 1], kept.join(',')); // an emptied list drops its option
+    if (!Object.hasOwn(groups, selection[i])) { args.push(selection[i]); continue; }
+    const option = selection[i], flags = selection[++i].split(','), extra = added.filter(flag => groups[option].includes(flag));
+    for (const flag of extra) { if (flags.includes(flag)) throw Error(`${arm}: ${flag} is already in the Windows defaults here`); unplaced.delete(flag); }
+    removed ||= flags.includes(ablated);
+    const kept = [...flags.filter(flag => flag !== ablated), ...extra];
+    if (kept.length) args.push(option, kept.join(',')); // an emptied list drops its option
   }
-  if (!removed) throw Error(`${arm}: ${ablated} is not in the Windows defaults here`);
+  if (ablated && !removed) throw Error(`${arm}: ${ablated} is not in the Windows defaults here`);
+  if (unplaced.size) throw Error(`${arm}: ${[...unplaced].join(',')} is not a flag of any list in the Windows defaults here`);
   return [...args, ...route];
 }
 
@@ -142,7 +152,7 @@ function killTree(child) {
   else child.kill('SIGKILL');
 }
 
-async function attempt({task, arm, n, runDir, model, thinking, timeoutMs, agentDir, apexRoot, defaults}) {
+async function attempt({task, arm, n, runDir, model, thinking, timeoutMs, agentDir, apexRoot, defaults, groups}) {
   const outDir = path.join(runDir, task.id, `${arm}-${n}`);
   rmSync(outDir, {recursive: true, force: true}); // an attempt interrupted before a --resume restarts clean
   mkdirSync(outDir, {recursive: true});
@@ -152,7 +162,7 @@ async function attempt({task, arm, n, runDir, model, thinking, timeoutMs, agentD
   try {
     task.setup(dir);
     const before = snapshot(dir);
-    const args = armArgs(arm, {model, thinking, sessionDir: path.join(outDir, 'session'), prompt: task.prompt, cwd: dir, defaults});
+    const args = armArgs(arm, {model, thinking, sessionDir: path.join(outDir, 'session'), prompt: task.prompt, cwd: dir, defaults, groups});
     const child = spawn(process.execPath, [path.join(apexRoot, 'bin', 'apex'), ...args],
       {cwd: dir, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true});
     const events = createWriteStream(path.join(outDir, 'events.jsonl')), errors = createWriteStream(path.join(outDir, 'stderr.log'));
@@ -207,7 +217,7 @@ async function main() {
     const snapshotFile = path.join(apexRoot, 'apex-snapshot.json');
     const apexSnapshot = existsSync(snapshotFile) ? JSON.parse(readFileSync(snapshotFile, 'utf8')) : undefined;
     const harness = apexSnapshot?.head ?? git(root, 'rev-parse', 'HEAD').stdout.trim();
-    const dirty = apexSnapshot ? apexSnapshot.dirty : git(root, 'status', '--porcelain').stdout.trim() !== '';
+    const dirty = apexSnapshot ? apexSnapshot.dirty : git(root, 'status', '--porcelain', '--', '.', ':(exclude).claude').stdout.trim() !== '';
     if (!/^[a-z0-9-]+\/[^/:\s]+$/.test(values.model)) throw Error('--model must be provider/id, for example anthropic/claude-sonnet-5-5');
     const maxUsd = values['max-usd'] === undefined ? null : Number(values['max-usd']);
     if (maxUsd !== null && !(maxUsd > 0)) throw Error('--max-usd must be a positive dollar amount');
@@ -219,9 +229,13 @@ async function main() {
   writeFileSync(path.join(runDir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
   const {arms, attempts, timeoutMs, apexRoot} = meta, tasks = await loadTasks(meta.tasks.join(','));
   const {withWindowsDefaults: defaults} = await import(pathToFileURL(path.join(apexRoot, 'lib', 'windows-target.mjs')).href);
+  // Each selection option's flag names come from the same Apex copy, to place `apex+FLAG` arms.
+  const groups = {};
+  for (const [option, name, list] of [['--apex-context', 'apex-context', 'CONTEXT_FEATURES'], ['--apex-core', 'apex-core', 'CORE_FEATURES'],
+    ['--apex-features', 'apex-features', 'FEATURE_FEATURES']]) groups[option] = (await import(pathToFileURL(path.join(apexRoot, 'extensions', name, 'config.mjs')).href))[list];
   // Resolve every arm once in a real task workspace, so a bad arm fails before any model call.
   const probe = workspace('arms');
-  try { tasks[0].setup(probe); for (const arm of arms) armArgs(arm, {model: meta.model, thinking: meta.thinking, sessionDir: probe, prompt: 'probe', cwd: probe, defaults}); }
+  try { tasks[0].setup(probe); for (const arm of arms) armArgs(arm, {model: meta.model, thinking: meta.thinking, sessionDir: probe, prompt: 'probe', cwd: probe, defaults, groups}); }
   finally { cleanup(probe); }
   const resultsFile = path.join(runDir, 'results.jsonl');
   const previous = existsSync(resultsFile) ? readFileSync(resultsFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
@@ -239,7 +253,7 @@ async function main() {
     if (meta.maxUsd && spent + (running + 1) * worst > meta.maxUsd) { skipped++; return; }
     running++;
     let record;
-    try { record = await attempt({...job, runDir, model: meta.model, thinking: meta.thinking, timeoutMs, agentDir, apexRoot, defaults}); }
+    try { record = await attempt({...job, runDir, model: meta.model, thinking: meta.thinking, timeoutMs, agentDir, apexRoot, defaults, groups}); }
     catch (error) { record = {task: job.task.id, arm: job.arm, attempt: job.n, pass: false, harnessError: String(error?.stack ?? error)}; }
     appendFileSync(resultsFile, JSON.stringify(record) + '\n');
     running--; spent += record.costUsd ?? 0; worst = Math.max(worst, record.costUsd ?? 0);
@@ -248,7 +262,7 @@ async function main() {
   });
   if (skipped) console.log(`Stopped at --max-usd $${meta.maxUsd}: $${spent.toFixed(2)} spent, ${skipped} attempts not run; --resume continues them under the same cap.`);
   writeFileSync(path.join(runDir, 'meta.json'), JSON.stringify({...meta, finishedAt: new Date().toISOString()}, null, 2) + '\n');
-  // Usage first: a report that cannot be built (it compares two arms) must not drop recorded spend.
+  // Usage first, so a report error cannot drop recorded spend.
   if (meta.model.startsWith('openai-codex/')) recordUsage(runDir, meta);
   else console.log(`Usage for ${meta.model} stays in ${path.relative(root, runDir)}; evals/codex-budget.json records Codex runs only.`);
   const {report} = await import('./report.mjs');

@@ -31,7 +31,8 @@ symlinkSync(path.join(source, 'node_modules'), path.join(dest, 'node_modules'), 
 let patch = git('diff', 'HEAD', '--binary').stdout;
 for (const file of listed(['-o'])) patch += git('diff', '--no-index', '--binary', '--', '/dev/null', file).stdout;
 writeFileSync(path.join(dest, 'apex-snapshot.patch'), patch);
-const meta = {head: git('rev-parse', 'HEAD').stdout.trim(), dirty: git('status', '--porcelain').stdout.trim() !== '',
+// Dirty means the copy differs from HEAD, so the untracked .claude/ left out of both does not count.
+const meta = {head: git('rev-parse', 'HEAD').stdout.trim(), dirty: patch !== '',
   treeSha256: tree.digest('hex'), files: files.length, source, createdAt: new Date().toISOString()};
 writeFileSync(path.join(dest, 'apex-snapshot.json'), JSON.stringify(meta, null, 2) + '\n');
 console.log(JSON.stringify(meta));
