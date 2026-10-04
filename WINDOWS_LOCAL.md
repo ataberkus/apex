@@ -27,7 +27,7 @@ npm run smoke:windows-package
 
 ## Windows selection
 
-Plain `apex` on native Windows applies `WINDOWS_AUTO` from `lib/windows-target.mjs` (see README "Native Windows"): only features that add no prompt sections, tools or continuations, namely context `cache`, core `correct` and features `cost`, `plan`, `report`, `resume` and `autocompact`, with `checkpoints` only at a Git repository root and `headless` only with `--profile headless`. The private `.apex/` folder holds its own `.gitignore` (`*`), so Git skips it, but `ls` still shows it. Any explicit Apex selection replaces the defaults; `--apex-off` runs stock Pi; non-Windows invocations are unchanged. Inspect an explicit configuration without inference:
+Plain `apex` on native Windows applies `WINDOWS_AUTO` from `lib/windows-target.mjs` (see README "Native Windows"): only features that add no prompt sections, tools or continuations, namely context `cache`, core `correct` and features `cost`, `plan`, `report`, `resume` and `autocompact`, with `checkpoints` only at a Git repository root. `--profile headless` adds no Apex feature; core `headless` is opt-in, because its prompt section cost more without a measured benefit (ab-008–ab-010 in `DECISIONS.md`). The private `.apex/` folder holds its own `.gitignore` (`*`), so Git skips it, but `ls` still shows it. Any explicit Apex selection replaces the defaults; `--apex-off` runs stock Pi; non-Windows invocations are unchanged. Inspect an explicit configuration without inference:
 
 ```powershell
 node bin/apex --apex-dry-run --apex-target windows --profile headless --apex-context "read,search,edit,shape" --apex-core "todo,verify" --apex-features "cost,checkpoints,plan,report" "Inspect this project"

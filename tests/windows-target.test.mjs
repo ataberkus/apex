@@ -14,7 +14,7 @@ test('bare Windows apex gets only prompt- and tool-neutral features; explicit se
   const run = (args, cwd = dir) => buildPiInvocation(withWindowsDefaults(args, {platform: 'win32', cwd}), '/pi.js', {platform: 'win32'}).args;
   const plain = run(['--profile', 'headless', 'task']);
   assert.equal(option(plain, '--model'), WINDOWS_MODEL);
-  assert.equal(option(plain, '--apex-core-flags'), 'correct,headless');
+  assert.equal(option(plain, '--apex-core-flags'), 'correct', '--profile headless adds no headless section');
   assert.equal(option(run(['task']), '--apex-core-flags'), 'correct');
   assert.ok(!option(plain, '--apex-feature-flags').includes('checkpoints'), 'no Git root: checkpoints would block every mutation');
   mkdirSync(path.join(dir, '.git'));
