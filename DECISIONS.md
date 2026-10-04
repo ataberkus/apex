@@ -158,6 +158,12 @@ A later review also fixed a regression in the new helper: a cancel that arrived 
 | ab-008 | `def62b38abfe` (ab-006's snapshot; ablation: apex vs apex-no-headless, ratios are no-headless relative to apex) | 36/36 / 36/36 | +0% (+0% to +0%), inconclusive | ×0.91 (×0.84–×0.996) | ×1.03 (×0.90–×1.21), inconclusive | ×0.87 (×0.82–×0.93) | ×1.01 (×0.93–×1.11), inconclusive | `runs/ab/ab-008/` (467 requests, $4.72 catalog) |
 | ab-009 | `091bb43d97a8` (runtime as `def62b38abfe`, with `prompts/mode-headless.md` emptied in the copy; ablation: the `headless` environment variables alone vs no `headless`, ratios are no-headless relative to apex) | 35/36 / 36/36 | +3% (+0% to +8%), inconclusive | ×0.97 (×0.90–×1.04), inconclusive | ×1.01 (×0.93–×1.12), inconclusive | ×1.00 (×0.94–×1.05), inconclusive | ×1.03 (×0.97–×1.09), inconclusive | `runs/ab/ab-009/` (445 requests, $4.49 catalog) |
 | ab-010 | `def62b38abfe` (ab-006's snapshot; the five judgment tasks only, 5 attempts per arm; ablation: apex vs apex-no-headless, ratios are no-headless relative to apex) | 25/25 / 25/25 | +0% (+0% to +0%), inconclusive | ×0.78 (×0.67–×0.91) | ×0.80 (×0.66–×0.97) | ×0.83 (×0.75–×0.93) | ×0.91 (×0.80–×1.04), inconclusive | `runs/ab/ab-010/` (275 requests, $2.42 catalog) |
+| ab-011 | `d6d7013e4b31` (6f23ca5's runtime; marked dirty by the then-uncommitted harness and task files; stock only, the six hard tasks × 2 at max, a pilot) | 12/12 / – | – | – | – | – | – | `runs/ab/ab-011/` (163 requests, $4.39 catalog) |
+| ab-012 | `b3df59f5ea59` (2cd21eb, clean; stock only, the six hard tasks × 2 at low, a pilot) | 12/12 / – | – | – | – | – | – | `runs/ab/ab-012/` (132 requests, $0.95 catalog) |
+| ab-013 | `b3df59f5ea59` (ab-012's snapshot; stock only, the six hard tasks × 2 at minimal, a pilot) | 12/12 / – | – | – | – | – | – | `runs/ab/ab-013/` (120 requests, $0.90 catalog) |
+| ab-014 | `b3df59f5ea59` (ab-012's snapshot; stock only, the six hard tasks × 2 on `openai-codex/gpt-5.6-luna` at low, a pilot) | 4/12 / – | – | – | – | – | – | `runs/ab/ab-014/` (131 requests, $0.12 catalog) |
+| ab-015 | `b3df59f5ea59` (as ab-014 on `openai-codex/gpt-5.3-codex-spark`; void: the provider refused every first request) | void | – | – | – | – | – | `runs/ab/ab-015/` (12 refused requests, $0) |
+| ab-016 | `b3df59f5ea59` (ab-012's snapshot; the six hard tasks × 5 on `openai-codex/gpt-5.6-luna` at low; a third arm, `apex+contract+todo+verify`, is in its section; 3 rows restored after a cleanup error) | 13/30 / 16/30 | +10% (+0% to +23%), inconclusive | ×1.06 (×1.02–×1.12) | ×1.11 (×1.02–×1.18) | ×1.10 (×1.04–×1.17) | ×1.10 (×1.01–×1.16) | `runs/ab/ab-016/` (1,403 requests, $1.13 catalog) |
 
 Wall times come from a slow host whose CPU other processes held near 100% during ab-001 and ab-002; host load during ab-003 was not recorded. During ab-004 and ab-005 the host also ran focused unit tests, an offline dashboard browser check and one single-attempt runner smoke; during ab-006, only log analysis. Arms were interleaved, so both were affected, but Apex's extra process spawns weigh more there. Request and token ratios do not depend on host speed.
 
@@ -246,3 +252,63 @@ Verdict: Sol follows both rules without the section. Both arms passed 25/25, so 
 ### Decision: no `headless` in the Windows default
 
 After ab-010 the user dropped core `headless` from Windows `--profile headless` (`lib/windows-target.mjs`). The profile still enforces `--print --mode json`, and `--apex-core correct,headless` still selects the flag. Its environment variables go too. ab-009 found them free, and what they guard against (a pager or credential prompt stalling an unattended run) is unmeasured. From here on the A/B `apex` arm runs this set, so `apex-no-headless` no longer resolves.
+
+### ab-011–013: six hard tasks, stock-only pilots
+
+Every earlier suite was at stock's ceiling, so none could show a pass-rate gain. Six new tasks aim at Sol's limit. Each is a long specification (a `docs/*.md` file, a numbered prompt or JSDoc contracts) whose hidden checks cover clauses the visible tests skip:
+
+- `ledger-currency` adds multi-currency storage to a ledger CLI, with exact conversion and a single half-to-even rounding.
+- `flaky-cache` hides seven bugs, three of which make the visible suite fail intermittently.
+- `unified-diff` needs a minimal Myers diff with exact hunk rules, and must diff 50,000-line inputs in under 2 s.
+- `async-refactor` moves a library to `fs/promises` while keeping its error classes, ordering and all-or-nothing build.
+- `template-engine` implements a template language with whitespace control and positioned errors.
+- `tz-buckets` buckets events by local date in any IANA zone, across DST, Pacific/Apia's skipped 2011-12-30 and ISO week-years.
+
+Every hidden check traces to a sentence of the prompt or spec. Each task's `mustReject` variants (4–20 per task, plausible wrong fixes) must fail, so a lenient check cannot pass them. `--self-test` passes for all 23 tasks, and for `flaky-cache` five times in a row.
+
+Stock-only pilots, 2 attempts per task, were meant to calibrate difficulty before a paired run:
+
+| Run | Thinking | Passed | Wall per attempt | Cost per attempt | Requests | Reasoning tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| ab-011 | max | 12/12 | 879 s | $0.366 | 13.6 | 12,967 |
+| ab-012 | low | 12/12 | 148 s | $0.079 | 11.0 | 134 |
+| ab-013 | minimal | 12/12 | 151 s | $0.075 | 10.0 | 104 |
+
+A host process restart killed ab-011 after 8 attempts. `--resume` ran the other 4 about six minutes later, alongside ab-012 and ab-013. No transcript in these runs refers to the task files, which hold the reference solutions and hidden tests, so the passes are the agent's own.
+
+Verdict: Sol passes all six tasks at every level tried, 36 of 36, so on Sol these tasks cannot show a pass-rate gain either. Thinking level changed cost and time, not outcomes. Max cost about 4.6 times as much as low per attempt and took about 6 times as long, for the same 12/12. That compares two single-arm runs, so it is indicative only.
+
+### ab-014–015: weaker Codex models
+
+The user then chose stock pilots on two other models from the same Codex login, at low. `gpt-5.3-codex-spark` is not available there: every attempt's first request returned "The 'gpt-5.3-codex-spark' model is not supported when using Codex with a ChatGPT account", with no tokens and no cost. The runner records such an attempt as an ordinary failure, so ab-015's "0/12" carries no difficulty information.
+
+`gpt-5.6-luna` passed 4 of 12 (33%, CI 14%–61%) at $0.010 and 85 s per attempt: `flaky-cache` 2/2, `async-refactor` and `unified-diff` 1/2 each, and `ledger-currency`, `template-engine` and `tz-buckets` 0/2 each. Every failed attempt ended normally, claiming the work was done. None hit a provider error. Four of the eight left the visible `npm test` failing (`suite_passes`), and the other four passed the visible tests but missed spec clauses that only the hidden checks cover. This is the headroom the paired run needs.
+
+### ab-016: stock vs apex vs apex+contract+todo+verify on luna
+
+The paired run used luna at low, the six hard tasks and 5 attempts per arm. The third arm adds the three core flags the user chose (`contract`, `todo`, `verify`) to the Windows defaults, giving `--apex-core correct,contract,todo,verify`.
+
+| Arm | Passed | Cost per attempt | Cost per solved task | Wall | Requests | Tokens (input + cache read + output) |
+| --- | --- | --- | --- | --- | --- | --- |
+| stock | 13/30 (43%, CI 27%–61%) | $0.0099 | $0.0228 | 85 s | 10.8 | 91,495 |
+| apex | 16/30 (53%, CI 36%–70%) | $0.0104 | $0.0196 | 95 s | 12.0 | 101,597 |
+| apex+contract+todo+verify | 15/30 (50%, CI 33%–67%) | $0.0173 | $0.0346 | 166 s | 24.0 | 254,943 |
+
+Paired over the six tasks:
+
+- apex vs stock: pass rate +10% (CI +0% to +23%), cost ×1.06 (×1.02–×1.12), tokens ×1.11 (×1.02–×1.18), wall ×1.10 (×1.04–×1.17), requests ×1.10 (×1.01–×1.16).
+- apex+contract+todo+verify vs stock: pass rate +7% (CI −13% to +23%), cost ×1.86 (×1.53–×2.27), tokens ×3.24 (×2.41–×4.34), wall ×1.98 (×1.63–×2.42), requests ×2.37 (×1.91–×2.96).
+- apex+contract+todo+verify vs apex: pass rate −3% (CI −20% to +10%), cost ×1.75 (×1.49–×2.07), tokens ×2.93 (×2.13–×4.06), wall ×1.80 (×1.47–×2.20), requests ×2.16 (×1.71–×2.75).
+
+| Task | stock | apex | apex+contract+todo+verify |
+| --- | --- | --- | --- |
+| async-refactor | 4/5 | 4/5 | 5/5 |
+| flaky-cache | 4/5 | 5/5 | 5/5 |
+| ledger-currency | 0/5 | 0/5 | 0/5 |
+| template-engine | 0/5 | 0/5 | 0/5 |
+| tz-buckets | 0/5 | 2/5 | 2/5 |
+| unified-diff | 5/5 | 5/5 | 3/5 |
+
+Three attempts first recorded as harness errors. Each had finished, been verified and written its `result.json`; only the workspace delete after it then failed with `EPERM`. The same delete succeeded minutes later, so Windows held the directory only briefly. Those three rows were replaced by the records in their `result.json` files, and `--resume` (no attempts left to run) rewrote the report and the ledger entry. `cleanup` in `evals/ab/run.mjs` now warns and leaves such a directory in place instead of throwing. No transcript in ab-014 or ab-016 refers to the task files, and no attempt hit a provider error.
+
+Verdict: no pass-rate effect is established. Apex's +10% has a CI lower bound of exactly 0, so it is inconclusive. It comes from two tasks: `tz-buckets` 2/5 against stock's 0/5 (0/7 counting ab-014) and `flaky-cache` 5/5 against 4/5. Apex's extra cost, about 6%, is measurable. The opt-in arm is no better than apex (−3%, CI −20% to +10%) and costs ×1.75 as much, so `contract`, `todo` and `verify` stay opt-in and the defaults are unchanged. `ledger-currency` and `template-engine` were 0/5 in every arm (0/15 each), so only four tasks carried any signal. One pattern is unexplained: on `template-engine`, apex left the visible `npm test` failing in 4 of 5 attempts, against 0 of 5 for stock and for the opt-in arm.

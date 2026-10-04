@@ -49,7 +49,14 @@ export async function loadTasks(names) {
 }
 
 const workspace = (label) => mkdtempSync(path.join(os.tmpdir(), `ab-${label}-`));
-const cleanup = dir => { for (const target of [dir, dir + '-hidden']) rmSync(target, {recursive: true, force: true, maxRetries: 5, retryDelay: 200}); };
+// Best effort: a workspace that Windows still holds open (antivirus, an exiting helper) is left behind with a warning,
+// because throwing here would replace a finished attempt's record with a harness error.
+const cleanup = dir => {
+  for (const target of [dir, dir + '-hidden']) {
+    try { rmSync(target, {recursive: true, force: true, maxRetries: 5, retryDelay: 200}); }
+    catch (error) { console.warn(`Left ${target} in place: ${error.code ?? error.message}`); }
+  }
+};
 
 /** Without a model: every verifier must reject the untouched fixture and accept the reference fix. */
 async function selfTest(tasks) {
