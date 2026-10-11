@@ -53,9 +53,10 @@ test('core todo and verification do not force planning continuations',async()=>{
 test('checkpoint hooks skip untouched turns and close one capture after sibling calls',async()=>{
  const h=fixture('checkpoints');const events=[];let captured=false;
  createApexFeatures({checkpointFactory:()=>({capture:async id=>{events.push('capture:'+id);captured=true;},finish:async id=>{assert.equal(captured,true);events.push('finish:'+id);captured=false;},shutdown:async()=>{},list:async()=>[]})})(h.pi);
- await h.emit('session_start');await h.emit('turn_start');await h.emit('tool_call',{toolName:'read'});await h.emit('turn_end');assert.deepEqual(events,[]);
- await h.emit('turn_start');await Promise.all([h.emit('tool_call',{toolName:'write'}),h.emit('tool_call',{toolName:'edit'})]);await h.emit('turn_end');
- assert.deepEqual(events,['capture:2','capture:2','finish:2']);await h.emit('agent_settled');assert.equal(events.length,3);
+ // codemode alone never captures; the mutating calls its script makes do.
+ await h.emit('session_start');await h.emit('turn_start');await h.emit('tool_call',{toolName:'read'});await h.emit('tool_call',{toolName:'codemode'});await h.emit('turn_end');assert.deepEqual(events,[]);
+ await h.emit('turn_start');await Promise.all([h.emit('tool_call',{toolName:'write'}),h.emit('tool_call',{toolName:'edit'}),h.emit('tool_call',{toolName:'bash',parentToolCallId:'codemode-1'})]);await h.emit('turn_end');
+ assert.deepEqual(events,['capture:2','capture:2','capture:2','finish:2']);await h.emit('agent_settled');assert.equal(events.length,4);
 });
 test('checkpoint capture failure blocks mutation and does not finish missing state',async()=>{
  const h=fixture('checkpoints');createApexFeatures({checkpointFactory:()=>({capture:async()=>{throw Error('bounded failure');},list:async()=>[],finish:async()=>{throw Error('must not finish');},shutdown:async()=>{}})})(h.pi);

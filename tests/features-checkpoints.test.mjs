@@ -224,8 +224,39 @@ test('corrupt/foreign metadata and private-store symlinks fail closed', async t 
   await assert.rejects(second.manager.capture('private-link'), /symlink/i);
 });
 
+test('oversized files are recorded as skipped and undo never writes or deletes them', async t => {
+  const { cwd, manager } = await fixture(t, { limits: { maxFileBytes: 64 } });
+  await writeFile(path.join(cwd, 'big.bin'), Buffer.alloc(65, 1));
+  await writeFile(path.join(cwd, 'shrinks.bin'), Buffer.alloc(65, 2));
+  await writeFile(path.join(cwd, 'grows.txt'), 'small');
+  assert.deepEqual((await manager.capture('big')).skippedPaths, ['big.bin', 'shrinks.bin']);
+  await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
+  await writeFile(path.join(cwd, 'shrinks.bin'), 'small now');
+  await writeFile(path.join(cwd, 'grows.txt'), Buffer.alloc(65, 3));
+  const finished = await manager.finish('big');
+  assert.deepEqual(finished.skippedPaths, ['big.bin', 'grows.txt', 'shrinks.bin']);
+  assert.deepEqual(finished.changedPaths, ['tracked.txt']);
+  assert.equal((await manager.restore('big')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'dirty source\n');
+  assert.equal(await readFile(path.join(cwd, 'shrinks.bin'), 'utf8'), 'small now');
+  assert.equal((await stat(path.join(cwd, 'grows.txt'))).size, 65);
+  assert.equal((await stat(path.join(cwd, 'big.bin'))).size, 65);
+});
+
+test('history charges unchanged content once, so long sessions in large projects keep capturing', async t => {
+  const { cwd, manager } = await fixture(t, { limits: { maxStoredBytes: 450000 } });
+  await writeFile(path.join(cwd, 'unchanged.bin'), Buffer.alloc(100000));
+  for (let turn = 1; turn <= 4; turn++) {
+    await manager.capture(`turn-${turn}`);
+    await writeFile(path.join(cwd, 'tracked.txt'), `agent ${turn}`);
+    assert.deepEqual((await manager.finish(`turn-${turn}`)).changedPaths, ['tracked.txt']);
+  }
+  assert.equal((await manager.restore('turn-4')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'agent 3');
+});
+
 test('capture and restore enforce file, byte, checkpoint caps', async t => {
-  for (const limits of [{ maxFiles: 1 }, { maxBytes: 2 }, { maxFileBytes: 2 }, { maxStoredBytes: 64 }]) {
+  for (const limits of [{ maxFiles: 1 }, { maxBytes: 2 }, { maxStoredBytes: 64 }]) {
     const { manager } = await fixture(t, { limits });
     await assert.rejects(manager.capture('cap'), /cap|limit/i);
     assert.deepEqual(await manager.list(), []);

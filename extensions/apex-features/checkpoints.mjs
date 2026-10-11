@@ -24,6 +24,8 @@ const sha = value => createHash('sha256').update(value).digest('hex');
 const fail = (code, message, details) => Object.assign(new Error(message), { name: 'CheckpointError', code, ...(details ? { details } : {}) });
 const cancelled = signal => { if (signal?.aborted) throw fail('cancelled', 'Checkpoint operation cancelled'); };
 const equal = (a, b) => (!a && !b) || Boolean(a && b && a.hash === b.hash && a.size === b.size && a.mode === b.mode);
+// Oversized files are in neither snapshot, so their absence is not a change: undo never writes or deletes them.
+const changes = record => { const skipped = new Set(record.skippedPaths ?? []); return [...new Set([...Object.keys(record.before), ...Object.keys(record.after)])].filter(name => !skipped.has(name) && !equal(record.before[name], record.after[name])).sort(); };
 const hex = (value, lengths = [64]) => typeof value === 'string' && lengths.includes(value.length) && /^[a-f0-9]+$/.test(value);
 const privatePart = value => /^(?:\.git|version-control|\.apex|\.ssh|\.aws|\.gnupg|\.codex|\.cache|\.tools|node_modules)$/i.test(value) || /^(?:\.env(?:[.\-].*)?|auth\.json|credentials(?:\.json)?|id_(?:rsa|ed25519)|.*\.(?:pem|key|p12|pfx))$/i.test(value);
 function safePath(value) {
@@ -193,16 +195,18 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     }).sort();
     if (candidates.length > limits.maxFiles) throw fail('cap', 'Checkpoint file count cap exceeded');
     const excluded = await ignored(candidates, repo, signal);
-    const files = Object.create(null); const contents = new Map(); let bytes = 0;
+    const files = Object.create(null); const contents = new Map(); const skipped = []; let bytes = 0;
     for (const relative of candidates) {
       if (excluded.has(relative)) continue;
-      const file = await sourceFile(relative, signal);
+      let file;
+      // One oversized file (a dataset, a build artifact) must not block every mutation: leave it out and record it.
+      try { file = await sourceFile(relative, signal); } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
       if (!file) continue;
       bytes += file.bytes.length;
       if (bytes > limits.maxBytes) throw fail('cap', 'Checkpoint snapshot byte cap exceeded');
       files[relative] = file.descriptor; contents.set(relative, file.bytes);
     }
-    return { files, contents, bytes, repo };
+    return { files, contents, bytes, repo, skipped };
   }
   const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
   function validateState(state) {
@@ -210,9 +214,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     const ids = new Set();
     for (const record of state.records) {
       validTurn(record.turnId);
-      if (ids.has(record.turnId) || !['captured', 'finished', 'restored'].includes(record.status) || !hex(record.beforeCommit, [40, 64]) || !Array.isArray(record.changedPaths)) throw fail('metadata', 'Checkpoint record metadata is invalid');
+      if (ids.has(record.turnId) || !['captured', 'finished', 'restored'].includes(record.status) || !hex(record.beforeCommit, [40, 64]) || !Array.isArray(record.changedPaths) || record.skippedPaths !== undefined && (!Array.isArray(record.skippedPaths) || record.skippedPaths.length > limits.maxFiles * 2)) throw fail('metadata', 'Checkpoint record metadata is invalid');
       ids.add(record.turnId);
-      for (const name of record.changedPaths) safePath(name);
+      for (const name of [...record.changedPaths, ...record.skippedPaths ?? []]) safePath(name);
       for (const stage of ['before', ...(record.status !== 'captured' ? ['after'] : [])]) {
         const files = record[stage]; let bytes = 0;
         if (!files || typeof files !== 'object' || Array.isArray(files) || Object.keys(files).length > limits.maxFiles) throw fail('metadata', 'Checkpoint file metadata is invalid');
@@ -225,8 +229,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       }
       if (record.status !== 'captured') {
         if (!hex(record.afterCommit, [40, 64])) throw fail('metadata', 'Checkpoint post-turn commit metadata is invalid');
-        const changes = [...new Set([...Object.keys(record.before), ...Object.keys(record.after)])].filter(name => !equal(record.before[name], record.after[name])).sort();
-        if (JSON.stringify(changes) !== JSON.stringify(record.changedPaths)) throw fail('metadata', 'Checkpoint changed path metadata is inconsistent');
+        if (JSON.stringify(changes(record)) !== JSON.stringify(record.changedPaths)) throw fail('metadata', 'Checkpoint changed path metadata is inconsistent');
       }
     }
     return state;
@@ -302,7 +305,12 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     await visit(store);
   }
   async function snapshot(collected, state, turnId, stage, signal) {
-    if (state.storedBytes + collected.bytes > limits.maxStoredBytes) throw fail('cap', 'Checkpoint history byte cap exceeded');
+    // Git stores identical content once, so history is charged only for content no record already holds;
+    // charging every full snapshot blocked a 37 MB project after three turns. storageBudget still bounds real disk use.
+    const held = new Set(state.records.flatMap(record => [...Object.values(record.before), ...Object.values(record.after ?? {})].map(file => file.hash)));
+    let added = 0;
+    for (const file of Object.values(collected.files)) if (!held.has(file.hash)) { held.add(file.hash); added += file.size; }
+    if (state.storedBytes + added > limits.maxStoredBytes) throw fail('cap', 'Checkpoint history byte cap exceeded');
     await shadowReady(signal);
     // Reserve a full new mirror and uncompressed object allowance, including
     // abandoned snapshots/retained recovery backups in the existing budget.
@@ -335,9 +343,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       files[relative] = { ...collected.files[relative], blob: match[2] };
     }
     if (Object.keys(files).length !== Object.keys(collected.files).length || !hex(commit, [40, 64])) throw fail('metadata', 'Checkpoint shadow Git snapshot is incomplete');
-    return { commit, files, bytes: collected.bytes };
+    return { commit, files, bytes: added };
   }
-  const result = record => structuredClone({ turnId: record.turnId, status: record.status, beforeCommit: record.beforeCommit, ...(record.afterCommit ? { afterCommit: record.afterCommit } : {}), changedPaths: record.changedPaths, capturedAt: record.capturedAt, ...(record.finishedAt ? { finishedAt: record.finishedAt } : {}) });
+  const result = record => structuredClone({ turnId: record.turnId, status: record.status, beforeCommit: record.beforeCommit, ...(record.afterCommit ? { afterCommit: record.afterCommit } : {}), changedPaths: record.changedPaths, skippedPaths: record.skippedPaths ?? [], capturedAt: record.capturedAt, ...(record.finishedAt ? { finishedAt: record.finishedAt } : {}) });
   function schedule(options, work) {
     if (closed) return Promise.reject(fail('closed', 'Checkpoint manager is closed after shutdown'));
     const signal = options?.signal ? AbortSignal.any([lifecycle.signal, options.signal]) : lifecycle.signal;
@@ -369,7 +377,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       const collected = await collect(signal);
       const before = await snapshot(collected, state, turnId, 'before', signal);
       cancelled(signal);
-      const record = { turnId, status: 'captured', beforeCommit: before.commit, before: before.files, changedPaths: [], capturedAt: new Date().toISOString() };
+      const record = { turnId, status: 'captured', beforeCommit: before.commit, before: before.files, changedPaths: [], skippedPaths: collected.skipped, capturedAt: new Date().toISOString() };
       state.records.push(record); state.storedBytes += before.bytes;
       await save(state);
       return result(record);
@@ -387,7 +395,8 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       const after = await snapshot(collected, state, turnId, 'after', signal);
       cancelled(signal);
       record.after = after.files; record.afterCommit = after.commit;
-      record.changedPaths = [...new Set([...Object.keys(record.before), ...Object.keys(record.after)])].filter(name => !equal(record.before[name], record.after[name])).sort();
+      record.skippedPaths = [...new Set([...record.skippedPaths ?? [], ...collected.skipped])].sort();
+      record.changedPaths = changes(record);
       record.status = 'finished'; record.finishedAt = new Date().toISOString(); state.storedBytes += after.bytes;
       await save(state);
       return result(record);

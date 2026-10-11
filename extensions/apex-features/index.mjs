@@ -2,7 +2,8 @@ import {fileURLToPath} from 'node:url';
 import {markFeatureMode} from './lifecycle.mjs';
 import {AUTOCOMPACT_TOKENS,parseFeatureFlags,runtimePolicy} from './config.mjs';
 
-const READ_ONLY=new Set(['read','grep','find','ls','tool_search']);
+// codemode is a container: every tool its script calls fires tool_call itself, so mutating nested calls capture before they run.
+const NO_CAPTURE=new Set(['read','grep','find','ls','tool_search','codemode']);
 const SKILLS=['debugging','test-writing','profiling','build-systems','python-packaging','numerics','http','databases','git-surgery','security-hardening'];
 const STATE='apex-features-state';
 const reason=error=>String(error?.message??error).slice(0,1000);
@@ -57,7 +58,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      const entries=(await checkpoints.list({signal:ctx.signal})).filter(entry=>meta.checkpointIds.includes(entry.turnId));
      const id=args.trim()||[...entries].reverse().find(entry=>entry.status==='finished')?.turnId;
      if(!id||!entries.some(entry=>entry.turnId===id)){const r={ok:false,reason:'No finished checkpoint is available on the active branch.'};notify(ctx,r.reason);return r;}
-     const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.`);return r;
+     const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.${r.skippedPaths?.length?` ${r.skippedPaths.length} oversized files were not tracked and are unchanged.`:''}`);return r;
     });
    }
    if(flags.has('plan')||flags.has('review'))workflows=await import('./workflows.mjs');
@@ -102,7 +103,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    if(!flags.size)return;
    const planning=plan?.gate(event);if(planning?.block)return planning;
    const denied=await safety?.check(event,ctx);if(denied?.block)return denied;
-   if(checkpoints&&!READ_ONLY.has(event.toolName)){
+   if(checkpoints&&!NO_CAPTURE.has(event.toolName)){
     if(!turnId){meta.turnCounter++;turnId=String(meta.turnCounter);persist();}
     try{await checkpoints.capture(turnId,{signal:ctx.signal});captured=true;}catch(error){return {block:true,reason:'Checkpoint failed; mutation blocked: '+reason(error)};}
    }
