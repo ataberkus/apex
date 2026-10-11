@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import {execFile, spawnSync} from 'node:child_process';
 import {promisify} from 'node:util';
-import {mkdtemp, mkdir, readFile, writeFile, rm, readdir} from 'node:fs/promises';
+import {mkdtemp, mkdir, readFile, writeFile, rm, readdir, copyFile} from 'node:fs/promises';
 import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 import test from 'node:test';
 import {createCheckpointManager} from '../extensions/apex-features/checkpoints.mjs';
 import {createLearnings} from '../extensions/apex-features/learnings.mjs';
@@ -167,6 +168,29 @@ test('a process that used private storage still exits on its own', native, async
   assert.equal(child.error, undefined, 'process did not exit after its last private storage call');
   assert.equal(child.status, 0, child.stderr);
   assert.equal(child.stdout.trim(), 'done');
+});
+
+test('a helper refused by execution policy fails closed and names the executable, script and fix', native, async t => {
+  const cwd = await fixture(t), root = path.join(cwd, 'root');
+  const script = path.join(cwd, 'extensions', 'apex-context', 'private-spill.ps1');
+  const module = path.join(cwd, 'lib', 'windows-private-storage.mjs');
+  await mkdir(path.dirname(script), {recursive: true}); await mkdir(path.dirname(module)); await mkdir(root);
+  await copyFile(new URL('../extensions/apex-context/private-spill.ps1', import.meta.url), script);
+  await copyFile(new URL('../lib/windows-private-storage.mjs', import.meta.url), module);
+  // A download mark makes Windows treat the unsigned copy as Internet-zone.
+  await writeFile(`${script}:Zone.Identifier`, '[ZoneTransfer]\r\nZoneId=3\r\n');
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const m = await import(${JSON.stringify(pathToFileURL(module).href)});
+    try { await m.ensureWindowsPrivateApex(${JSON.stringify(root)}); console.log('completed'); }
+    catch (error) { console.log(JSON.stringify(error.message)); }`], {encoding: 'utf8', timeout: 50000});
+  assert.equal(child.status, 0, child.stderr);
+  if (child.stdout.trim() === 'completed') return t.skip('the effective execution policy runs Internet-zone scripts');
+  const message = JSON.parse(child.stdout);
+  const executable = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  assert.ok(message.includes(`${executable} -File "${script}"`), message);
+  assert.match(message, /execution policy[\s\S]*UnauthorizedAccess/);
+  assert.ok(message.includes(`Unblock-File -LiteralPath '${script}'`), message);
+  assert.deepEqual(await readdir(root), []);
 });
 
 test('Windows private storage helper import performs no process or filesystem work', () => {

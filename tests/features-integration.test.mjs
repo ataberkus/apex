@@ -60,7 +60,9 @@ test('checkpoint hooks skip untouched turns and close one capture after sibling 
 });
 test('checkpoint capture failure blocks mutation and does not finish missing state',async()=>{
  const h=fixture('checkpoints');createApexFeatures({checkpointFactory:()=>({capture:async()=>{throw Error('bounded failure');},list:async()=>[],finish:async()=>{throw Error('must not finish');},shutdown:async()=>{}})})(h.pi);
- await h.emit('session_start');await h.emit('turn_start');const r=await h.emit('tool_call',{toolName:'write'});assert.equal(r.block,true);assert.match(r.reason,/bounded failure/);await h.emit('turn_end');
+ await h.emit('session_start');await h.emit('turn_start');const r=await h.emit('tool_call',{toolName:'write'});assert.equal(r.block,true);assert.match(r.reason,/bounded failure/);
+ // Session-state tools never touch the working tree, so a failed capture cannot block them.
+ for(const toolName of ['todo','contract'])assert.equal(await h.emit('tool_call',{toolName}),undefined);await h.emit('turn_end');
 });
 test('tree navigation restores base tools without old plan writes into new branch',async()=>{
  const h=fixture('plan');createApexFeatures()(h.pi);await h.emit('session_start');await h.commands.get('plan').handler('inspect',h.ctx);

@@ -3,7 +3,8 @@ import {markFeatureMode} from './lifecycle.mjs';
 import {AUTOCOMPACT_TOKENS,parseFeatureFlags,runtimePolicy} from './config.mjs';
 
 // codemode is a container: every tool its script calls fires tool_call itself, so mutating nested calls capture before they run.
-const NO_CAPTURE=new Set(['read','grep','find','ls','tool_search','codemode']);
+// todo/contract change only session state; explore/verify run fresh-context sessions or isolated copies outside the working tree.
+const NO_CAPTURE=new Set(['read','grep','find','ls','tool_search','codemode','todo','contract','explore','verify']);
 const SKILLS=['debugging','test-writing','profiling','build-systems','python-packaging','numerics','http','databases','git-surgery','security-hardening'];
 const STATE='apex-features-state';
 const reason=error=>String(error?.message??error).slice(0,1000);

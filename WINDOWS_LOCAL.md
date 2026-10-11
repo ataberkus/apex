@@ -6,7 +6,8 @@ Current scope: a native Windows daily-driver, not Harbor/Terminal-Bench completi
 
 - Native Windows Node >=22.19.0 and pinned Pi 0.99.2.
 - Git for Windows/Git Bash, ripgrep (`rg.exe`) and fd (`fd.exe`) on the PATH the launcher inherits. Preflight checks that PATH only; a workspace `.tools/bin` is not counted. One working setup: copy `rg.exe`/`fd.exe` to `%LOCALAPPDATA%\Apex\bin` and append that folder to the user PATH (new shells pick it up).
-- Windows PowerShell 5/.NET Framework, FullLanguage and permission to execute the bundled private-storage helper. Apex does not bypass execution policy.
+- Windows PowerShell 5/.NET Framework, FullLanguage and permission to execute the bundled private-storage helper. Apex does not bypass execution policy. RemoteSigned refuses the unsigned helper whenever Windows treats it as Internet-zone: a download mark (`Unblock-File`) or a Low integrity label inherited from a sandbox-labelled checkout (`icacls <script> /setintegritylevel M`; Git re-creates changed files with the inherited label). A refused helper fails closed and its error names the executable, script and command to run.
+- Checkpoints are captured only before tools that may change the working tree; `todo`, `contract`, `explore` and `verify` never capture, so a checkpoint failure cannot block them.
 - Checkpoints additionally require a real local Git repository in the task folder. Their shadow store sits under `.apex/checkpoints/<64-character key>/shadow`; Git cannot run from a working directory past 246 characters, so project roots longer than about 156 characters fail closed with `path-too-long` (Apex already enables `core.longpaths` and relative shadow paths).
 - Python/uv/source-pinned Harbor remain development dependencies for the **full** historical test/check commands, not the native launcher.
 
