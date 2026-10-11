@@ -7,7 +7,7 @@ import {closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, read
 import {homedir} from 'node:os';
 import {join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {ModelRuntime} from '@earendil-works/pi-coding-agent';
+import {buildSessionContext, migrateSessionEntries, ModelRuntime, parseSessionEntries} from '@earendil-works/pi-coding-agent';
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {checkpointsUsable, WINDOWS_AUTO, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
@@ -84,6 +84,16 @@ function savedSessions(cwd, inArchive = false) {
         return {...session, title: cached.title};
       });
   } catch { return []; }
+}
+
+// The messages Pi's get_messages would return for a session file, read from disk without starting an agent.
+// Only .jsonl files inside a listed workspace's session folder.
+function transcript(path) {
+  const file = resolve(String(path ?? ''));
+  if (!file.endsWith('.jsonl') || !workspaces.some(cwd => file.startsWith(sessionDir(cwd) + sep)) || !existsSync(file)) return null;
+  const entries = parseSessionEntries(readFileSync(file, 'utf8'));
+  migrateSessionEntries(entries);
+  return {messages: buildSessionContext(entries.filter(entry => entry.type !== 'session')).messages};
 }
 
 // oh-my-pi's subscription usage, refreshed in the background at most once a minute so /api/state never waits on it.
@@ -470,6 +480,10 @@ const server = http.createServer(async (req, res) => {
       const session = live.get(url.searchParams.get('id'));
       if (!session?.file || !existsSync(session.file)) return fail(res, 404, 'No saved messages to report on yet');
       return json(res, 200, await readSessionReport(session.file));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/transcript') {
+      const data = transcript(url.searchParams.get('file'));
+      return data ? json(res, 200, data) : fail(res, 404, 'Session file not found in a listed workspace');
     }
     if (req.method === 'GET' && url.pathname === '/api/enhance') {
       const job = enhanceJobs.get(url.searchParams.get('id'));

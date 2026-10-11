@@ -320,6 +320,7 @@ $('auth-form').onsubmit = async e => {
 function label(s) {
   if (s.status === 'error') return ['error', 'Stopped with an error'];
   if (s.status === 'done') return ['done', 'Ended'];
+  if (s.viewOnly) return ['saved', 'Read-only'];
   if (s.pending.length) return ['asks', 'Asks you'];
   if (s.status === 'running') return ['running', 'Working'];
   if (s.settled > (seen[s.id] ?? 0) && s.id !== sel?.id) return ['finished', 'Finished'];
@@ -341,11 +342,13 @@ function sessionButton(s, onclick, extra) {
   return b;
 }
 
-// A saved or archived session: the title opens it, the side button moves it between the two lists (files never change).
+// A saved or archived session: the title shows its transcript read-only, the side button moves it between the two lists (files never change).
 function savedRow(w, s, words, action, endpoint) {
   const line = el('div', 'saved-row'), b = el('button', 'row'); b.type = 'button';
   const m = el('small'); m.append(el('span', 'st saved', words), document.createTextNode(', ' + ago(s.mtime)));
-  b.append(el('b', '', s.title), m); b.firstChild.prepend(dot('saved')); b.onclick = () => openLaunch(w.path, s.file, s.title);
+  b.append(el('b', '', s.title), m); b.firstChild.prepend(dot('saved'));
+  if (sel?.viewOnly && sel.file === s.file) b.setAttribute('aria-current', 'true');
+  b.onclick = () => select({id: 'saved:' + s.file, cwd: w.path, file: s.file, title: s.title, status: 'saved', pending: [], viewOnly: true});
   const act = el('button', 'ghost more', action); act.type = 'button'; act.title = 'The session stays on disk';
   act.setAttribute('aria-label', `${action} ${s.title}`);
   act.onclick = async () => { await post(endpoint, {file: s.file}).catch(e => alert(e.message)); refresh(); };
@@ -409,7 +412,7 @@ async function refresh() {
   stateSig = sig; state = data;
   const fresh = state.workspaces.flatMap(w => w.live).find(s => s.id === sel?.id);
   if (fresh) { sel = fresh; seen[sel.id] = sel.settled; localStorage.seen = JSON.stringify(seen); }
-  else if (sel) sel = {...sel, status: 'done', pending: []};
+  else if (sel && !sel.viewOnly) sel = {...sel, status: 'done', pending: []};
   renderAuth(); header(); renderSide(); renderAsks();
   if (!sel) { $('log').replaceChildren(); blank(); }
 }
@@ -419,11 +422,11 @@ function header() {
   $('title').textContent = sel?.title || (empty ? 'Pick a session' : 'New session');
   $('where').textContent = empty ? 'Choose one on the left, or start a new one in a workspace.' : `${sel.cwd}, ${label(sel)[1].toLowerCase()}`;
   const running = sel?.status === 'running', alive = running || sel?.status === 'idle';
-  $('stop').hidden = !running; $('end').hidden = !alive;
+  $('stop').hidden = !running; $('end').hidden = !alive; $('resume').hidden = !sel?.viewOnly;
   const auto = Boolean(sel?.autoApprove); // only sessions with the safety feature ask before tool calls
   $('auto').hidden = !alive || !sel.flags?.features?.includes('safety');
   $('auto').textContent = `Auto-approve: ${auto ? 'on' : 'off'}`; $('auto').setAttribute('aria-pressed', String(auto)); $('auto').className = auto ? 'btn auto on' : 'btn auto';
-  $('where').className = empty ? '' : 'path'; $('form').hidden = empty;
+  $('where').className = empty ? '' : 'path'; $('form').hidden = empty || Boolean(sel.viewOnly); // read-only: no sending, no model changes
   syncComposer();
 }
 
@@ -432,13 +435,19 @@ function select(s) {
   sel = s; source?.close(); current = null; tools.clear(); toolArgs.clear(); view = newView(); asksSig = '';
   clearTimeout(markdownTimer); markdownTimer = 0; pendingMarkdown.clear();
   $('box').value = sessionDraft(s.id).message; $('slash').hidden = true; renderAttachments();
-  seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen);
+  if (!s.viewOnly) { seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen); }
   $('log').replaceChildren(); renderQueued(); header(); renderSide(); renderAsks(); renderInfo();
   renderAuth();
   document.body.dataset.pane = 'chat';
-  source = new EventSource('/api/events?id=' + s.id);
-  source.onmessage = e => { const log = $('log'), stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80; handle(JSON.parse(e.data)); if (stick) log.scrollTop = log.scrollHeight; };
-  source.onerror = () => source.close();
+  if (s.viewOnly) { // the file as Pi's get_messages would return it; no agent process
+    fetch('/api/transcript?file=' + encodeURIComponent(s.file)).then(async r => ({ok: r.ok, body: await r.json()}))
+      .then(({ok, body}) => { if (sel === s) handle(ok ? {type: 'response', command: 'get_messages', success: true, data: body} : {type: 'response', success: false, error: body.error}); },
+        e => { if (sel === s) add('note', e.message); });
+  } else {
+    source = new EventSource('/api/events?id=' + s.id);
+    source.onmessage = e => { const log = $('log'), stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80; handle(JSON.parse(e.data)); if (stick) log.scrollTop = log.scrollHeight; };
+    source.onerror = () => source.close();
+  }
   $('box').focus();
   const result = enhanced.get(s.id);
   if (result) { enhanced.delete(s.id); applyEnhanced(s.id, result.original, result.text); } // through the undo stack and the toast
@@ -603,7 +612,7 @@ function handle(r) {
   } else if (r.type === 'dashboard_auto_approved') add('note quiet', 'Auto-approved. ' + String(r.message ?? '').split('\n').slice(0, 2).join('\n'));
   else if (r.type === 'dashboard_exit') {
     for (const label of $('queued').querySelectorAll('.queued-label')) label.textContent = 'Not delivered — session ended';
-    add(r.code === 0 ? 'note quiet' : 'note', r.code === 0 ? 'Session ended. Pick it under Saved to continue.' : `The agent stopped (exit ${r.code}).\n${r.stderr}`);
+    add(r.code === 0 ? 'note quiet' : 'note', r.code === 0 ? 'Session ended. Pick it under Saved to read it or resume it.' : `The agent stopped (exit ${r.code}).\n${r.stderr}`);
   }
   if (r.type === 'agent_start' || r.type === 'agent_settled' || r.type === 'dashboard_exit') { stateSig = ''; refresh(); }
   if (!$('log').children.length && sel) blank();
@@ -678,7 +687,7 @@ function renderInfo() {
   use.replaceChildren(); section(use, 'This session');
   const s = view.stats;
   if (!sel) hint(use, 'Open a session to see its usage.');
-  else if (!s) hint(use, 'Usage appears after the first turn.');
+  else if (!s) hint(use, sel.viewOnly ? 'Resume the session to see its usage.' : 'Usage appears after the first turn.');
   else {
     const pct = s.contextUsage?.percent, t = s.tokens ?? {};
     const kv = el('table', 'kv');
@@ -895,6 +904,7 @@ $('stop').onclick = () => post('/api/abort', {id: sel.id});
 const autoApprove = on => post('/api/auto-approve', {id: sel.id, on}).then(() => { stateSig = ''; refresh(); }, e => add('note', e.message));
 $('auto').onclick = () => autoApprove(!sel.autoApprove);
 $('end').onclick = async () => { await post('/api/stop', {id: sel.id}); setTimeout(() => { stateSig = ''; refresh(); }, 800); };
+$('resume').onclick = () => openLaunch(sel.cwd, sel.file, sel.title);
 
 /* workspaces */
 const wsdlg = $('wsdlg');
