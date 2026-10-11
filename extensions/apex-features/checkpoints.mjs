@@ -19,7 +19,9 @@ async function renameRetrying(from, to) {
 
 const exec = promisify(execFile);
 const queues = new Map();
-const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 10000 });
+// gitTimeoutMs guards against hung Git, not slow Git: a session's first capture hashes the whole tree into an empty
+// shadow store, and on Windows 660 files / 37 MB took 5–7 s warm and over 10 s cold.
+const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 60000 });
 const sha = value => createHash('sha256').update(value).digest('hex');
 const fail = (code, message, details) => Object.assign(new Error(message), { name: 'CheckpointError', code, ...(details ? { details } : {}) });
 const cancelled = signal => { if (signal?.aborted) throw fail('cancelled', 'Checkpoint operation cancelled'); };
