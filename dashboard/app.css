@@ -187,12 +187,15 @@ small{font-size:12.5px;color:var(--muted)}
 .ask p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:8px}
 .ask .opts{display:flex;flex-wrap:wrap;gap:8px}
 .ask textarea,.ask input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;margin-bottom:8px}
-#form{position:relative;border-top:1px solid var(--line);background:var(--surface);padding:10px 20px 14px;display:flex;flex-direction:column;gap:8px}
-#form>:not(#slash){width:100%;max-width:88ch;margin-inline:auto}
+/* One 88ch column measured in the form's own font, so the 12.5px notes line up with the 14px field. */
+#form{--gutter:20px;position:relative;border-top:1px solid var(--line);background:var(--surface);padding:12px max(var(--gutter),calc((100% - 88ch) / 2)) 14px;display:flex;flex-direction:column;gap:8px}
 #form.dropping{outline:2px solid var(--signal);outline-offset:-3px;background:var(--signal-wash)}
-.composer-row{display:flex;gap:10px;align-items:stretch;min-width:0}
+/* The message box and its send buttons share one sunk field; the focus ring moves from #box to the field
+   as an outline, which forced-colors mode keeps (it strips box-shadow and repaints borders). */
+.composer-row{display:flex;gap:6px;align-items:flex-end;min-width:0;padding:6px;background:var(--sunk);border:1px solid var(--line);border-radius:var(--r-lg)}
+.composer-row:has(#box:focus-visible){outline:2px solid var(--signal);outline-offset:-1px}
+.composer-row .btn{flex:none;min-height:32px;padding:4px 14px}
 #send{min-width:84px}
-#queue-send{flex:none}
 .composer-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;order:-1}
 .composer-tools .btn{flex:none;min-height:32px;padding:3px 12px;font-size:13px;margin-left:auto}
 .composer-tools .enhance-btn{width:32px;padding:0;margin-left:0}
@@ -202,7 +205,8 @@ small{font-size:12.5px;color:var(--muted)}
 #attachment-status{color:var(--muted)}
 #settings-note{color:var(--muted)}
 #composer-error{font-size:13px;overflow-wrap:anywhere}
-#box{flex:1;min-width:0;background:var(--sunk);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;resize:none;max-height:40vh;caret-color:var(--signal)}
+#box{flex:1;min-width:0;min-height:calc(3lh + 12px);max-height:40vh;background:none;border:0;padding:6px 8px;resize:none;caret-color:var(--signal)}
+#box:focus-visible{outline:none}
 .attachment-list{display:flex;gap:8px;overflow:auto;padding:2px 2px 4px}
 .attachment{flex:0 0 150px;min-width:0}
 .attachment>.image-preview{width:100%;height:84px}
@@ -388,7 +392,7 @@ legend{font-weight:700;padding:0;margin-bottom:6px}
   #panes{display:flex;border-top:1px solid var(--line);background:var(--surface)}
   #panes button{flex:1;background:none;border:0;border-top:3px solid transparent;padding:12px 8px;color:var(--muted);font-weight:600}
   body[data-pane=side] [data-pane=side],body[data-pane=chat] [data-pane=chat],body[data-pane=info] [data-pane=info]{color:var(--ink);border-top-color:var(--signal)}
-  .bar{padding:10px 14px}#log{padding:14px}#queued{padding:0 14px}#form{padding:10px 14px}#slash{left:14px;right:14px}.ask{margin:0 14px 8px;width:calc(100% - 28px)}
+  .bar{padding:10px 14px}#log{padding:14px}#queued{padding:0 14px}#form{--gutter:14px;padding-block:10px}#slash{left:14px;right:14px}.ask{margin:0 14px 8px;width:calc(100% - 28px)}
 }
 @media (max-width:820px){
   .launch-grid{grid-template-columns:minmax(0,1fr)}
@@ -400,8 +404,10 @@ legend{font-weight:700;padding:0;margin-bottom:6px}
   .slots .then{display:none}
   .chip{flex:1 1 100%}
   .composer-tools .btn{margin-left:0}
+  .composer-row{flex-wrap:wrap;justify-content:flex-end}
+  #box{flex-basis:100%}
   .star{width:44px}
-  #attach,#enhance,.attachment-info .ghost,.code-head .ghost{min-height:44px}
+  #attach,#enhance,#send,#queue-send,.attachment-info .ghost,.code-head .ghost{min-height:44px}
   .composer-tools .enhance-btn{width:44px}
   .attachment{flex-basis:140px}
   .markdown pre{padding:10px}
