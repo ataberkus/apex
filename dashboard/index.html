@@ -57,11 +57,13 @@
     <div class="composer-tools">
       <div id="route" class="route" role="group" aria-label="Models for this session"></div>
       <button class="btn" id="attach" type="button" aria-describedby="attachment-hint" disabled>Add images</button>
+      <button class="btn enhance-btn" id="enhance" type="button" aria-label="Enhance prompt" title="Rewrite this draft with project context (Ctrl+Shift+E)" disabled>✨</button>
     </div>
     <small id="attachment-hint">Open a session to attach images.</small>
     <small id="settings-note" hidden></small>
     <small id="attachment-status" role="status" hidden></small>
     <p id="composer-error" class="note" role="alert" hidden></p>
+    <div id="toast" role="status" hidden></div>
   </form>
 </main>
 

@@ -195,6 +195,9 @@ small{font-size:12.5px;color:var(--muted)}
 #queue-send{flex:none}
 .composer-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;order:-1}
 .composer-tools .btn{flex:none;min-height:32px;padding:3px 12px;font-size:13px;margin-left:auto}
+.composer-tools .enhance-btn{width:32px;padding:0;margin-left:0}
+#form>#toast{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 40px);display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);padding:8px 8px 8px 14px;box-shadow:0 6px 20px rgb(0 0 0 / .18)}
+#form>#toast[hidden]{display:none}
 #attachment-hint{line-height:1.4}
 #attachment-status{color:var(--muted)}
 #settings-note{color:var(--muted)}
@@ -398,7 +401,8 @@ legend{font-weight:700;padding:0;margin-bottom:6px}
   .chip{flex:1 1 100%}
   .composer-tools .btn{margin-left:0}
   .star{width:44px}
-  #attach,.attachment-info .ghost,.code-head .ghost{min-height:44px}
+  #attach,#enhance,.attachment-info .ghost,.code-head .ghost{min-height:44px}
+  .composer-tools .enhance-btn{width:44px}
   .attachment{flex-basis:140px}
   .markdown pre{padding:10px}
 }

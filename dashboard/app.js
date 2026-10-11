@@ -20,6 +20,9 @@ let tools = new Map(), toolArgs = new Map(), view = newView(), seen = stored('se
 const drafts = new Map(), pendingMarkdown = new Map();
 let markdownTimer = 0;
 const sessionDraft = id => { if (!drafts.has(id)) drafts.set(id, {message: '', images: [], reading: 0, sending: false, error: ''}); return drafts.get(id); };
+const enhance = new Map(); // session id → {id, original, model, step} while a run is active
+const enhanced = new Map(); // session id → {original, text}: a result that finished while another session was open
+const enhanceBlocked = text => !text.trim() || /^[/!]/.test(text.trim());
 const modelLabel = id => state.models.find(m => m.id === id)?.label ?? id ?? '';
 
 /* model routes: one model, or a planning model and a build model, each at its own thinking level */
@@ -414,6 +417,8 @@ function select(s) {
   source.onmessage = e => { const log = $('log'), stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80; handle(JSON.parse(e.data)); if (stick) log.scrollTop = log.scrollHeight; };
   source.onerror = () => source.close();
   $('box').focus();
+  const result = enhanced.get(s.id);
+  if (result) { enhanced.delete(s.id); applyEnhanced(s.id, result.original, result.text); } // through the undo stack and the toast
 }
 
 const add = (cls, text) => { const e = el('div', cls, text); $('log').append(e); return e; };
@@ -699,13 +704,19 @@ const acceptsImages = () => (sel?.input ?? modelById(sel?.model)?.input ?? []).i
 const canCompose = () => sel && ['idle', 'running'].includes(sel.status) && !missingLogin(sel);
 function syncComposer() {
   const draft = sel ? sessionDraft(sel.id) : null, ready = canCompose(), vision = acceptsImages();
+  const enhancing = sel ? enhance.get(sel.id) : null;
   $('box').disabled = !ready || Boolean(draft?.sending);
-  $('send').disabled = !ready || Boolean(draft?.sending || draft?.reading) || (!vision && Boolean(draft?.images.length)) || (!$('box').value.trim() && !draft?.images.length);
+  $('box').readOnly = Boolean(enhancing); // the draft is about to be replaced
+  $('send').disabled = !ready || Boolean(draft?.sending || draft?.reading || enhancing) || (!vision && Boolean(draft?.images.length)) || (!$('box').value.trim() && !draft?.images.length);
   $('attach').disabled = $('image-files').disabled = !ready || !vision || Boolean(draft?.sending || draft?.reading) || (draft?.images.length ?? 0) >= MAX_IMAGES;
+  $('enhance').disabled = !enhancing && (!ready || Boolean(draft?.sending || draft?.reading) || enhanceBlocked($('box').value));
+  $('enhance').textContent = enhancing ? '✕' : '✨';
+  $('enhance').setAttribute('aria-label', enhancing ? 'Cancel enhance' : 'Enhance prompt');
+  $('enhance').title = enhancing ? 'Stop enhancing (Ctrl+Shift+E)' : 'Rewrite this draft with project context (Ctrl+Shift+E)';
   $('send').textContent = draft?.sending ? 'Sending…' : sel?.status === 'running' ? 'Steer' : 'Send';
   $('queue-send').hidden = sel?.status !== 'running'; $('queue-send').disabled = $('send').disabled;
   $('attachment-hint').textContent = !sel ? 'Open a session to attach images.' : !vision ? `${routeWords(sel, false)} ${sel.model === PAIR ? 'accept' : 'accepts'} text only, so images are unavailable.` : IMAGE_HELP + ' Paste or drop images here.';
-  const status = draft?.reading ? 'Preparing images…' : draft?.images.length ? `${draft.images.length} image${draft.images.length === 1 ? '' : 's'} attached.` : '';
+  const status = enhancing ? `Enhancing with ${enhancing.model} · ${enhancing.step || 'starting'}…` : draft?.reading ? 'Preparing images…' : draft?.images.length ? `${draft.images.length} image${draft.images.length === 1 ? '' : 's'} attached.` : '';
   $('attachment-status').textContent = status; $('attachment-status').hidden = !status;
   $('composer-error').textContent = draft?.error || ''; $('composer-error').hidden = !draft?.error;
   renderRoute();
@@ -758,6 +769,58 @@ $('box').onpaste = e => {
   const files = [...(e.clipboardData?.items ?? [])].filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
   if (files.length) { e.preventDefault(); attachImages(files); }
 };
+
+/* ✨ enhance prompt: a read-only agent run rewrites the draft with project context; nothing is sent automatically. */
+let toastTimer = 0;
+function toast(text, action) {
+  const t = $('toast'); t.replaceChildren(el('span', '', text));
+  if (action) { const b = el('button', 'btn', action.label); b.type = 'button'; b.onclick = () => { t.hidden = true; action.run(); }; t.append(b); }
+  t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 10000);
+}
+// insertText keeps the swap on the browser's undo stack (Ctrl+Z); plain assignment is the fallback.
+function replaceDraft(text) {
+  const box = $('box'); box.focus(); box.select();
+  if (!document.execCommand('insertText', false, text)) box.value = text;
+  box.selectionStart = box.selectionEnd = box.value.length;
+  sessionDraft(sel.id).message = box.value; syncComposer();
+}
+function applyEnhanced(id, original, text) {
+  if (sel?.id !== id) { enhanced.set(id, {original, text}); return; }
+  // The draft changed meanwhile: offer the result instead of overwriting.
+  if ($('box').value !== original) return toast('Enhanced prompt ready', {label: 'Use enhanced prompt', run: () => { if (sel?.id === id) replaceDraft(text); }});
+  replaceDraft(text);
+  toast('Prompt enhanced', {label: 'Undo', run: () => { if (sel?.id === id) replaceDraft(original); }});
+}
+function enhanceFailed(id, job, message) {
+  if (enhance.get(id) !== job) return;
+  enhance.delete(id); sessionDraft(id).error = message;
+  if (sel?.id === id) syncComposer();
+}
+async function pollEnhance(id, job) {
+  let r;
+  try { r = await (await fetch('/api/enhance?id=' + encodeURIComponent(job.id))).json(); if (r.error && !r.status) throw new Error(r.error); }
+  catch (error) { return enhanceFailed(id, job, error.message); }
+  if (enhance.get(id) !== job) return;
+  if (r.status === 'running') { job.step = r.step; if (sel?.id === id) syncComposer(); setTimeout(() => pollEnhance(id, job), 500); return; }
+  if (r.status === 'error') return enhanceFailed(id, job, r.error || 'Enhance failed.');
+  enhance.delete(id); if (sel?.id === id) syncComposer();
+  if (r.status === 'done') applyEnhanced(id, job.original, r.text);
+}
+async function toggleEnhance() {
+  if (!sel) return;
+  const id = sel.id, running = enhance.get(id);
+  if (running) { enhance.delete(id); if (running.id) post('/api/enhance/stop', {id: running.id}).catch(() => {}); syncComposer(); return; } // cancelling is silent
+  if ($('enhance').disabled) return;
+  const job = {id: null, original: $('box').value, model: modelLabel(sel.model), step: ''};
+  enhance.set(id, job); sessionDraft(id).error = ''; syncComposer();
+  let r;
+  try { r = await post('/api/enhance', {id, text: job.original}); }
+  catch (error) { return enhanceFailed(id, job, error.message); }
+  if (enhance.get(id) !== job) { post('/api/enhance/stop', {id: r.id}).catch(() => {}); return; } // cancelled while starting
+  Object.assign(job, {id: r.id, model: r.model}); if (sel?.id === id) syncComposer();
+  pollEnhance(id, job);
+}
+$('enhance').onclick = toggleEnhance;
 let dragDepth = 0;
 const draggingFiles = e => [...(e.dataTransfer?.types ?? [])].includes('Files');
 $('chat').ondragenter = e => { if (draggingFiles(e)) { e.preventDefault(); dragDepth++; if (canCompose() && acceptsImages()) $('form').classList.add('dropping'); } };
@@ -782,6 +845,7 @@ function drawSlash() {
 function pick(name) { $('box').value = name + ' '; slash.hidden = true; syncComposer(); $('box').focus(); }
 $('box').oninput = () => { if (sel) { const draft = sessionDraft(sel.id); draft.message = $('box').value; draft.error = ''; } slashAt = 0; drawSlash(); syncComposer(); };
 $('box').onkeydown = e => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') { e.preventDefault(); toggleEnhance(); return; }
   const list = slashMatches();
   if (!slash.hidden && list.length) {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashAt = (slashAt + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; drawSlash(); return; }
@@ -793,7 +857,7 @@ $('box').onkeydown = e => {
 $('form').onsubmit = async e => {
   e.preventDefault(); if (!canCompose()) return;
   const id = sel.id, draft = sessionDraft(id), messageText = $('box').value.trim(), followUp = e.submitter?.value === 'followUp';
-  if (draft.sending || draft.reading || (!messageText && !draft.images.length)) return;
+  if (draft.sending || draft.reading || enhance.has(id) || (!messageText && !draft.images.length)) return;
   draft.message = $('box').value; draft.sending = true; draft.error = ''; syncComposer(); renderAttachments();
   try {
     const images = draft.images.map(({type, data, mimeType}) => ({type, data, mimeType}));

@@ -5,7 +5,7 @@ import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import {closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
-import {join, resolve, sep} from 'node:path';
+import {join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {ModelRuntime} from '@earendil-works/pi-coding-agent';
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
@@ -222,16 +222,7 @@ function startSession(cwd, file, launch) {
     pending: new Map(), requests: new Map(), provider: launch.model?.provider ?? 'apex', pair: launch.pair, model: launch.model?.id ?? PAIR, input: launch.model?.input ?? ['text'],
     thinking: launch.thinking, levels: THINKING, flags: launch.flags, request: launch.request, target: launch.target, autoApprove: false, counted: 0, base: undefined, settled: 0};
   live.set(id, session);
-  let buffered = '';
-  child.stdout.setEncoding('utf8');
-  child.stdout.on('data', chunk => {
-    buffered += chunk;
-    for (let end; (end = buffered.indexOf('\n')) >= 0;) { // LF only: JSON strings may hold U+2028
-      const line = buffered.slice(0, end).replace(/\r$/, '');
-      buffered = buffered.slice(end + 1);
-      if (line) record(session, line);
-    }
-  });
+  eachLine(child.stdout, line => record(session, line));
   child.stderr.on('data', chunk => { session.stderr = (session.stderr + chunk).slice(-2000); });
   child.on('error', error => { session.stderr = error.message; });
   child.stdin.on('error', error => { for (const finish of session.requests.values()) finish(error); });
@@ -249,6 +240,97 @@ function startSession(cwd, file, launch) {
   if (file) send(session, {id: 'history', type: 'get_messages'});
   send(session, {id: 'stats', type: 'get_session_stats'});
   return session;
+}
+
+function eachLine(stream, onLine) {
+  let buffered = '';
+  stream.setEncoding('utf8');
+  stream.on('data', chunk => {
+    buffered += chunk;
+    for (let end; (end = buffered.indexOf('\n')) >= 0;) { // LF only: JSON strings may hold U+2028
+      const line = buffered.slice(0, end).replace(/\r$/, '');
+      buffered = buffered.slice(end + 1);
+      if (line) onLine(line);
+    }
+  });
+}
+
+// ✨ Enhance prompt: one read-only print run per click rewrites a composer draft; the browser polls GET /api/enhance.
+// Same launcher path and model as the session's agent. Signed-in models on native Windows always take the bare Windows
+// target, whatever the session's features: it adds only the Claude identity patch, without which Claude subscription
+// calls are refused. Pi's --tools allowlist (built-in, extension and custom tools alike) leaves only read/grep/find/ls,
+// and nothing is saved.
+// Low thinking keeps an xhigh session from making every enhance slow; Pi clamps a level the model lacks.
+const ENHANCE_SYSTEM = `You are a prompt enhancer for a coding agent working in this repository. Rewrite the user's draft into a clear, specific prompt that agent can act on.
+- Keep the user's intent, scope and language. Do not add requirements they did not ask for.
+- Look up only what the draft refers to: at most 6 tool calls. Name real files, symbols and commands you confirmed. Never invent paths.
+- Include acceptance criteria or a verification step only when the draft implies one.
+- Output ONLY the rewritten prompt as plain Markdown. No preamble, no explanation, no code fence around the whole prompt.`;
+const enhanceArgs = (target, model) => [...(target ? ['--apex-target', target] : ['--apex-off']), '--provider', model.provider, '--model', model.model, '--thinking', 'low',
+  '-p', '--mode', 'json', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--tools', 'read,grep,find,ls', '--append-system-prompt', ENHANCE_SYSTEM];
+const textOf = content => typeof content === 'string' ? content : (content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n');
+// The draft goes on stdin, never in argv: no quoting hazards and no Windows command-line limit.
+function enhanceInput(draft, session) {
+  const tail = [];
+  for (let i = session.log.length - 1; i >= 0 && tail.length < 6; i--) {
+    const line = session.log[i];
+    if (!line.includes('"message_end"') && !line.includes('"get_messages"')) continue;
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const messages = event.type === 'message_end' ? [event.message] : event.type === 'response' && event.command === 'get_messages' ? event.data?.messages ?? [] : [];
+    for (let j = messages.length - 1; j >= 0 && tail.length < 6; j--) {
+      const {role, content} = messages[j] ?? {}, text = role === 'user' || role === 'assistant' ? textOf(content).trim() : '';
+      if (text) tail.unshift(`${role === 'user' ? 'User' : 'Assistant'}: ${text.slice(0, 1500)}`);
+    }
+  }
+  return (tail.length ? `<conversation>\n${tail.join('\n')}\n</conversation>\n` : '') + `<draft>\n${draft}\n</draft>`;
+}
+function stepLabel(tool, args = {}, cwd) {
+  const where = path => relative(cwd, resolve(cwd, String(path))).replace(/\\/g, '/') || '.';
+  const step = tool === 'read' ? 'reading ' + (args.path ? where(args.path) : 'a file') : tool === 'grep' ? `searching "${args.pattern ?? ''}"`
+    : tool === 'find' ? 'finding ' + (args.pattern ?? 'files') : tool === 'ls' ? 'listing ' + where(args.path ?? '.') : String(tool || 'working');
+  return step.length > 80 ? step.slice(0, 79) + '…' : step;
+}
+function cleanEnhanced(text) {
+  const trimmed = String(text || '').trim(), fenced = trimmed.match(/^```[\w-]*\n([\s\S]*?)\n?```$/);
+  return /^```[\w-]*$/.test(trimmed) ? '' : (fenced ? fenced[1] : trimmed).trim(); // a lone opening fence is no prompt at all
+}
+const enhanceJobs = new Map();
+function startEnhance(session, draft) {
+  if ([...enhanceJobs.values()].filter(job => job.status === 'running').length >= 3) throw conflict('Wait for the running enhance to finish.');
+  const model = pickModel(modelCatalog(runtime), session.model === PAIR ? session.pair.build.model : session.model);
+  const pi = buildPiInvocation(withWindowsDefaults(enhanceArgs(model.apex && model.target, model)), resolvePi().cli);
+  const id = randomBytes(8).toString('hex'), job = {id, status: 'running', step: '', model: model.label, text: '', error: ''};
+  const child = spawn(process.execPath, [pi.cli, ...pi.args], {cwd: session.cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
+  job.child = child; enhanceJobs.set(id, job);
+  let stderr = '', answer = '', failure = '';
+  child.stdin.on('error', () => {}); child.stdin.end(enhanceInput(draft, session), 'utf8');
+  child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-4000); });
+  eachLine(child.stdout, line => {
+    let event;
+    try { event = JSON.parse(line); } catch { return; }
+    if (event.type === 'tool_execution_start') job.step = stepLabel(event.toolName, event.args, session.cwd);
+    else if (event.type === 'message_end' && event.message?.role === 'assistant') { // Pi exits 0 after a failed model call; the error rides on the message
+      answer = textOf(event.message.content);
+      failure = event.message.stopReason === 'error' ? event.message.errorMessage || 'The model call failed.' : '';
+    }
+  });
+  const timer = setTimeout(() => { job.timedOut = true; child.kill(); }, 150000);
+  timer.unref();
+  const finish = (code, error) => {
+    if (!job.child) return;
+    delete job.child; clearTimeout(timer);
+    const text = cleanEnhanced(answer);
+    if (job.timedOut) Object.assign(job, {status: 'error', error: 'Enhance timed out.'});
+    else if (job.stopped) job.status = 'cancelled';
+    else if (code === 0 && !failure && text) Object.assign(job, {status: 'done', text});
+    else Object.assign(job, {status: 'error', error: error?.message || failure || (code === 0 ? 'The enhancer returned no text.'
+      : stderr.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').split(/\r?\n/).map(line => line.trim()).find(line => line && !/^warning:/i.test(line)) || `The agent exited (${code}).`)});
+    setTimeout(() => { if (enhanceJobs.get(id) === job) enhanceJobs.delete(id); }, 300000).unref();
+  };
+  child.on('error', error => finish(null, error));
+  child.on('close', code => finish(code));
+  return {id, model: job.model};
 }
 
 function pickFolder() {
@@ -380,6 +462,12 @@ const server = http.createServer(async (req, res) => {
       if (!session?.file || !existsSync(session.file)) return fail(res, 404, 'No saved messages to report on yet');
       return json(res, 200, await readSessionReport(session.file));
     }
+    if (req.method === 'GET' && url.pathname === '/api/enhance') {
+      const job = enhanceJobs.get(url.searchParams.get('id'));
+      if (!job) return fail(res, 404, 'Enhance not found');
+      if (job.status !== 'running') enhanceJobs.delete(job.id);
+      return json(res, 200, {id: job.id, status: job.status, step: job.step, model: job.model, ...(job.status === 'done' ? {text: job.text} : {}), ...(job.error ? {error: job.error} : {})});
+    }
     if (req.method !== 'POST') return fail(res, 404, 'Not found');
     if (req.headers.origin !== `http://${req.headers.host}`) return fail(res, 403, 'Origin not allowed');
     const body = await readBody(req, url.pathname === '/api/send' ? MAX_SEND_BODY_BYTES : undefined);
@@ -429,8 +517,19 @@ const server = http.createServer(async (req, res) => {
       const launch = launchArguments(body, file);
       return json(res, 200, {id: startSession(body.cwd, file, launch).id});
     }
+    if (url.pathname === '/api/enhance/stop') { // {id}: the enhance job, not a session
+      const job = enhanceJobs.get(body.id);
+      if (!job) return fail(res, 404, 'Enhance not found');
+      if (job.child) { job.stopped = true; job.child.kill(); }
+      return json(res, 200, {});
+    }
     const session = live.get(body.id);
     if (!session) return fail(res, 404, 'Unknown session');
+    if (url.pathname === '/api/enhance') { // {id: session, text}: the run reads the session's folder with its model
+      const text = typeof body.text === 'string' ? body.text.trim() : '';
+      if (!text || text.length > 20000) return fail(res, 400, 'Write a draft of up to 20,000 characters to enhance.');
+      return json(res, 202, startEnhance(session, text));
+    }
     if (url.pathname === '/api/send') {
       if (!active(session)) return fail(res, 409, 'This session has ended. Resume it before sending a message.');
       const command = promptCommand(body, session);
@@ -479,4 +578,4 @@ server.listen(port, '127.0.0.1', () => {
     .on('error', error => console.warn(`Could not open the browser: ${error.message}. Open the URL above instead.`))
     .unref();
 });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { for (const login of Object.values(logins)) if (login.flow) void login.cancel(login.flow.id); for (const session of live.values()) session.child.stdin.end(); process.exit(0); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { for (const login of Object.values(logins)) if (login.flow) void login.cancel(login.flow.id); for (const session of live.values()) session.child.stdin.end(); for (const job of enhanceJobs.values()) job.child?.kill(); process.exit(0); });
