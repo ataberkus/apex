@@ -164,6 +164,9 @@ A later review also fixed a regression in the new helper: a cancel that arrived 
 | ab-014 | `b3df59f5ea59` (ab-012's snapshot; stock only, the six hard tasks × 2 on `openai-codex/gpt-5.6-luna` at low, a pilot) | 4/12 / – | – | – | – | – | – | `runs/ab/ab-014/` (131 requests, $0.12 catalog) |
 | ab-015 | `b3df59f5ea59` (as ab-014 on `openai-codex/gpt-5.3-codex-spark`; void: the provider refused every first request) | void | – | – | – | – | – | `runs/ab/ab-015/` (12 refused requests, $0) |
 | ab-016 | `b3df59f5ea59` (ab-012's snapshot; the six hard tasks × 5 on `openai-codex/gpt-5.6-luna` at low; a third arm, `apex+contract+todo+verify`, is in its section; 3 rows restored after a cleanup error) | 13/30 / 16/30 | +10% (+0% to +23%), inconclusive | ×1.06 (×1.02–×1.12) | ×1.11 (×1.02–×1.18) | ×1.10 (×1.04–×1.17) | ×1.10 (×1.01–×1.16) | `runs/ab/ab-016/` (1,403 requests, $1.13 catalog) |
+| ab-017 | `2375d8d9cc92` (9c78e30, dirty: uncommitted `claude-identity.mjs` and launcher work; the six hard tasks × 5 on `anthropic/claude-opus-5-5` at medium; same three arms as ab-016; the stock arm also loads `claude-identity.mjs`, see its section) | 30/30 / 30/30 | +0% (+0% to +0%), inconclusive | ×0.99 (×0.89–×1.10), inconclusive | ×0.90 (×0.65–×1.23), inconclusive | ×1.01 (×0.81–×1.24), inconclusive | ×0.92 (×0.76–×1.11), inconclusive | `runs/ab/ab-017/` (865 requests, $36.38 catalog) |
+| ab-018 | `d567de198a10` (9c78e30, dirty; stock only, six new candidate tasks × 4 on `anthropic/claude-opus-5-5` at medium, 20-minute timeout, a calibration pilot) | 22/24 / – | – | – | – | – | – | `runs/ab/ab-018/` (248 requests, $13.79 catalog) |
+| ab-019 | `d567de198a10` (ab-018's snapshot; stock only, twelve more candidate tasks × 4, same model and level, 30-minute timeout, a calibration pilot) | 46/48 / – | – | – | – | – | – | `runs/ab/ab-019/` (503 requests, $26.92 catalog) |
 
 Wall times come from a slow host whose CPU other processes held near 100% during ab-001 and ab-002; host load during ab-003 was not recorded. During ab-004 and ab-005 the host also ran focused unit tests, an offline dashboard browser check and one single-attempt runner smoke; during ab-006, only log analysis. Arms were interleaved, so both were affected, but Apex's extra process spawns weigh more there. Request and token ratios do not depend on host speed.
 
@@ -319,3 +322,47 @@ Transcript reading (offline, no model calls) then checked the two per-task diffe
 - **`tz-buckets` is noise.** Every attempt read all of `docs/REPORT.md` (3,850 characters, byte-identical in all 17), wrote the whole implementation in one go, and ran `npm test`. Passing needs every clause at once. The most common miss, in 8 of the 17 attempts, is that the spec makes `timeZone` valid only when it is "a string" `Intl` accepts. `Intl` silently accepts `undefined`, so `bucket(events, {period: 'day'})` must throw. Stock had that guard in 2 of 7 attempts and apex in 3 of 5. Both stock attempts with the guard then missed the ISO week-year clause. Fisher's exact test for passes, 2/5 against 0/7, gives p≈0.15. In the opt-in arm the guard came from the model's own self-review, with no contract, todo or gate text naming it.
 - **`template-engine`'s failing visible suite is noise too, and Apex did not hide or alter the test output.** In 12 of the 17 attempts across all arms, the model's second `write` held only part of `src/template.js` and replaced the complete first one. Stock recovered 4 of 4 times it did this (rewrite, debugging or `git checkout`), apex 1 of 5. That split gives a one-sided Fisher p≈0.04. It still reads as sampling: it was found after looking, on one task of six, while both arms sent the model the same requests. In apex-1 and apex-4, retyping the lost header produced a double-escaped `/[ \\t\\r\\n]/`, which also skips the letters `t`, `r` and `n`. All four failing apex attempts saw their real failure, unaltered. Two then made a no-op edit and claimed success without re-testing; the other two reported that they had not finished. The opt-in arm stayed green 5 of 5 even though 3 of its 5 clobbered, because `verify` requires a passing check after the last change. That is the only observed effect of the three flags.
 - **Friction found in `contract`.** `setContract` (`extensions/apex-core/state.mjs:269`) adds a pending todo for each new criterion, using the criterion's id. Neither tool description said so, and the result (`state.mjs:277`) reports the new todos only as an unlabeled `delta` after `criteria`. In 3 of the 5 `tz-buckets` opt-in attempts the model then called `todo add` with a criterion id and got `Duplicate todo id` (`state.mjs:383`). Each time it cost a request and had no effect on correctness. When `contract` is on, the `todo` description now adds "Each contract criterion is already a todo with the same id; update it instead of adding it." The sentence is in `todo` rather than `contract` because the mistake happens at `todo add`, and `contract` also runs without the `todo` tool. With `contract` off, the description is unchanged. Not yet re-measured.
+
+### ab-017: the ab-016 design on Claude Opus 5.5
+
+Same tasks, arms, attempts (5) and concurrency (4) as ab-016; the model and level changed, to `anthropic/claude-opus-5-5` at `medium` through the saved Claude login. The attempt timeout also differed: ab-016 ran with 30 minutes, while ab-017 was launched without `--timeout-min` and so got the runner's 20-minute default. No ab-017 attempt came near either limit (the longest took 531 s). Apex ran from a frozen snapshot (`2375d8d9cc92`, head 9c78e30 plus the uncommitted working tree) with `--max-usd 40`.
+
+One deviation from ab-016. The one-attempt smoke `runs/ab/claude-smoke-4` passed both Apex arms, but the stock arm (`--apex-off`) got Anthropic's 400 "Third-party apps now draw from your extra usage", as in claude-smoke-3. The Claude subscription login refuses Pi's unmodified system prompt; on the Windows target the launcher loads `extensions/apex-router/claude-identity.mjs`, which rewrites three flagged strings in Pi's `<docs>` section, and `--apex-off` does not. With the user's approval, `armArgs` in `evals/ab/run.mjs` now gives the stock arm `--extension <snapshot>/extensions/apex-router/claude-identity.mjs` on `anthropic/*` models only, so "stock" here is Pi plus those three string rewrites. `runs/ab/claude-smoke-5` confirmed the stock arm is accepted. Codex runs are unchanged.
+
+| Arm | Passed | Cost per attempt | Cost per solved task | Wall | Requests | Tokens (input + cache read + output) |
+| --- | --- | --- | --- | --- | --- | --- |
+| stock | 30/30 (100%, CI 89%–100%) | $0.379 | $0.379 | 152 s | 8.5 | 130,715 |
+| apex | 30/30 (100%, CI 89%–100%) | $0.389 | $0.389 | 153 s | 8.0 | 129,050 |
+| apex+contract+todo+verify | 30/30 (100%, CI 89%–100%) | $0.444 | $0.444 | 171 s | 12.3 | 235,571 |
+
+Paired over the six tasks:
+
+- apex vs stock: pass rate +0% (CI +0% to +0%), cost ×0.99 (×0.89–×1.10), tokens ×0.90 (×0.65–×1.23), wall ×1.01 (×0.81–×1.24), requests ×0.92 (×0.76–×1.11); all inconclusive.
+- apex+contract+todo+verify vs stock: pass rate +0%, cost ×1.18 (×1.13–×1.25), tokens ×1.92 (×1.62–×2.22), wall ×1.16 (×0.92–×1.36, inconclusive), requests ×1.48 (×1.29–×1.67).
+- apex+contract+todo+verify vs apex: pass rate +0%, cost ×1.19 (×1.08–×1.35), tokens ×2.13 (×1.64–×2.98), wall ×1.14 (×1.04–×1.27), requests ×1.62 (×1.37–×1.98).
+
+Every task passed 5/5 in every arm, so `summary.json` lists no failures, no failed check and no harness error. No attempt timed out or compacted. Total spend was $36.38 catalog for the run plus $0.43 for the two smokes; usage stays in `runs/ab/` because `evals/codex-budget.json` records Codex runs only.
+
+Verdict: Opus 5.5 at medium solves all six hard tasks in every arm, 90 of 90, so this suite is at stock's ceiling on this model and cannot show a pass-rate gain, as with Sol in ab-011–013. `ledger-currency` and `template-engine`, 0/15 in every ab-016 arm on luna, are 15/15 here. Plain apex costs the same as stock within noise. The opt-in arm again buys nothing measurable and costs ×1.19 apex's dollars and ×2.13 its tokens. Defaults are unchanged. A pass-rate comparison on Claude needs a weaker model or harder tasks.
+
+### ab-018–019: eighteen harder candidate tasks, stock Opus pilots
+
+ab-017 showed that the six hard tasks are at Opus's ceiling. Eighteen new candidates were written in six themes, three each: invented languages (`sift-query`, `strata-config`, `glint-markup`), symptom-only debugging in 20–30-file repositories (`ledger-rebuild`, `shop-oversell`, `kiln-watch`), streaming and on-disk formats (`record-stream`, `frame-resync`, `logkv-recovery`), exact algorithms with performance budgets (`decimal-context`, `patience-merge3`, `resource-planner`), async ordering under a fake clock (`job-scheduler`, `fair-lease-pool`, `swr-loader-cache`) and migrations or rule engines (`acl-precedence`, `corpus-migrations`, `pressdoc-v2-migration`). Most specs run 8–15 KB, and the hidden suites hold 12–135 cases. Every hidden check traces to the prompt or a fixture document. `--self-test` passes for all 18: each untouched fixture fails, each reference fix passes, and all 6–11 `mustReject` variants per task are rejected.
+
+The filter was fixed before the pilots ran. Each task gets four stock Opus attempts and is kept only if the result is mixed (at least one pass and one fail); a percentage band is not used. The paired Δpass CI is a bootstrap over tasks, so the number of informative tasks is what narrows it.
+
+| Run | Tasks | Passed | Cost per attempt | Wall per attempt | Timeouts |
+| --- | --- | --- | --- | --- | --- |
+| ab-018 | first six | 22/24 | $0.574 | 240 s | 1 |
+| ab-019 | other twelve | 46/48 | $0.561 | 211 s | 1 |
+
+Four of the 18 tasks came out mixed, each at 3/4. Only one of those failures is a wrong answer:
+
+- `decimal-context` #3 timed out at 20 minutes. Its last code passes every check. The model was still running its own random oracle script, which it had started with a 1,200 s bash timeout.
+- `resource-planner` #1 timed out at 30 minutes. Its code also passes every check. It was stress-testing against its own model with up to 20,000 seeds.
+- `job-scheduler` #2 passed every hidden check but failed `suite_passes` on a test file the model added itself, which asserts that the 100,000-job scenario takes under 1 s. That scenario measured 575 ms when the model ran it and 1,086 ms during verification, with four attempts running in parallel. The hidden suite's 2,500 ms budget passed at 649 ms.
+- `fair-lease-pool` #3 is the one genuine miss: in the drain test, a waiter that was still queued stayed pending instead of being served a newly created resource.
+
+Counting the hidden checks alone, Opus solved 71 of 72 attempts. A leftover workspace from `fair-lease-pool` #3 (`EPERM` on delete, as in ab-016) was still locked afterwards.
+
+Verdict: none of the 18 candidates gives Opus 5.5 at medium a real chance of failing. The four mixed tasks fail mainly through the time limit, or through a timing assertion the model wrote itself under host load, not through wrong answers. A paired Opus A/B on them would measure those effects, not accuracy. Measuring accuracy on these tasks needs a model that misses spec clauses, as luna did in ab-014–016.

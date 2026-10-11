@@ -92,11 +92,15 @@ async function selfTest(tasks) {
 }
 
 /** `apex-no-FLAG` is the snapshot's Windows default minus FLAG and `apex+FLAG[+FLAG…]` the default plus those flags,
- * so one run can pair either with `apex`. `groups` maps each selection option to the flag names it takes. */
-export function armArgs(arm, {model, thinking, sessionDir, prompt, cwd, defaults, groups}) {
+ * so one run can pair either with `apex`. `groups` maps each selection option to the flag names it takes.
+ * On `anthropic/*` the stock arm also loads the snapshot's claude-identity.mjs: the Claude subscription login refuses
+ * Pi's unmodified system prompt (400 "Third-party apps now draw from your extra usage", claude-smoke-3/4), and the
+ * Windows target loads that shim for every Apex arm (lib/launcher.mjs). */
+export function armArgs(arm, {model, thinking, sessionDir, prompt, cwd, defaults, groups, apexRoot}) {
   const [provider, id] = model.split(/\/(.*)/s);
   const route = ['--provider', provider, '--model', id, '--thinking', thinking, '--session-dir', sessionDir, prompt];
-  if (arm === 'stock') return ['--apex-off', '--print', '--mode', 'json', ...route];
+  if (arm === 'stock') return ['--apex-off', '--print', '--mode', 'json',
+    ...(provider === 'anthropic' ? ['--extension', path.join(apexRoot, 'extensions', 'apex-router', 'claude-identity.mjs')] : []), ...route];
   if (arm === 'apex') return ['--profile', 'headless', ...route];
   const ablated = /^apex-no-([a-z]+)$/.exec(arm)?.[1];
   const added = /^apex(\+[a-z]+)+$/.test(arm) ? arm.split('+').slice(1) : [];
@@ -142,7 +146,7 @@ export function metrics(events) {
       m.costUsd += usage.cost?.total ?? 0;
       m.peakContext = Math.max(m.peakContext, (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0));
       m.stopReasons[message.stopReason] = (m.stopReasons[message.stopReason] ?? 0) + 1;
-      if (message.stopReason === 'error') m.providerErrors++;
+      if (message.stopReason === 'error') { m.providerErrors++; m.providerError ??= String(message.errorMessage ?? '').slice(0, 500); }
       for (const part of message.content ?? []) if (part.type === 'toolCall') { m.toolCalls++; m.byTool[part.name] = (m.byTool[part.name] ?? 0) + 1; }
       const text = (message.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n').trim();
       if (text) m.finalText = text.slice(0, 2000);
@@ -169,7 +173,7 @@ async function attempt({task, arm, n, runDir, model, thinking, timeoutMs, agentD
   try {
     task.setup(dir);
     const before = snapshot(dir);
-    const args = armArgs(arm, {model, thinking, sessionDir: path.join(outDir, 'session'), prompt: task.prompt, cwd: dir, defaults, groups});
+    const args = armArgs(arm, {model, thinking, sessionDir: path.join(outDir, 'session'), prompt: task.prompt, cwd: dir, defaults, groups, apexRoot});
     const child = spawn(process.execPath, [path.join(apexRoot, 'bin', 'apex'), ...args],
       {cwd: dir, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true});
     const events = createWriteStream(path.join(outDir, 'events.jsonl')), errors = createWriteStream(path.join(outDir, 'stderr.log'));
@@ -184,8 +188,11 @@ async function attempt({task, arm, n, runDir, model, thinking, timeoutMs, agentD
     try { result = task.verify(dir, before); } catch (error) { result = {pass: false, failed: ['verifier_crashed'], error: String(error?.stack ?? error)}; }
     writeFileSync(path.join(outDir, 'workspace.diff'), (git(dir, 'status', '--porcelain', '--untracked-files=all').stdout + '\n' +
       git(dir, 'diff', 'HEAD').stdout).slice(0, 400000));
+    // An attempt where no model request succeeded measured the provider (auth, billing, outage), not the arm.
+    const unanswered = m.requests === m.providerErrors && !timedOut;
     const record = {task: task.id, category: task.category, arm, attempt: n, pass: result.pass === true && !timedOut, verifierPass: result.pass === true,
       failed: result.failed, timedOut, exitCode: exit.code, wallSec, apexDirCreated: existsSync(path.join(dir, '.apex')), ...m,
+      ...(unanswered ? {harnessError: `no model response: ${m.providerError ?? `no request made (exit ${exit.code})`}`} : {}),
       thinking, model, finishedAt: new Date().toISOString()};
     writeFileSync(path.join(outDir, 'result.json'), JSON.stringify({...record, verdict: result}, null, 2) + '\n');
     return record;
@@ -242,11 +249,12 @@ async function main() {
     ['--apex-features', 'apex-features', 'FEATURE_FEATURES']]) groups[option] = (await import(pathToFileURL(path.join(apexRoot, 'extensions', name, 'config.mjs')).href))[list];
   // Resolve every arm once in a real task workspace, so a bad arm fails before any model call.
   const probe = workspace('arms');
-  try { tasks[0].setup(probe); for (const arm of arms) armArgs(arm, {model: meta.model, thinking: meta.thinking, sessionDir: probe, prompt: 'probe', cwd: probe, defaults, groups}); }
+  try { tasks[0].setup(probe); for (const arm of arms) armArgs(arm, {model: meta.model, thinking: meta.thinking, sessionDir: probe, prompt: 'probe', cwd: probe, defaults, groups, apexRoot}); }
   finally { cleanup(probe); }
   const resultsFile = path.join(runDir, 'results.jsonl');
   const previous = existsSync(resultsFile) ? readFileSync(resultsFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
-  const done = new Set(previous.map(row => `${row.task}/${row.arm}/${row.attempt}`));
+  // Harness errors are retried on --resume; the report already excludes those rows, so the retry is the counted one.
+  const done = new Set(previous.filter(row => !row.harnessError).map(row => `${row.task}/${row.arm}/${row.attempt}`));
   // Interleave arms so drift in provider latency or load hits both equally.
   const jobs = [];
   for (let n = 1; n <= attempts; n++) for (const task of tasks) for (const arm of (n % 2 ? arms : [...arms].reverse()))
@@ -255,19 +263,22 @@ async function main() {
   // --max-usd (catalog estimate) stops launching once the spend so far plus one costliest-yet attempt per running slot
   // would pass it. ponytail: nothing is reserved before the first attempt finishes and running attempts are never killed,
   // so up to --concurrency attempts can run past the cap; use --concurrency 1 for a tight cap, kill-on-cap if that is too slow.
-  let spent = previous.reduce((total, row) => total + (row.costUsd ?? 0), 0), worst = 0, running = 0, skipped = 0;
+  let spent = previous.reduce((total, row) => total + (row.costUsd ?? 0), 0), worst = 0, running = 0, skipped = 0, dead;
   await pool(jobs, concurrency, async job => {
-    if (meta.maxUsd && spent + (running + 1) * worst > meta.maxUsd) { skipped++; return; }
+    if (dead || (meta.maxUsd && spent + (running + 1) * worst > meta.maxUsd)) { skipped++; return; }
     running++;
     let record;
     try { record = await attempt({...job, runDir, model: meta.model, thinking: meta.thinking, timeoutMs, agentDir, apexRoot, defaults, groups}); }
     catch (error) { record = {task: job.task.id, arm: job.arm, attempt: job.n, pass: false, harnessError: String(error?.stack ?? error)}; }
     appendFileSync(resultsFile, JSON.stringify(record) + '\n');
     running--; spent += record.costUsd ?? 0; worst = Math.max(worst, record.costUsd ?? 0);
+    // Provider refusing every request: stop launching; the rest would only record the same refusal.
+    if (record.harnessError?.startsWith('no model response: ') && !record.harnessError.includes('no request made')) dead = record.harnessError;
     console.log(`${record.pass ? 'PASS' : 'fail'} ${job.task.id.padEnd(18)} ${job.arm.padEnd(5)} #${job.n}  ${(record.wallSec ?? 0).toFixed(0)}s  $${(record.costUsd ?? 0).toFixed(4)}  ${record.requests ?? 0} req  ${record.failed?.length ? '[' + record.failed.join(',') + ']' : ''}${record.harnessError ? ' HARNESS ' + record.harnessError.slice(0, 200) : ''}`);
     return record;
   });
-  if (skipped) console.log(`Stopped at --max-usd $${meta.maxUsd}: $${spent.toFixed(2)} spent, ${skipped} attempts not run; --resume continues them under the same cap.`);
+  if (skipped) console.log(dead ? `Stopped: the provider answered no request (${dead.slice(19, 260)}). ${skipped} attempts not run; fix the login/account, then --resume.`
+    : `Stopped at --max-usd $${meta.maxUsd}: $${spent.toFixed(2)} spent, ${skipped} attempts not run; --resume continues them under the same cap.`);
   writeFileSync(path.join(runDir, 'meta.json'), JSON.stringify({...meta, finishedAt: new Date().toISOString()}, null, 2) + '\n');
   // Usage first, so a report error cannot drop recorded spend.
   if (meta.model.startsWith('openai-codex/')) recordUsage(runDir, meta);
