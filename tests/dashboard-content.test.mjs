@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {JSDOM} from 'jsdom';
-import {renderMarkdown, renderMessage, safeLink} from '../dashboard/chat-content.mjs';
+import {renderMarkdown, renderMessage, renderThought, safeLink} from '../dashboard/chat-content.mjs';
 import {fileImageType, imageBytes, imageDataUrl, validateImages, MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES} from '../dashboard/attachments.mjs';
 import {promptCommand} from '../dashboard/chat-request.mjs';
 import {modelCatalog} from '../dashboard/catalog.mjs';
@@ -70,6 +70,23 @@ test('native image content and image-only history render as accessible previews 
   renderMessage(target, 'Legacy plain text');
   assert.equal(target.querySelectorAll('img').length, 0);
   assert.equal(target.textContent, 'Legacy plain text');
+});
+
+test('a Thought row previews the first line and expands to the full Markdown thinking; redacted placeholders say so', t => {
+  const doc = surface(t).ownerDocument;
+  const row = renderThought(doc.createElement('details'), {type: 'thinking', thinking: '**Checking both files**\n\nThen read `app.js` and decide.'});
+  assert.equal(row.open, false);
+  assert.equal(row.querySelector('summary .verb').textContent, 'Thought');
+  assert.equal(row.querySelector('summary i').textContent, 'Checking both files');
+  assert.equal(row.querySelector('.step-body strong').textContent, 'Checking both files');
+  assert.equal(row.querySelector('.step-body code').textContent, 'app.js');
+
+  // Anthropic/Bedrock: placeholder text plus redacted: true. Codex without a summary: '' plus an encrypted signature.
+  const redacted = renderThought(doc.createElement('details'), {type: 'thinking', thinking: '[Reasoning redacted]', thinkingSignature: 'opaque', redacted: true});
+  assert.equal(redacted.querySelector('summary i').textContent, 'Redacted by the provider');
+  assert.match(redacted.textContent, /no readable text/);
+  assert.ok(!redacted.textContent.includes('opaque'));
+  assert.equal(renderThought(doc.createElement('details'), {type: 'thinking', thinking: '', thinkingSignature: '{"encrypted_content":"x"}'}), null);
 });
 
 test('valid raster formats are accepted and file type fallbacks are conservative', () => {

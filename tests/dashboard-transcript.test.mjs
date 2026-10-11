@@ -8,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {JSDOM} from 'jsdom';
-import {renderMarkdown, renderMessage} from '../dashboard/chat-content.mjs';
+import {renderMarkdown, renderMessage, renderThought} from '../dashboard/chat-content.mjs';
 import * as attachments from '../dashboard/attachments.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
@@ -95,7 +95,7 @@ test('clicking a saved session shows its transcript read-only, without the launc
   window.EventSource = class { constructor(url) { streams.push(url); } close() {} };
   let opened = 0;
   window.HTMLDialogElement.prototype.showModal = () => { opened++; };
-  Object.assign(window, attachments, {renderMarkdown, renderMessage, structuredClone});
+  Object.assign(window, attachments, {renderMarkdown, renderMessage, renderThought, structuredClone});
   window.setInterval = () => 0;
   window.setTimeout = (callback, delay) => { if (delay === 50) callback(); return 0; };
   runInContext(script.replace(/^import .* from .*;\r?\n/gm, ''), dom.getInternalVMContext());
@@ -109,7 +109,8 @@ test('clicking a saved session shows its transcript read-only, without the launc
   assert.ok(!requests.includes('/api/start'));
   const log = $('log');
   assert.equal(log.querySelector('.user').textContent, 'List the files');
-  assert.match(log.querySelector('details.tool summary').textContent, /bash\s+ls/);
+  assert.equal(log.querySelector('.activity summary').textContent, 'Ran a command');
+  assert.match(log.querySelector('.activity .step summary').textContent, /^Ran\s*ls/);
   assert.match(log.textContent, /One file: a\.txt/);
   assert.equal($('form').hidden, true, 'no sending or model changes while read-only');
   assert.equal($('resume').hidden, false);

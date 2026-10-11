@@ -129,6 +129,19 @@ export function renderMarkdown(target, source) {
   } catch { target.textContent = String(source ?? ''); }
   return target;
 }
+// One Pi ThinkingContent {type: 'thinking', thinking, thinkingSignature?, redacted?} as a `Thought` row: a one-line
+// preview that expands in place. Anthropic and Bedrock deliver redacted reasoning as placeholder text with
+// redacted: true; Codex reasoning without a summary is '' plus an encrypted signature and gets no row (null).
+export function renderThought(row, part) {
+  if (!part.thinking) return null;
+  const doc = row.ownerDocument, summary = node(doc, 'summary');
+  const preview = part.redacted ? 'Redacted by the provider' : part.thinking.trim().split('\n')[0].replace(/\*\*|__|`|^#+\s*/g, '');
+  summary.append(node(doc, 'span', 'Thought', 'verb'), node(doc, 'i', preview, 'target'));
+  row.className = 'step thought';
+  row.replaceChildren(summary, part.redacted ? node(doc, 'p', 'The provider redacted this reasoning; there is no readable text.', 'step-body thinking-hidden')
+    : renderMarkdown(node(doc, 'div', undefined, 'step-body'), part.thinking));
+  return row;
+}
 export function renderMessage(target, content) {
   const doc = target.ownerDocument, fragment = doc.createDocumentFragment();
   const parts = typeof content === 'string' ? [{type: 'text', text: content}] : content ?? [];

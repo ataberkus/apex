@@ -3,7 +3,7 @@ import test from 'node:test';
 import {readFile} from 'node:fs/promises';
 import {runInContext} from 'node:vm';
 import {JSDOM} from 'jsdom';
-import {renderMarkdown, renderMessage} from '../dashboard/chat-content.mjs';
+import {renderMarkdown, renderMessage, renderThought} from '../dashboard/chat-content.mjs';
 import * as attachments from '../dashboard/attachments.mjs';
 
 const PNG = {type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSfUAAAAASUVORK5CYII='};
@@ -12,7 +12,7 @@ async function chat(t) {
   const dom = new JSDOM(html, {url: 'http://127.0.0.1:4777', runScripts: 'outside-only'});
   t.after(() => dom.window.close());
   const {window} = dom, streams = [], requests = [];
-  Object.assign(window, attachments, {renderMarkdown, renderMessage});
+  Object.assign(window, attachments, {renderMarkdown, renderMessage, renderThought});
   const sessions = [
     {id: 'first', title: 'Vision session', cwd: 'C:\\project', model: 'muse', input: ['text', 'image'], thinking: 'high', status: 'idle', pending: [], settled: 0},
     {id: 'second', title: 'Other session', cwd: 'C:\\project', model: 'muse', input: ['text', 'image'], thinking: 'high', status: 'idle', pending: [], settled: 0},
@@ -20,9 +20,10 @@ async function chat(t) {
     {id: 'unsigned', title: 'Unsigned Codex', cwd: 'C:\\project', model: 'sol', provider: 'openai-codex', input: ['text', 'image'], thinking: 'high', status: 'idle', pending: [], settled: 0},
   ];
   const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: [], archived: []}], models: [{id: 'muse', label: 'Muse', input: ['text', 'image']}], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}}};
-  let error = null;
+  let error = null, queued = {steering: [], followUp: []};
   window.fetch = async (path, options) => {
     if (path === '/api/state') return {ok: true, json: async () => state};
+    if (path === '/api/clear-queue') { const cleared = queued; queued = {steering: [], followUp: []}; return {ok: true, json: async () => cleared}; }
     assert.equal(path, '/api/send'); requests.push(JSON.parse(options.body));
     return {ok: !error, json: async () => error ? {error} : {}};
   };
@@ -42,6 +43,7 @@ async function chat(t) {
     paint: () => new Promise(resolve => setTimeout(resolve, 70)),
     submit: () => window.document.getElementById('form').onsubmit({preventDefault() {}}),
     reject: value => { error = value; },
+    queue: value => { queued = value; },
   };
 }
 
@@ -74,8 +76,8 @@ test('history and live user/tool messages retain image content and render Markdo
   assert.equal(c.$('log').querySelectorAll('.user img').length, 2);
   assert.equal(c.$('log').querySelector('.user strong').textContent, 'Inspect');
   assert.ok(c.$('log').querySelector('.assistant table'));
-  assert.ok(c.$('log').querySelector('.tool img'));
-  assert.equal(c.$('log').querySelector('.tool pre').textContent, '<script>raw tool output</script>');
+  assert.ok(c.$('log').querySelector('.step img'));
+  assert.equal(c.$('log').querySelector('.step pre').textContent, '<script>raw tool output</script>');
   assert.equal(c.$('log').querySelector('script'), null);
 });
 
@@ -104,6 +106,31 @@ test('rejected image sends preserve text and previews, and session switches neve
   assert.equal(c.$('attachments').querySelectorAll('img').length, 1);
   assert.equal(c.$('composer-error').textContent, 'Please sign in again.');
   c.select(1); assert.equal(c.$('box').value, 'Second draft');
+});
+
+test('the queue bar marks queued images and remove, send-now and edit re-queue the rest with their images', async t => {
+  const c = await chat(t);
+  c.sessions[0].status = 'running'; c.select(0);
+  c.$('box').value = 'Look at this'; await c.attach([c.file()]); await c.submit();
+  c.$('box').value = 'Then summarize'; await c.$('form').onsubmit({preventDefault() {}, submitter: c.$('queue-send')});
+  const full = {steering: ['Look at this'], followUp: ['Then summarize', 'Then stop']};
+  c.emit({type: 'queue_update', ...full});
+  const rows = () => [...c.$('queued').querySelectorAll('.queue-text')].map(n => n.textContent);
+  assert.equal(c.$('queued').querySelector('.queue-count').textContent, '3 messages queued');
+  assert.deepEqual(rows(), ['[Steer] [Image] Look at this', 'Then summarize', 'Then stop']);
+  const button = (row, title) => c.$('queued').querySelectorAll('.queue-actions')[row].querySelector(`[title="${title}"]`);
+  c.requests.length = 0;
+
+  c.queue(full); await button(1, 'Remove').onclick();
+  assert.deepEqual(c.requests.splice(0), [{id: 'first', message: 'Look at this', images: [PNG]}, {id: 'first', message: 'Then stop', mode: 'followUp'}]);
+
+  c.queue(full); await button(2, 'Send now').onclick();
+  assert.deepEqual(c.requests.splice(0).map(r => [r.message, r.mode ?? 'steer']), [['Then stop', 'steer'], ['Look at this', 'steer'], ['Then summarize', 'followUp']]);
+
+  c.queue(full); await button(0, 'Edit').onclick();
+  assert.deepEqual(c.requests.splice(0).map(r => r.message), ['Then summarize', 'Then stop']);
+  assert.equal(c.$('box').value, 'Look at this');
+  assert.equal(c.$('attachments').querySelectorAll('img').length, 1, 'edited message gets its image back');
 });
 
 test('asynchronous file reads stay with the owning session and overlapping uploads cannot unlock send early', async t => {

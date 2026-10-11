@@ -1,4 +1,4 @@
-import {renderMarkdown, renderMessage} from './chat-content.mjs';
+import {renderMarkdown, renderMessage, renderThought} from './chat-content.mjs';
 import {fileImageType, imageDataUrl, validateImages, IMAGE_TYPES, IMAGE_HELP, MAX_IMAGES, MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES} from './attachments.mjs';
 
 const $ = id => document.getElementById(id);
@@ -16,9 +16,9 @@ const usageRows = () => Object.values(state.usage ?? {});
 const limitName = (p, l) => l.label.startsWith(p.label + ' ') ? l.label.slice(p.label.length + 1) : l.label; // "Claude 5 Hour" under Claude
 const stored = (key, fallback) => { try { return JSON.parse(localStorage[key]) ?? fallback; } catch { return fallback; } };
 
-let state = {workspaces: [], models: [], groups: []}, stateSig = '', sel = null, source = null, current = null;
+let state = {workspaces: [], models: [], groups: []}, stateSig = '', sel = null, source = null, current = null, activity = null;
 let tools = new Map(), toolArgs = new Map(), view = newView(), seen = stored('seen', {}), collapsed = stored('collapsed', {}), asksSig = '';
-const drafts = new Map(), pendingMarkdown = new Map();
+const drafts = new Map(), pendingRender = new Map();
 let markdownTimer = 0;
 const sessionDraft = id => { if (!drafts.has(id)) drafts.set(id, {message: '', images: [], reading: 0, sending: false, error: ''}); return drafts.get(id); };
 const enhance = new Map(); // session id → {id, original, model, step} while a run is active
@@ -432,8 +432,8 @@ function header() {
 
 function select(s) {
   if (sel) sessionDraft(sel.id).message = $('box').value;
-  sel = s; source?.close(); current = null; tools.clear(); toolArgs.clear(); view = newView(); asksSig = '';
-  clearTimeout(markdownTimer); markdownTimer = 0; pendingMarkdown.clear();
+  sel = s; source?.close(); current = null; activity = null; tools.clear(); toolArgs.clear(); view = newView(); asksSig = '';
+  clearTimeout(markdownTimer); markdownTimer = 0; pendingRender.clear();
   $('box').value = sessionDraft(s.id).message; $('slash').hidden = true; renderAttachments();
   if (!s.viewOnly) { seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen); }
   $('log').replaceChildren(); renderQueued(); header(); renderSide(); renderAsks(); renderInfo();
@@ -454,29 +454,105 @@ function select(s) {
 }
 
 const add = (cls, text) => { const e = el('div', cls, text); $('log').append(e); return e; };
+// Mid-turn notes (auto-approvals, extension notices) stay inside the running activity group instead of splitting it.
+const aside = (cls, text) => activity ? activity.list.append(el('div', cls, text)) : add(cls, text);
 const text = c => typeof c === 'string' ? c : (c ?? []).filter(p => p.type === 'text').map(p => p.text).join('\n\n');
-const message = (role, content) => renderMessage(add(role), content);
-function queueMarkdown(node, value) {
-  pendingMarkdown.set(node, value);
+const message = (role, content) => { settle(); return renderMessage(add(role), content); };
+function queueRender(node, render) { // streaming deltas repaint at most every 50 ms
+  pendingRender.set(node, render);
   if (!markdownTimer) markdownTimer = setTimeout(() => {
     markdownTimer = 0;
     const log = $('log'), stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
-    for (const [target, sourceText] of pendingMarkdown) if (target.isConnected) renderMarkdown(target, sourceText);
-    pendingMarkdown.clear(); if (stick) log.scrollTop = log.scrollHeight;
+    for (const [target, render] of pendingRender) if (target.isConnected) render();
+    pendingRender.clear(); if (stick) log.scrollTop = log.scrollHeight;
   }, 50);
 }
-function updateAssistant(event) {
-  current ??= {node: add('assistant'), blocks: new Map()};
-  const index = event.contentIndex ?? 0;
-  if (!current.blocks.has(index)) {
-    const node = el('div', 'markdown'); current.node.append(node); current.blocks.set(index, {node, value: ''});
-  }
-  const block = current.blocks.get(index);
-  block.value = event.type === 'text_end' ? event.content : block.value + event.delta;
-  queueMarkdown(block.node, block.value);
+
+// Activity: thinking and tool calls between two replies share one collapsible group, one row per step.
+// Any other log entry (add) closes the group; live groups show a spinner, the +/- line total and the current step.
+const file = a => base(String(a?.path ?? ''));
+const STEPS = { // tool → verb, live verb, target element, target, summary kind
+  read: ['Read', 'Reading', 'b', file, 'read'],
+  edit: ['Edited', 'Editing', 'b', file, 'edit'],
+  write: ['Wrote', 'Writing', 'b', file, 'edit'],
+  bash: ['Ran', 'Running', 'code', a => String(a?.command ?? '').split('\n')[0].slice(0, 300), 'ran'],
+  grep: ['Searched', 'Searching', 'span', a => a?.pattern, 'search'],
+  find: ['Searched', 'Searching', 'span', a => a?.pattern, 'search'],
+  ls: ['Listed', 'Listing', 'b', a => file(a) || '.', 'list'],
+};
+const plural = (n, noun) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+const PHRASES = {thought: () => 'thought', read: n => 'read ' + plural(n, 'file'), edit: n => 'edited ' + plural(n, 'file'),
+  ran: n => n === 1 ? 'ran a command' : `ran ${n} commands`, search: () => 'searched code', list: () => 'listed files', other: n => 'used ' + plural(n, 'tool')};
+function group() {
+  if (activity) return activity;
+  const node = el('details', 'activity'), summary = el('summary'), list = el('div', 'steps');
+  node.append(summary, list); $('log').append(node);
+  return activity = {node, summary, list, kinds: new Map(), plus: 0, minus: 0, step: '', stepOf: null, live: true};
 }
-const brief = a => String(a?.command ?? a?.path ?? a?.file_path ?? a?.pattern ?? a?.action ?? '').split('\n')[0].slice(0, 160);
-function tool(id, name, args) { const d = el('details', 'tool'); d.append(el('summary', '', (name + '  ' + brief(args)).trim())); $('log').append(d); tools.set(id, d); toolArgs.set(id, args); return d; }
+function step(kind, key, row) { // files count once per path; every other step counts once
+  const g = group(); g.list.append(row);
+  if (!g.kinds.has(kind)) g.kinds.set(kind, new Set());
+  g.kinds.get(kind).add(key || row);
+  return g;
+}
+function doing(g, label, of) { g.step = label; g.stepOf = of; summarize(g); }
+function done(g, of) { if (g.stepOf === of) doing(g, '', null); }
+function summarize(g) {
+  const words = [...g.kinds].map(([kind, keys]) => PHRASES[kind](keys.size)).join(', ') || 'auto-approved a tool call'; // approval before its tool row
+  g.summary.replaceChildren(...(g.live ? [el('span', 'spinner')] : []), el('span', 'what', words[0].toUpperCase() + words.slice(1)),
+    ...(g.plus || g.minus ? [statEl(g.plus, g.minus)] : []), ...(g.live && g.step ? [el('span', 'doing', g.step)] : []));
+}
+function settle() { if (activity) { activity.live = false; summarize(activity); activity = null; } }
+// apex-features/safety.mjs asks "Tool: name\nArguments: json\nreason…". Pi starts the tool before the gate asks, so an
+// auto-approval marks the latest unmarked row for that tool (whose diff or command already shows the arguments).
+// Without such a row it becomes one quiet row of its own, arguments folded.
+function approval(prompt) {
+  const name = /^Tool: (.*)$/m.exec(prompt)?.[1] ?? 'tool', args = /^Arguments: (.*)$/m.exec(prompt)?.[1] ?? '';
+  const row = [...activity?.list.querySelectorAll('.step[data-tool]:not(.approved)') ?? []].reverse().find(r => r.dataset.tool === name);
+  if (row) { row.classList.add('approved'); row.querySelector('summary').append(el('span', 'approved-tag', 'auto-approved')); return; }
+  let shown = args;
+  try { shown = JSON.stringify(JSON.parse(args), null, 2); } catch { /* cut at 2000 chars with " [truncated]": show as sent */ }
+  const note = el('details', 'step approval'), summary = el('summary');
+  summary.append(el('span', 'verb', 'Auto-approved'), el('b', 'target', name)); note.append(summary);
+  if (shown) note.append(el('pre', '', shown));
+  group().list.append(note);
+}
+
+// One assistant content part, created on first sight and repainted after: streaming, message_end and replay share it.
+function place(ctx, index, part, live) {
+  let block = ctx.blocks.get(index);
+  if (part.type === 'thinking') {
+    if (!block) { if (!part.thinking) return; block = {node: el('details')}; block.group = step('thought', null, block.node); ctx.blocks.set(index, block); }
+    const paint = () => renderThought(block.node, part);
+    if (live) { queueRender(block.node, paint); if (block.group.stepOf !== block.node) doing(block.group, 'Thinking', block.node); }
+    else { pendingRender.delete(block.node); paint(); done(block.group, block.node); }
+  } else if (part.type === 'text') {
+    if (!block) {
+      if (!part.text) return;
+      if (!ctx.text || ctx.text !== $('log').lastElementChild) { settle(); ctx.text = add('assistant'); }
+      block = {node: el('div', 'markdown')}; ctx.text.append(block.node); ctx.blocks.set(index, block);
+    }
+    const paint = () => renderMarkdown(block.node, part.text);
+    if (live) queueRender(block.node, paint); else { pendingRender.delete(block.node); paint(); }
+  }
+}
+const newMessage = () => ({text: null, blocks: new Map(), values: new Map()});
+function updateAssistant(event) {
+  current ??= newMessage();
+  const index = event.contentIndex ?? 0, end = event.type.endsWith('_end');
+  const value = end ? event.content : (current.values.get(index) ?? '') + event.delta;
+  current.values.set(index, value);
+  place(current, index, event.type.startsWith('thinking') ? {type: 'thinking', thinking: value} : {type: 'text', text: value}, !end);
+}
+function tool(id, name, args) {
+  const [verb, live, tag, target, kind] = STEPS[name] ?? ['Used', 'Using', 'b', () => name, 'other'];
+  const row = el('details', 'step'), summary = el('summary'), what = String(target(args) ?? '');
+  row.dataset.tool = name;
+  summary.append(el('span', 'verb', verb), el(tag, 'target', what)); row.append(summary);
+  const g = step(kind, kind === 'read' || kind === 'edit' ? args?.path : null, row);
+  doing(g, (live + ' ' + what).trim(), id);
+  const entry = {row, group: g}; tools.set(id, entry); toolArgs.set(id, args); return entry;
+}
 function result(d, r, bad) {
   if (bad) d.classList.add('err');
   const out = text(r?.content).slice(0, 4000); if (out && !d.querySelector('pre')) d.append(el('pre', '', out));
@@ -527,13 +603,14 @@ function diffTable(rows, split) {
   flush();
   return t;
 }
+const statEl = (plus, minus) => { const stat = el('span', 'stat'); stat.append(el('span', 'plus', '+' + plus), el('span', 'minus', '\u2212' + minus)); return stat; };
+const diffStat = rows => [rows.filter(x => x.t === 'add').length, rows.filter(x => x.t === 'del').length];
 function diffCard(name, path, rows, args, r) {
   const card = el('div', 'diff'), head = el('div', 'diff-head'), body = el('div', 'diff-body');
   const badge = el('span', 'badge ' + name, name === 'edit' ? 'M' : 'W'); badge.title = name === 'edit' ? 'Modified' : 'Written';
   const parts = String(path ?? name).split(/[\\/]/).filter(Boolean), file = el('span', 'file', parts.length > 3 ? '.../' + parts.slice(-3).join('/') : parts.join('/'));
   file.title = path ?? '';
-  const plus = rows.filter(x => x.t === 'add').length, minus = rows.filter(x => x.t === 'del').length;
-  const stat = el('span', 'stat'); stat.append(el('span', 'plus', '+' + plus), el('span', 'minus', '\u2212' + minus));
+  const [plus, minus] = diffStat(rows), stat = statEl(plus, minus);
   const seg = el('span', 'seg'), buttons = {};
   const draw = () => { body.replaceChildren(diffTable(rows, localStorage.diff === 'split')); for (const mode in buttons) buttons[mode].classList.toggle('on', (localStorage.diff === 'split') === (mode === 'split')); };
   for (const mode of ['unified', 'split']) { const b = buttons[mode] = el('button', '', mode === 'split' ? 'Split' : 'Unified'); b.type = 'button'; b.onclick = () => { localStorage.diff = mode; draw(); }; seg.append(b); }
@@ -558,62 +635,113 @@ function learn(name, args, r) { // Apex tool state that has a home in the Plan p
   } catch { /* free text result: nothing to show */ }
 }
 function finish(id, name, r, bad) {
-  const d = tools.get(id) ?? tool(id, name), args = toolArgs.get(id);
+  const {row, group: g} = tools.get(id) ?? tool(id, name), args = toolArgs.get(id);
   if (!bad) learn(name, args, r);
   const rows = bad ? null : name === 'edit' && r?.details?.diff ? parseDiff(r.details.diff) : name === 'write' && typeof args?.content === 'string' ? writeRows(args.content) : null;
-  if (!rows) return result(d, r, bad);
-  const card = diffCard(name, args?.path, rows, args, r);
-  d.replaceWith(card); tools.set(id, card);
+  if (rows) {
+    const [plus, minus] = diffStat(rows);
+    row.querySelector('summary').append(statEl(plus, minus)); row.append(diffCard(name, args?.path, rows, args, r));
+    g.plus += plus; g.minus += minus;
+  } else result(row, r, bad);
+  if (g.stepOf === id) doing(g, '', null); else summarize(g);
 }
 
 // Queue updates are complete snapshots. Keep pending input separate from the
 // transcript: Pi removes it from the queue before emitting the user message.
-function renderQueued(queue = {}) {
-  const panel = $('queued'); panel.replaceChildren();
-  for (const [kind, title] of [['steering', 'Queued steering'], ['followUp', 'Queued follow-up']]) {
-    for (const message of queue[kind] ?? []) {
-      const item = el('div', 'user');
-      item.append(el('small', 'queued-label', title), el('p', '', message)); panel.append(item);
+// Pi queues text only and can only clear its whole queue, so remember the images each queued send carried:
+// the bar marks them [Image], and remove/edit/send-now clear the queue and re-queue the rest with their images.
+const queuedImages = new Map(); // session id → Map(text → draft images)
+const imagesOf = (id, message) => queuedImages.get(id)?.get(message) ?? [];
+let queueSnapshot = {};
+function renderQueued(queue = {}, ended = false) {
+  queueSnapshot = queue;
+  const panel = $('queued'), items = [...(queue.steering ?? []).map(t => ['steer', t]), ...(queue.followUp ?? []).map(t => ['followUp', t])];
+  panel.replaceChildren(); panel.hidden = !items.length;
+  if (!items.length) return;
+  const bar = el('div', 'queue-bar'), count = plural(items.length, 'message');
+  items.forEach(([mode, message], i) => {
+    const line = el('span', 'queue-text'), actions = el('span', 'queue-actions');
+    if (mode === 'steer') line.append(el('span', 'queue-tag', '[Steer] '));
+    if (imagesOf(sel?.id, message).length) line.append(el('span', 'queue-tag', '[Image] '));
+    line.append(message.replace(/\s+/g, ' ').trim()); line.title = message;
+    if (!ended) for (const [label, glyph, action] of [...(mode === 'followUp' ? [['Send now', '\u2191', 'now']] : []), ['Edit', '\u270E', 'edit'], ['Remove', '\u2715', 'remove']]) {
+      const button = el('button', '', glyph); button.type = 'button'; button.title = label;
+      button.setAttribute('aria-label', `${label}: ${message.slice(0, 80)}`); button.onclick = () => rework(mode, message, action);
+      actions.append(button);
     }
-  }
-  panel.hidden = !panel.children.length;
+    bar.append(el('b', 'queue-count', i ? '' : ended ? `${count} not delivered — session ended` : `${count} queued`), line, actions);
+  });
+  panel.append(bar);
+}
+function restoreDraft(id, message, images) {
+  const draft = sessionDraft(id), typed = sel?.id === id ? $('box').value : draft.message;
+  draft.message = typed.trim() ? message + '\n\n' + typed : message; draft.images.push(...images);
+  if (sel?.id === id) { $('box').value = draft.message; renderAttachments(); syncComposer(); $('box').focus(); }
+}
+async function rework(mode, message, action) {
+  const id = sel.id;
+  try {
+    const queue = await post('/api/clear-queue', {id});
+    const items = [...queue.steering.map(t => ['steer', t]), ...queue.followUp.map(t => ['followUp', t])];
+    const at = items.findIndex(([m, t]) => m === mode && t === message);
+    if (at >= 0) { // already delivered: just put the rest back
+      items.splice(at, 1);
+      if (action === 'now') items.unshift(['steer', message]); // first in line for the running turn
+      if (action === 'edit') restoreDraft(id, message, imagesOf(id, message));
+    }
+    const failed = [];
+    for (const [m, t] of items) {
+      const images = imagesOf(id, t).map(({type, data, mimeType}) => ({type, data, mimeType}));
+      try { await post('/api/send', {id, message: t, ...(images.length ? {images} : {}), ...(m === 'followUp' ? {mode: 'followUp'} : {})}); }
+      catch { failed.push(t); restoreDraft(id, t, imagesOf(id, t)); }
+    }
+    if (failed.length) add('note', `Could not re-queue ${plural(failed.length, 'message')}; ${failed.length === 1 ? 'it is' : 'they are'} back in the message box.`);
+  } catch (err) { add('note', err.message); }
 }
 
 function handle(r) {
   $('log').querySelector('.blank')?.remove();
   if (r.type === 'message_start' && r.message.role === 'assistant') current = null;
-  else if (r.type === 'message_update' && ['text_delta', 'text_end'].includes(r.assistantMessageEvent?.type)) updateAssistant(r.assistantMessageEvent);
+  else if (r.type === 'message_update' && ['text_delta', 'text_end', 'thinking_delta', 'thinking_end'].includes(r.assistantMessageEvent?.type)) updateAssistant(r.assistantMessageEvent);
   else if (r.type === 'message_end') {
-    if (r.message.role === 'user') message('user', r.message.content);
+    if (r.message.role === 'user') { queuedImages.get(sel?.id)?.delete(text(r.message.content)); message('user', r.message.content); }
     else if (r.message.role === 'assistant') {
-      // Completed content is authoritative, even when it differs from the streamed deltas.
-      const target = current?.node ?? (text(r.message.content) ? add('assistant') : null);
-      for (const block of current?.blocks.values() ?? []) pendingMarkdown.delete(block.node);
-      if (target) renderMessage(target, r.message.content);
-      if (r.message.errorMessage) add('note', r.message.errorMessage);
+      // Completed content is authoritative, even when it differs from the streamed deltas. Tool calls arrive as execution events.
+      const ctx = current ?? newMessage(), content = r.message.content ?? [];
+      content.forEach((part, index) => place(ctx, index, part, false));
+      for (const [index, block] of ctx.blocks) {
+        const part = content[index];
+        if (!(part?.type === 'text' ? part.text : part?.type === 'thinking' && part.thinking)) { pendingRender.delete(block.node); block.node.remove(); }
+      }
+      if (ctx.text && !ctx.text.hasChildNodes()) ctx.text.remove();
+      if (r.message.errorMessage) { settle(); add('note', r.message.errorMessage); }
       current = null;
     }
   } else if (r.type === 'queue_update') renderQueued(r);
   else if (r.type === 'tool_execution_start') tool(r.toolCallId, r.toolName, r.args);
   else if (r.type === 'tool_execution_end') finish(r.toolCallId, r.toolName, r.result, r.isError);
   else if (r.type === 'extension_ui_request') {
-    if (r.method === 'notify') add('note ext', r.message);
+    if (r.method === 'notify') aside('note ext', r.message);
     else if (r.method === 'setStatus') { r.statusText ? view.statuses.set(r.statusKey, r.statusText) : view.statuses.delete(r.statusKey); if (r.statusKey === 'apex-pair') renderRoute(); }
     else if (r.method === 'setWidget') r.widgetLines?.length ? view.widgets.set(r.widgetKey, r.widgetLines) : view.widgets.delete(r.widgetKey);
     else if (['select', 'confirm', 'input', 'editor'].includes(r.method)) stateSig = '', refresh();
   } else if (r.type === 'response') {
     if (!r.success) add('note', r.error);
-    else if (r.command === 'get_messages') for (const m of r.data.messages) {
-      if (m.role === 'user') message('user', m.content);
-      else if (m.role === 'assistant') for (const p of m.content) { if (p.type === 'text' && p.text) message('assistant', [p]); else if (p.type === 'toolCall') tool(p.id, p.name, p.arguments); }
-      else if (m.role === 'toolResult') finish(m.toolCallId, m.toolName, m, m.isError);
+    else if (r.command === 'get_messages') {
+      for (const m of r.data.messages) {
+        if (m.role === 'user') message('user', m.content);
+        else if (m.role === 'assistant') { const ctx = newMessage(); m.content.forEach((p, i) => p.type === 'toolCall' ? tool(p.id, p.name, p.arguments) : place(ctx, i, p, false)); }
+        else if (m.role === 'toolResult') finish(m.toolCallId, m.toolName, m, m.isError);
+      }
+      settle();
     } else if (r.command === 'get_session_stats') view.stats = r.data;
     else if (r.command === 'get_commands') view.commands = r.data.commands ?? [];
-  } else if (r.type === 'dashboard_auto_approved') add('note quiet', 'Auto-approved. ' + String(r.message ?? '').split('\n').slice(0, 2).join('\n'));
+  } else if (r.type === 'dashboard_auto_approved') approval(String(r.message ?? ''));
   else if (r.type === 'dashboard_exit') {
-    for (const label of $('queued').querySelectorAll('.queued-label')) label.textContent = 'Not delivered — session ended';
+    settle(); renderQueued(queueSnapshot, true);
     add(r.code === 0 ? 'note quiet' : 'note', r.code === 0 ? 'Session ended. Pick it under Saved to read it or resume it.' : `The agent stopped (exit ${r.code}).\n${r.stderr}`);
   }
+  if (r.type === 'agent_end' || r.type === 'agent_settled') settle();
   if (r.type === 'agent_start' || r.type === 'agent_settled' || r.type === 'dashboard_exit') { stateSig = ''; refresh(); }
   if (!$('log').children.length && sel) blank();
   queueInfo();
@@ -893,6 +1021,10 @@ $('form').onsubmit = async e => {
   draft.message = $('box').value; draft.sending = true; draft.error = ''; syncComposer(); renderAttachments();
   try {
     const images = draft.images.map(({type, data, mimeType}) => ({type, data, mimeType}));
+    if (sel.status === 'running' && draft.images.length) { // queued, not started: the queue bar needs to know
+      if (!queuedImages.has(id)) queuedImages.set(id, new Map());
+      queuedImages.get(id).set(messageText, [...draft.images]);
+    }
     await post('/api/send', {id, message: messageText, ...(images.length ? {images} : {}), ...(followUp ? {mode: 'followUp'} : {})});
     draft.message = ''; draft.images = [];
     if (sel?.id === id) { $('box').value = ''; slash.hidden = true; }

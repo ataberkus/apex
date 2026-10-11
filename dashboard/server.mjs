@@ -572,6 +572,10 @@ const server = http.createServer(async (req, res) => {
       await request(session, command);
       return json(res, 200, {});
     }
+    if (url.pathname === '/api/clear-queue') { // Pi's queue clears whole; returns {steering, followUp} texts for re-queueing
+      if (!active(session)) return fail(res, 409, 'This session has ended.');
+      return json(res, 200, await request(session, {type: 'clear_queue'}));
+    }
     if (url.pathname === '/api/settings') { // {model, thinking} or {pair}; a different pair restarts the agent under a new id
       const changed = await changeRoute(session, body);
       return json(res, 200, {...summary(changed), relaunched: changed !== session});

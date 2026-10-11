@@ -117,6 +117,35 @@ small{font-size:12.5px;color:var(--muted)}
 #log>*{max-width:88ch;margin:0 auto 14px}
 .user{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--plan);border-radius:0 var(--r) var(--r) 0;padding:9px 14px;overflow-wrap:anywhere}
 .assistant{overflow-wrap:anywhere}
+/* activity: thinking and tool steps between replies, one compact row per step */
+.activity>summary,.step>summary{display:flex;align-items:baseline;gap:6px;min-width:0;cursor:pointer;list-style:none}
+.activity>summary::-webkit-details-marker,.step>summary::-webkit-details-marker{display:none}
+.activity>summary::after,.step>summary::after{content:"\203A";flex:none;color:var(--muted);transition:transform .15s}
+.activity[open]>summary::after,.step[open]>summary::after{transform:rotate(90deg)}
+.activity>summary{color:var(--muted);align-items:center;gap:8px}
+.activity .what{flex:none}
+.activity>summary .stat,.step>summary .stat{flex:none;gap:4px}
+.activity .doing{min-width:0;color:var(--signal);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spinner{flex:none;width:12px;height:12px;border:2px solid var(--line-strong);border-top-color:var(--signal);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+.steps{margin-top:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.steps>*+*{border-top:1px solid var(--line)}
+.steps>.note{margin:0;padding:6px 12px}
+.step.approval .verb,.step.approval .target{color:var(--muted);font-weight:400}
+.step .approved-tag{order:2;flex:none;color:var(--muted);font-size:12px}
+.step>summary::after{order:3}
+.step>summary{padding:6px 12px}
+.step .verb{flex:none;color:var(--muted)}
+.step.err .verb{color:var(--red)}
+.step .target{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step b.target{font-weight:600}
+.step code.target{font:12.5px/1.5 var(--mono)}
+.step i.target{color:var(--muted)}
+.step>.step-body{margin:0 12px 10px 24px;padding-left:12px;border-left:2px solid var(--signal)}
+.step>pre{margin:0 12px 10px;font:12.5px/1.5 var(--mono);white-space:pre-wrap;max-height:260px;overflow:auto}
+.step>.diff,.step>.message-images{margin:0 12px 10px}
+.thinking-hidden{font-style:italic;color:var(--muted)}
 
 /* readable Markdown */
 .markdown{white-space:normal;line-height:1.6;min-width:0}
@@ -149,10 +178,6 @@ small{font-size:12.5px;color:var(--muted)}
 .message-images .image-preview{width:220px;height:160px}
 .message-images img{max-height:100%}
 .image-error{color:var(--muted);font:12.5px/1.5 var(--ui)}
-.tool{font:12.5px/1.5 var(--mono);color:var(--muted);border-left:2px solid var(--line);padding-left:10px}
-.tool.err{border-color:var(--red);color:var(--red)}
-.tool summary{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tool pre{margin:6px 0 0;white-space:pre-wrap;max-height:260px;overflow:auto;color:var(--ink)}
 .note{color:var(--red);white-space:pre-wrap}
 .note.quiet{color:var(--muted)}
 .note.ext{border-left:2px solid var(--signal);padding-left:10px;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
@@ -182,9 +207,13 @@ small{font-size:12.5px;color:var(--muted)}
 
 /* queued input, approvals and composer */
 #queued{flex:none;max-height:30vh;overflow:auto;padding:0 20px}
-#queued>.user{max-width:88ch;margin:0 auto 10px}
-.queued-label{display:block;color:var(--signal);font-weight:600;margin-bottom:2px}
-#queued p{white-space:pre-wrap}
+.queue-bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:14px;max-width:88ch;margin:0 auto 10px;padding:4px 6px 4px 18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg)}
+.queue-count{font-weight:700;white-space:nowrap}
+.queue-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-height:36px;line-height:36px}
+.queue-tag{color:var(--muted)}
+.queue-actions{display:flex;gap:2px}
+.queue-actions button{width:34px;height:34px;background:none;border:0;border-radius:var(--r);color:var(--muted);font-size:17px;line-height:1}
+.queue-actions button:hover{background:var(--sunk);color:var(--ink)}
 #asks:empty{display:none}
 .ask{margin:0 20px 10px;border:1px solid var(--amber);background:var(--amber-wash);border-radius:var(--r);padding:12px 14px;max-width:88ch;width:calc(100% - 40px);align-self:center}
 .ask h3{font-size:14px;color:var(--amber);margin-bottom:4px}
