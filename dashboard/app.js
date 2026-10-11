@@ -8,6 +8,11 @@ const post = (path, body) => fetch(path, {method: 'POST', headers: {'content-typ
 const ago = ms => { const m = Math.max(0, (Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 const base = p => p.split(/[\\/]/).filter(Boolean).pop() || p;
 const usd = n => '$' + (n < 0.1 ? n.toFixed(4) : n.toFixed(2));
+const until = ms => { const m = Math.max(0, (ms - Date.now()) / 60000); return m < 60 ? Math.round(m) + ' min' : m < 1440 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' d'; };
+const percent = limit => limit.used == null ? 'unknown' : Math.round(limit.used * 100) + '% used';
+// Subscription windows from oh-my-pi's usage providers, the same rows omp's /usage shows.
+const usageRows = () => Object.values(state.usage ?? {});
+const limitName = (p, l) => l.label.startsWith(p.label + ' ') ? l.label.slice(p.label.length + 1) : l.label; // "Claude 5 Hour" under Claude
 const stored = (key, fallback) => { try { return JSON.parse(localStorage[key]) ?? fallback; } catch { return fallback; } };
 
 let state = {workspaces: [], models: [], groups: []}, stateSig = '', sel = null, source = null, current = null;
@@ -366,8 +371,8 @@ function renderSide() {
     if (!w.live.length && !w.saved.length) body.append(el('p', 'empty', 'No sessions yet.'));
     groups.append(sec);
   }
-  const usage = state.codexUsage;
-  $('codex-usage').textContent = usage ? `Codex usage estimate: ${usd(usage.used)}. No Apex spending cap.` : '';
+  $('subscription-usage').textContent = usageRows().map(p => `${p.label}: ` + (p.error ? 'usage unavailable'
+    : p.limits.map(l => `${limitName(p, l)} ${percent(l)}`).join(', '))).join(' · ');
 }
 
 async function refresh() {
@@ -667,7 +672,14 @@ function renderInfo() {
       use.append(kv2, el('small', '', 'Estimated from stored text size. Not exact input attribution.'));
     }
   }
-  if (state.codexUsage) { section(use, 'Codex usage estimate'); use.append(el('p', '', `${usd(state.codexUsage.used)}. No Apex spending cap.`), el('small', '', 'Counts only this dashboard and earlier recorded tests. Catalog estimate, not an invoice.')); }
+  const rows = usageRows();
+  if (rows.length) section(use, 'Subscription usage');
+  for (const p of rows) {
+    if (p.error) { use.append(el('p', 'note', `${p.label}: usage unavailable. Sign in again if this persists.`)); continue; }
+    const kv = el('table', 'kv');
+    for (const l of p.limits) { const tr = el('tr'); tr.append(el('td', '', `${p.label} ${limitName(p, l)}`), el('td', '', percent(l) + (l.resetsAt ? `, resets in ${until(l.resetsAt)}` : ''))); kv.append(tr); }
+    use.append(kv);
+  }
 
   cmd.replaceChildren(); section(cmd, 'Commands');
   if (!view.commands.length) hint(cmd, sel ? 'No commands reported yet.' : 'Open a session to see its commands.');

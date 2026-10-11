@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {mkdtemp, rm} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {readFile, mkdtemp, rm} from 'node:fs/promises';
+import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {ModelRuntime} from '@earendil-works/pi-coding-agent';
-import {ApiKeyLogin, OAuthLogin} from '../dashboard/provider-login.mjs';
+import {ApiKeyLogin, OAuthLogin, subscriptionUsage} from '../dashboard/provider-login.mjs';
 
 // The OAuth response is a fixture; Pi's login orchestration, file store and reload are real.
 // No OpenAI request, model call or access to the user's profile is made.
@@ -71,43 +74,108 @@ test('Codex login binds callbacks to the active attempt, persists across restart
   }
 });
 
-test('Claude login accepts only its own callback or a code#state for the active attempt', async () => {
+// oh-my-pi's Claude flow runs for real in Bun: PKCE, state, its localhost:54545 listener, token exchange, refresh and usage,
+// behind Pi's interaction and file store. A Bun preload sends api.anthropic.com to a local fixture and blocks all other
+// network, so no Claude request or access to the user's profile is made.
+test('Claude login, refresh and usage run through oh-my-pi: callback or code#state, PKCE exchange, refresh headers, 5h/7d windows', async t => {
   const home = await mkdtemp(join(tmpdir(), 'apex-claude-login-'));
   const options = {authPath: join(home, 'auth.json'), modelsPath: null, allowModelNetwork: false, refreshOnCreate: false};
+  const requests = [], resetsAt = new Date(Date.now() + 2 * 3600000).toISOString();
+  let tokenResponse = {access_token: 'fixture-claude-access', refresh_token: 'fixture-claude-refresh', expires_in: 3600,
+    account: {uuid: 'acct-1', email_address: 'me@example.com'}, organization: {uuid: 'org-1', name: 'Max plan'}};
+  const anthropic = createServer(async (req, res) => {
+    let body = '';
+    for await (const chunk of req) body += chunk;
+    requests.push({path: req.url.split('?')[0], headers: req.headers, body: body ? JSON.parse(body) : undefined});
+    const reply = req.method === 'POST' && req.url === '/v1/oauth/token' ? tokenResponse
+      : req.url === '/api/oauth/usage' ? {five_hour: {utilization: 42, resets_at: resetsAt}, seven_day: {utilization: 7, resets_at: resetsAt}} : undefined;
+    res.writeHead(reply ? 200 : 404, {'content-type': 'application/json'}).end(JSON.stringify(reply ?? {}));
+  });
+  await new Promise(resolve => anthropic.listen(0, '127.0.0.1', resolve));
+  const env = {BUN_OPTIONS: process.env.BUN_OPTIONS, APEX_TEST_ANTHROPIC: process.env.APEX_TEST_ANTHROPIC};
+  process.env.BUN_OPTIONS = `--preload ${fileURLToPath(new URL('./fixtures/omp-anthropic-fetch.mjs', import.meta.url)).replaceAll('\\', '/')}`;
+  process.env.APEX_TEST_ANTHROPIC = `http://127.0.0.1:${anthropic.address().port}`;
   let login;
-  try {
-    const runtime = await ModelRuntime.create(options);
-    const provider = runtime.getProvider('anthropic');
-    let promptReady, pasted;
-    const ready = new Promise(resolve => { promptReady = resolve; });
-    runtime.registerNativeProvider({...provider, auth: {...provider.auth, oauth: {...provider.auth.oauth, login: async interaction => {
-      interaction.notify({type: 'auth_url', url: 'https://claude.ai/oauth/authorize?code=true&state=claude-state'});
-      const answer = interaction.prompt({type: 'manual_code', signal: interaction.signal});
-      promptReady();
-      pasted = await answer;
-      return {type: 'oauth', access: 'fixture-claude-access', refresh: 'fixture-claude-refresh', expires: Date.now() + 3600000};
-    }}}});
-    login = new OAuthLogin(runtime, 'anthropic');
-    await login.start();
-    await ready;
-    const waiting = await login.status(), completion = login.flow.done;
-    assert.equal(waiting.prompt.code, true);
-    assert.match(waiting.url, /^https:\/\/claude\.ai\/oauth\/authorize\?/);
-    assert.throws(() => login.respond(waiting.id, 'sk-ant-api-key'), /code from Claude/);
-    assert.throws(() => login.respond(waiting.id, 'the-code#other-state'), /different sign-in attempt/);
-    assert.throws(() => login.respond(waiting.id, 'http://localhost:1455/auth/callback?code=x&state=claude-state'), /localhost:53692\/callback/);
-    login.respond(waiting.id, 'the-code#claude-state');
-    await completion;
-    assert.equal(pasted, 'the-code#claude-state');
-    const saved = await login.status();
-    assert.deepEqual([saved.phase, saved.signedIn], ['saved', true]);
-    assert.doesNotMatch(JSON.stringify(saved), /fixture-claude|the-code/);
-    assert.equal((await new OAuthLogin(runtime, 'openai-codex').status()).signedIn, false, 'logins are per provider');
-    assert.equal((await login.logout()).signedIn, false);
-  } finally {
+  t.after(async () => {
     if (login?.flow) await login.cancel(login.flow.id);
+    for (const [key, value] of Object.entries(env)) if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    anthropic.close();
     await rm(home, {recursive: true, force: true});
-  }
+  });
+  const until = async ready => { // fail fast (e.g. port 54545 busy or Bun missing) instead of polling forever
+    const deadline = Date.now() + 15000;
+    while (!ready()) {
+      if (login.state.phase === 'error') throw new Error(login.state.message);
+      if (Date.now() > deadline) throw new Error('Claude sign-in did not reach the expected step within 15 s');
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  };
+  const tokens = () => requests.filter(request => request.path === '/v1/oauth/token');
+  const runtime = await ModelRuntime.create(options);
+  login = new OAuthLogin(runtime, 'anthropic');
+  const clientId = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+
+  // Pasted code#state.
+  await login.start();
+  await until(() => login.state.prompt);
+  const waiting = await login.status(), completion = login.flow.done;
+  const authorize = new URL(waiting.url), state = authorize.searchParams.get('state');
+  assert.equal(authorize.origin + authorize.pathname, 'https://claude.ai/oauth/authorize');
+  assert.deepEqual(Object.fromEntries([...authorize.searchParams].filter(([key]) => !['state', 'code_challenge'].includes(key))), {
+    code: 'true', client_id: clientId, response_type: 'code', redirect_uri: 'http://localhost:54545/callback',
+    scope: 'org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload', code_challenge_method: 'S256'});
+  assert.match(state, /^[0-9a-f]{32}$/);
+  assert.equal(waiting.prompt.code, true);
+  assert.throws(() => login.respond(waiting.id, 'sk-ant-api-key'), /code from Claude/);
+  assert.throws(() => login.respond(waiting.id, 'the-code#other-state'), /different sign-in attempt/);
+  assert.throws(() => login.respond(waiting.id, `http://localhost:53692/callback?code=x&state=${state}`), /localhost:54545\/callback/);
+  login.respond(waiting.id, `the-code#${state}`);
+  await completion;
+  const [exchange] = tokens();
+  const {code_verifier: verifier, ...exchangeBody} = exchange.body;
+  assert.deepEqual(exchangeBody, {grant_type: 'authorization_code', client_id: clientId, code: 'the-code',
+    redirect_uri: 'http://localhost:54545/callback', state});
+  assert.notEqual(verifier, state, 'the PKCE verifier never travels as the state');
+  assert.equal(createHash('sha256').update(verifier).digest('base64url'), authorize.searchParams.get('code_challenge'));
+  assert.equal(exchange.headers['anthropic-beta'], undefined, 'Claude Code sends the OAuth beta on refresh only');
+  const saved = await login.status();
+  assert.deepEqual([saved.phase, saved.signedIn], ['saved', true]);
+  assert.doesNotMatch(JSON.stringify(saved), /fixture-claude|the-code/);
+  const stored = JSON.parse(await readFile(options.authPath, 'utf8')).anthropic;
+  assert.deepEqual([stored.type, stored.access, stored.orgId, stored.email], ['oauth', 'fixture-claude-access', 'org-1', 'me@example.com'], 'Pi stores the identity oh-my-pi captured');
+  assert.equal((await new OAuthLogin(runtime, 'openai-codex').status()).signedIn, false, 'logins are per provider');
+
+  // Browser return to oh-my-pi's localhost listener; a forged state is refused there.
+  await login.start();
+  await until(() => login.state.url);
+  const second = new URL(login.state.url).searchParams.get('state'), done = login.flow.done;
+  assert.notEqual(second, state);
+  assert.notEqual((await fetch(`http://127.0.0.1:54545/callback?code=forged&state=${state}`)).status, 200);
+  assert.equal((await fetch(`http://127.0.0.1:54545/callback?code=browser-code&state=${second}`)).status, 200);
+  await done;
+  assert.equal(tokens()[1].body.code, 'browser-code');
+  assert.equal((await login.status()).signedIn, true);
+  await assert.rejects(fetch('http://127.0.0.1:54545/callback'), 'the listener closes after sign-in');
+
+  // Refresh through Pi keeps the refresh token and login identity when Claude omits them.
+  tokenResponse = {access_token: 'fixture-refreshed-access', expires_in: 7200};
+  const refreshed = await runtime.getProvider('anthropic').auth.oauth.refresh({type: 'oauth', access: 'old', refresh: 'fixture-claude-refresh', expires: 0, orgId: 'org-1'});
+  const refresh = tokens()[2];
+  assert.deepEqual(refresh.body, {grant_type: 'refresh_token', client_id: clientId, refresh_token: 'fixture-claude-refresh'});
+  assert.equal(refresh.headers['anthropic-beta'], 'oauth-2025-04-20');
+  assert.match(refresh.headers['user-agent'], /^anthropic-sdk-typescript\/\d+\.\d+\.\d+ userOAuthProvider$/);
+  assert.deepEqual([refreshed.access, refreshed.refresh, refreshed.orgId], ['fixture-refreshed-access', 'fixture-claude-refresh', 'org-1']);
+  assert.ok(refreshed.expires > Date.now() + 7200000 - 300000 - 15000 && refreshed.expires <= Date.now() + 7200000 - 300000);
+
+  // Subscription usage: oh-my-pi's Claude usage provider with the saved token.
+  const usage = await subscriptionUsage(runtime);
+  assert.deepEqual(Object.keys(usage), ['anthropic'], 'only signed-in logins report usage');
+  assert.deepEqual(usage.anthropic, {label: 'Claude', limits: [{label: 'Claude 5 Hour', used: 0.42, resetsAt: Date.parse(resetsAt)},
+    {label: 'Claude 7 Day', used: 0.07, resetsAt: Date.parse(resetsAt)}]});
+  assert.equal(requests.find(request => request.path === '/api/oauth/usage').headers.authorization, 'Bearer fixture-claude-access');
+  assert.doesNotMatch(JSON.stringify(usage), /fixture-claude/);
+
+  assert.equal((await login.logout()).signedIn, false);
 });
 
 // Pi's real API-key login prompt and file store; no OpenCode request is made.

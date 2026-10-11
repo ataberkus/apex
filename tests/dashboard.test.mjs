@@ -85,7 +85,7 @@ test('dashboard refuses requests without the startup token, loopback Host or sam
   }
 });
 
-test('Codex sessions start and accept prompts above the former cap while usage remains recorded', async () => {
+test('Codex sessions start and accept prompts above the former cap', async () => {
   const budget = JSON.parse(await readFile(new URL('../evals/codex-budget.json', import.meta.url), 'utf8'));
   const matrix = JSON.parse(await readFile(new URL('../evals/final-validation.json', import.meta.url), 'utf8'));
   assert.equal(budget.spending_policy, 'unlimited');
@@ -94,7 +94,7 @@ test('Codex sessions start and accept prompts above the former cap while usage r
   assert.equal(budget.remaining_catalog_equivalent_usd, null);
   assert.equal(matrix.codex_oauth_testing_budget_cap_usd, null);
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-uncapped-'));
-  await writeFile(join(home, 'dashboard.json'), JSON.stringify({workspaces: [], spend: {sol: 100}}));
+  await writeFile(join(home, 'dashboard.json'), JSON.stringify({workspaces: []}));
   const port = 48000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
   const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
@@ -109,7 +109,7 @@ test('Codex sessions start and accept prompts above the former cap while usage r
     const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
     const state = async () => JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text);
     const post = (path, body) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
-    assert.deepEqual((await state()).codexUsage, {used: 100 + budget.observed_catalog_token_cost_usd});
+    assert.deepEqual((await state()).usage, {}, 'no saved subscription login, so oh-my-pi is never asked for usage');
     assert.equal((await post('/api/workspaces', {path: home})).status, 200);
     const started = await post('/api/start', {cwd: home, model: 'sol'});
     assert.equal(started.status, 200, started.text);
@@ -119,9 +119,6 @@ test('Codex sessions start and accept prompts above the former cap while usage r
     const {id} = JSON.parse(started.text);
     const sent = await post('/api/send', {id, message: 'Offline fixture prompt'});
     assert.equal(sent.status, 200, sent.text);
-    assert.deepEqual((await state()).codexUsage, {used: 100.25 + budget.observed_catalog_token_cost_usd});
-    const saved = JSON.parse(await readFile(join(home, 'dashboard.json'), 'utf8'));
-    assert.equal(saved.spend.sol, 100.25);
     const settings = async body => { const r = await post('/api/settings', {id, ...body}); return {...JSON.parse(r.text), code: r.status}; };
     const thought = await settings({thinking: 'medium'});
     assert.equal(thought.code, 200); assert.equal(thought.thinking, 'medium'); assert.deepEqual(thought.levels, ['low', 'medium', 'high', 'xhigh']);
@@ -234,7 +231,7 @@ test('auto-approve answers safety prompts for one session, including waiting one
   }
 });
 
-test('dashboard displays Codex usage estimates instead of a capped allowance', async () => {
+test('dashboard shows oh-my-pi subscription windows and resets, and flags unavailable usage', async () => {
   class Element {
     children = [];
     textContent = '';
@@ -253,14 +250,17 @@ test('dashboard displays Codex usage estimates instead of a capped allowance', a
     createElement() { return new Element(); },
     querySelectorAll() { return []; },
   };
-  const state = {workspaces: [], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}}, codexUsage: {used: 100.25}};
+  const resetsAt = Date.now() + 2 * 3600000 + 60000;
+  const state = {workspaces: [], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}},
+    usage: {anthropic: {label: 'Claude', limits: [{label: 'Claude 5 Hour', used: 0.42, resetsAt}, {label: 'Claude 7 Day', used: 0.07}]},
+      'openai-codex': {label: 'Codex', error: true}}};
   const script = (await readFile(new URL('../dashboard/app.js', import.meta.url), 'utf8')).replace(/^import .* from .*;\r?\n/gm, '');
   runInNewContext(script, {
     document, localStorage: {}, IMAGE_HELP, MAX_IMAGES, fetch: async () => ({json: async () => state}), setInterval() {},
   });
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(nodes.get('codex-usage').textContent, 'Codex usage estimate: $100.25. No Apex spending cap.');
+  assert.equal(nodes.get('subscription-usage').textContent, 'Claude: 5 Hour 42% used, 7 Day 7% used · Codex: usage unavailable');
   const text = node => [node.textContent, ...node.children.map(text)].join(' ');
-  assert.match(text(nodes.get('p-use')), /Codex usage estimate.*\$100\.25\. No Apex spending cap\..*not an invoice/);
-  assert.doesNotMatch(text(nodes.get('p-use')), /allowance|left of/);
+  assert.match(text(nodes.get('p-use')), /Subscription usage.*Claude 5 Hour 42% used, resets in 2 h.*Claude 7 Day 7% used .*Codex: usage unavailable/);
+  assert.doesNotMatch(text(nodes.get('p-use')), /estimate|allowance/);
 });

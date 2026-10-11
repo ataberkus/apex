@@ -14,7 +14,7 @@ import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
 import {formatPair} from '../extensions/apex-router/pair.mjs';
-import {createLogins, LOGINS} from './provider-login.mjs';
+import {createLogins, LOGINS, subscriptionUsage} from './provider-login.mjs';
 import {MAX_SEND_BODY_BYTES} from './attachments.mjs';
 import {promptCommand} from './chat-request.mjs';
 
@@ -22,7 +22,6 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const apexDir = process.env.APEX_DASH_HOME ?? join(process.env.LOCALAPPDATA ?? join(homedir(), '.local', 'share'), 'Apex');
 const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(apexDir, 'sol-oauth');
 const store = join(apexDir, 'dashboard.json');
-const budgetFile = join(root, 'evals', 'codex-budget.json');
 const port = Number(process.env.APEX_DASH_PORT ?? 4777);
 const THINKING = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const DIALOGS = new Set(['select', 'confirm', 'input', 'editor']);
@@ -48,8 +47,7 @@ const authState = async () => Object.fromEntries(await Promise.all(Object.entrie
 
 let saved = (() => { try { return JSON.parse(readFileSync(store, 'utf8')); } catch { return {}; } })();
 let workspaces = saved.workspaces ?? [];
-const spend = {sol: Number(saved.spend?.sol) || 0};
-const persist = () => { mkdirSync(apexDir, {recursive: true}); writeFileSync(store, JSON.stringify({workspaces, spend}, null, 1)); };
+const persist = () => { mkdirSync(apexDir, {recursive: true}); writeFileSync(store, JSON.stringify({workspaces}, null, 1)); };
 
 const sessionDir = cwd => join(agentDir, 'sessions', `--${cwd.replace(/^[\\/]/, '').replace(/[\\/:]/g, '-')}--`);
 
@@ -81,13 +79,14 @@ function savedSessions(cwd) {
   } catch { return []; }
 }
 
-// Recorded Codex test costs plus what this dashboard has measured since.
-// Catalog-token estimates, not invoices or a spending gate.
-function codexUsage() {
-  try {
-    const budget = JSON.parse(readFileSync(budgetFile, 'utf8'));
-    return {used: (budget.observed_catalog_token_cost_usd ?? 0) + spend.sol};
-  } catch { return null; }
+// oh-my-pi's subscription usage, refreshed in the background at most once a minute so /api/state never waits on it.
+let usage = {}, usageAt = 0;
+function usageState() {
+  if (Date.now() - usageAt > 60000) {
+    usageAt = Date.now();
+    subscriptionUsage(runtime, AbortSignal.timeout(30000)).then(next => { usage = next; }, () => {});
+  }
+  return usage;
 }
 
 const live = new Map();
@@ -140,7 +139,6 @@ function record(session, line) {
     const cost = Number(event.data.cost) || 0;
     session.base ??= session.file && session.resumed ? cost : 0; // a resumed file arrives with its earlier cost already recorded
     const delta = Math.max(0, cost - session.base);
-    if (loginsOf(session).includes('openai-codex') && delta > session.counted) { spend.sol += delta - session.counted; persist(); }
     session.counted = Math.max(session.counted, delta);
   }
   if (event.type === 'extension_ui_request' && DIALOGS.has(event.method) && !auto) {
@@ -364,7 +362,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/state') {
       const sessions = [...live.values()].map(summary);
       // `defaults` is the set bare `apex` gets on native Windows; each workspace says whether checkpoints can work there.
-      return json(res, 200, {thinking: THINKING, models: modelCatalog(runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), codexUsage: codexUsage(), auth: await authState(),
+      return json(res, 200, {thinking: THINKING, models: modelCatalog(runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), usage: usageState(), auth: await authState(),
         defaults: Object.fromEntries(Object.entries(WINDOWS_AUTO).map(([group, flags]) => [group, flags.split(',')])),
         workspaces: workspaces.map(path => ({path, checkpoints: checkpointsUsable(path), live: sessions.filter(session => session.cwd === path),
           saved: savedSessions(path).filter(entry => !sessions.some(session => session.file === entry.file))}))});

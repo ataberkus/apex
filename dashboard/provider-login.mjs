@@ -1,15 +1,74 @@
+import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
+import {createInterface} from 'node:readline';
+import {fileURLToPath} from 'node:url';
 import {CredentialSynchronizationError} from '@earendil-works/pi-coding-agent';
 
 // Providers the dashboard can sign in to. OAuth entries name the only sign-in page and callback Apex will accept;
 // `code` providers also show a code#state on their own page when the localhost return fails.
+// `oauth` entries replace Pi's built-in sign-in with oh-my-pi's; Pi still stores and hands out the credential.
 export const LOGINS = {
   'openai-codex': {label: 'Codex', site: 'OpenAI', account: 'ChatGPT', type: 'oauth',
     authorize: 'https://auth.openai.com/oauth/authorize', callback: 'http://localhost:1455/auth/callback'},
   anthropic: {label: 'Claude', site: 'Claude', account: 'Claude Pro or Max', type: 'oauth', code: true,
-    authorize: 'https://claude.ai/oauth/authorize', callback: 'http://localhost:53692/callback'},
+    authorize: 'https://claude.ai/oauth/authorize', callback: 'http://localhost:54545/callback', oauth: {login: loginClaude, refresh: refreshClaude}},
   'opencode-go': {label: 'OpenCode Go', site: 'OpenCode', account: 'OpenCode Go', type: 'api_key', env: ['OPENCODE_API_KEY']},
 };
+
+const SIDECAR = fileURLToPath(new URL('omp-sidecar.mjs', import.meta.url));
+
+// Runs one oh-my-pi operation in Bun (see omp-sidecar.mjs). Failures carry only an error class name, never a token body.
+function omp(op, input, {signal, onEvent} = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('bun', [SIDECAR, op], {stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true});
+    const reply = message => { if (child.stdin.writable) child.stdin.write(`${JSON.stringify(message)}\n`); };
+    const stop = () => child.stdin.end(); // the sidecar cancels oh-my-pi's work when stdin closes
+    signal?.addEventListener('abort', stop, {once: true});
+    child.stdin.on('error', () => {}); // the sidecar already exited; 'close' reports it
+    child.on('error', error => reject(error.code === 'ENOENT' ? new Error('oh-my-pi needs Bun on PATH (https://bun.sh).') : error));
+    child.on('close', () => { signal?.removeEventListener('abort', stop); reject(new Error(`oh-my-pi ${op} ended without a result`)); });
+    createInterface({input: child.stdout}).on('line', line => {
+      let message;
+      try { message = JSON.parse(line); } catch { return; }
+      if (message.type === 'done') resolve(message.result);
+      else if (message.type === 'error') reject(new Error(`oh-my-pi ${op} failed (${message.name})`));
+      else try { onEvent?.(message, reply); } catch (error) { reject(error); stop(); }
+    });
+    if (input) reply(input);
+    if (signal?.aborted) stop();
+  });
+}
+
+// oh-my-pi's Claude Pro/Max sign-in (catalog rules/auth/anthropic.kdl plus the anthropic-identity hook), bridged to Pi's callbacks.
+function loginClaude({onAuth, onProgress, onManualCodeInput, signal}) {
+  return omp('login', undefined, {signal, onEvent: (event, reply) => {
+    if (event.type === 'auth') onAuth({url: event.url, instructions: event.instructions});
+    else if (event.type === 'progress') onProgress?.(event.message);
+    else if (event.type === 'manual') onManualCodeInput?.().then(value => reply({type: 'code', value}), () => {});
+  }});
+}
+
+// Pi stores the refresh result as the whole credential; keep the account/org identity oh-my-pi captured at login.
+async function refreshClaude(credentials, signal) {
+  return {...credentials, ...await omp('refresh', {credentials}, {signal})};
+}
+
+// Subscription windows and resets (omp's /usage) for each signed-in OAuth login oh-my-pi has a usage provider for.
+export async function subscriptionUsage(runtime, signal) {
+  const saved = await runtime.listCredentials({signal});
+  const ids = Object.keys(LOGINS).filter(id => saved.some(c => c.providerId === id && c.type === 'oauth'));
+  const reports = await Promise.all(ids.map(async id => {
+    const {label} = LOGINS[id];
+    try {
+      const access = (await runtime.getAuth(id, {signal}))?.auth?.apiKey;
+      const limits = access && await omp('usage', {provider: id, access}, {signal});
+      return limits ? [id, {label, limits}] : [id, {label, error: true}];
+    } catch {
+      return [id, {label, error: true}];
+    }
+  }));
+  return Object.fromEntries(reports);
+}
 
 const unreadable = config => `Apex could not read the saved ${config.label} login. Check permissions on the agent-profile folder.`;
 
@@ -18,7 +77,8 @@ async function savedLogin(runtime, id, type) {
   return credentials.some(c => c.providerId === id && c.type === type);
 }
 
-// Pi owns PKCE, the localhost callback, token exchange, locked persistence and refresh.
+// Pi owns locked persistence and hands credentials to requests; unless the entry brings oh-my-pi's `oauth` flow,
+// Pi also owns PKCE, the localhost callback, token exchange and refresh.
 // This controller exposes only login progress and credential metadata to the dashboard.
 export class OAuthLogin {
   constructor(runtime, id) {
@@ -27,6 +87,10 @@ export class OAuthLogin {
     this.config = LOGINS[id];
     this.state = {phase: 'idle', message: ''};
     this.flow = null;
+    const {oauth, account} = this.config;
+    if (oauth) runtime.registerProvider(id, {oauth: {name: account, isSubscription: true,
+      login: oauth.login, refreshToken: oauth.refresh,
+      getApiKey: credentials => credentials.access}});
   }
 
   async status() {

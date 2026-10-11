@@ -84,7 +84,7 @@ test('the virtual model takes the build levels and the tighter limits; direct re
 test('the Windows target launches --apex-pair through the pair extension at the build level; single models keep xhigh', () => {
   const build = args => buildPiInvocation(['--apex-target', 'windows', ...args], '/pi.js', {platform: 'win32'}).args;
   const args = build(['--apex-pair', 'anthropic/claude-opus-5-5:high,anthropic/claude-sonnet-5-5:low', 'task']);
-  assert.ok(option(args, '--extension').endsWith('pair.mjs'));
+  assert.deepEqual(args.filter((arg, index) => args[index - 1] === '--extension').map(path => path.split(/[/\\]/).at(-1)), ['claude-identity.mjs', 'pair.mjs']);
   assert.deepEqual([option(args, '--' + PAIR_FLAG), option(args, '--provider'), option(args, '--model'), option(args, '--thinking')],
     ['anthropic/claude-opus-5-5:high,anthropic/claude-sonnet-5-5', 'apex', 'pair', 'low']);
   assert.equal(option(build(['--apex-pair', 'anthropic/claude-opus-5-5:high,openai-codex/gpt-6-luna', 'task']), '--thinking'), 'medium');

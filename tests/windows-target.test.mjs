@@ -39,14 +39,14 @@ test('Windows target selects exact Sol/xhigh without automatically enabling a fe
   assert.equal(option(invocation.args, '--model'), WINDOWS_MODEL);
   assert.equal(option(invocation.args, '--thinking'), 'xhigh');
   assert.equal(option(invocation.args, '--mode'), 'json');
-  assert.ok(!invocation.args.includes('--extension'));
+  assert.deepEqual(invocation.args.filter((arg, index) => invocation.args[index - 1] === '--extension').map(path => path.split(/[/\\]/).at(-1)), ['claude-identity.mjs']);
   assert.equal(invocation.args.at(-1), 'task');
 });
 
 test('Windows context/core/daily flags compose without changing the benchmark authorization', () => {
   const args = build(['--apex-context', 'read,search,edit,shape', '--apex-core', 'todo,verify',
     '--apex-features', 'cost,checkpoints,plan,report', '--model', 'gpt-6.1-sol', '--provider', 'openai-codex', '--thinking', 'xhigh', 'task']).args;
-  assert.equal(args.filter(arg => arg === '--extension').length, 3);
+  assert.equal(args.filter(arg => arg === '--extension').length, 4);
   assert.equal(option(args, '--apex-context-flags'), 'read,search,edit,shape');
   assert.equal(option(args, '--apex-core-flags'), 'todo,verify');
   assert.equal(option(args, '--apex-feature-flags'), 'cost,checkpoints,plan,report');
