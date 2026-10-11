@@ -260,13 +260,13 @@ function eachLine(stream, onLine) {
 // target, whatever the session's features: it adds only the Claude identity patch, without which Claude subscription
 // calls are refused. Pi's --tools allowlist (built-in, extension and custom tools alike) leaves only read/grep/find/ls,
 // and nothing is saved.
-// Low thinking keeps an xhigh session from making every enhance slow; Pi clamps a level the model lacks.
+// Medium thinking, whatever the session's level: an xhigh session doesn't make every enhance slow. Pi clamps a level the model lacks.
 const ENHANCE_SYSTEM = `You are a prompt enhancer for a coding agent working in this repository. Rewrite the user's draft into a clear, specific prompt that agent can act on.
 - Keep the user's intent, scope and language. Do not add requirements they did not ask for.
 - Look up only what the draft refers to: at most 6 tool calls. Name real files, symbols and commands you confirmed. Never invent paths.
 - Include acceptance criteria or a verification step only when the draft implies one.
 - Output ONLY the rewritten prompt as plain Markdown. No preamble, no explanation, no code fence around the whole prompt.`;
-const enhanceArgs = (target, model) => [...(target ? ['--apex-target', target] : ['--apex-off']), '--provider', model.provider, '--model', model.model, '--thinking', 'low',
+const enhanceArgs = (target, model) => [...(target ? ['--apex-target', target] : ['--apex-off']), '--provider', model.provider, '--model', model.model, '--thinking', 'medium',
   '-p', '--mode', 'json', '--no-session', '--no-extensions', '--no-skills', '--no-prompt-templates', '--tools', 'read,grep,find,ls', '--append-system-prompt', ENHANCE_SYSTEM];
 const textOf = content => typeof content === 'string' ? content : (content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n');
 // The draft goes on stdin, never in argv: no quoting hazards and no Windows command-line limit.
