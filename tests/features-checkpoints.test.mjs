@@ -255,15 +255,33 @@ test('history charges unchanged content once, so long sessions in large projects
   assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'agent 3');
 });
 
-test('capture and restore enforce file, byte, checkpoint caps', async t => {
+test('capture and restore enforce file and byte caps', async t => {
   for (const limits of [{ maxFiles: 1 }, { maxBytes: 2 }, { maxStoredBytes: 64 }]) {
     const { manager } = await fixture(t, { limits });
     await assert.rejects(manager.capture('cap'), /cap|limit/i);
     assert.deepEqual(await manager.list(), []);
   }
-  const { manager } = await fixture(t, { limits: { maxCheckpoints: 1 } });
-  await manager.capture('first'); await manager.finish('first');
-  await assert.rejects(manager.capture('second'), /cap|limit/i);
+});
+
+test('past maxCheckpoints the oldest records are dropped and history is recharged, so capture never blocks', async t => {
+  // Every turn adds 100 kB of new content; history charged for dropped records would pass maxStoredBytes by turn 5.
+  const { cwd, manager } = await fixture(t, { limits: { maxCheckpoints: 2, maxStoredBytes: 450000 } });
+  for (let turn = 1; turn <= 6; turn++) {
+    await manager.capture(`turn-${turn}`);
+    await writeFile(path.join(cwd, 'tracked.txt'), `agent ${turn}`);
+    await writeFile(path.join(cwd, 'big.bin'), Buffer.alloc(100000, turn));
+    assert.deepEqual((await manager.finish(`turn-${turn}`)).changedPaths, ['big.bin', 'tracked.txt']);
+  }
+  // A turn that changed nothing (a test run through bash) has nothing to undo and must not evict one that did.
+  await manager.capture('verify');
+  assert.equal((await manager.finish('verify')).status, 'unchanged');
+  assert.deepEqual((await manager.list()).map(record => record.turnId), ['turn-5', 'turn-6']);
+  await assert.rejects(manager.restore('turn-4'), /unknown/i);
+  assert.equal((await manager.restore('turn-6')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'agent 5');
+  assert.equal((await manager.restore('turn-5')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'agent 4');
+  assert.deepEqual(await readFile(path.join(cwd, 'big.bin')), Buffer.alloc(100000, 4));
 });
 
 test('post-apply durable Git failure rolls back every actual restored file and remains retryable', async t => {
@@ -435,6 +453,7 @@ test('untrusted shadow attributes cannot invoke source filters', async t => {
   const metadata = path.join(cwd, '.apex/checkpoints', session, 'shadow/.git');
   await mkdir(path.join(metadata, 'info'), { recursive: true });
   await writeFile(path.join(metadata, 'info/attributes'), 'payload/* filter=hostile\n');
+  await writeFile(path.join(cwd, 'untracked.txt'), 'agent change reaches the after snapshot\n');
   await assert.rejects(manager.finish('filter'), /custom attributes|indirection/i);
   assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'dirty source\n');
 });

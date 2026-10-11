@@ -28,6 +28,8 @@ const cancelled = signal => { if (signal?.aborted) throw fail('cancelled', 'Chec
 const equal = (a, b) => (!a && !b) || Boolean(a && b && a.hash === b.hash && a.size === b.size && a.mode === b.mode);
 // Oversized files are in neither snapshot, so their absence is not a change: undo never writes or deletes them.
 const changes = record => { const skipped = new Set(record.skippedPaths ?? []); return [...new Set([...Object.keys(record.before), ...Object.keys(record.after)])].filter(name => !skipped.has(name) && !equal(record.before[name], record.after[name])).sort(); };
+// History is the content (by SHA-256) the records hold; Git stores identical content once.
+const charged = records => { const sizes = new Map(); for (const record of records) for (const file of [...Object.values(record.before), ...Object.values(record.after ?? {})]) sizes.set(file.hash, file.size); let total = 0; for (const size of sizes.values()) total += size; return total; };
 const hex = (value, lengths = [64]) => typeof value === 'string' && lengths.includes(value.length) && /^[a-f0-9]+$/.test(value);
 const privatePart = value => /^(?:\.git|version-control|\.apex|\.ssh|\.aws|\.gnupg|\.codex|\.cache|\.tools|node_modules)$/i.test(value) || /^(?:\.env(?:[.\-].*)?|auth\.json|credentials(?:\.json)?|id_(?:rsa|ed25519)|.*\.(?:pem|key|p12|pfx))$/i.test(value);
 function safePath(value) {
@@ -212,7 +214,8 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   }
   const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
   function validateState(state) {
-    if (!state || state.version !== 1 || state.sessionKey !== sessionKey || state.cwd !== root || !Array.isArray(state.records) || state.records.length > limits.maxCheckpoints || !Number.isSafeInteger(state.storedBytes) || state.storedBytes < 0 || state.storedBytes > limits.maxStoredBytes) throw fail('metadata', 'Checkpoint metadata is invalid or foreign');
+    // maxCheckpoints + 1: save exempts the turn being captured until finish knows whether it changed anything.
+    if (!state || state.version !== 1 || state.sessionKey !== sessionKey || state.cwd !== root || !Array.isArray(state.records) || state.records.length > limits.maxCheckpoints + 1 || !Number.isSafeInteger(state.storedBytes) || state.storedBytes < 0 || state.storedBytes > limits.maxStoredBytes) throw fail('metadata', 'Checkpoint metadata is invalid or foreign');
     const ids = new Set();
     for (const record of state.records) {
       validTurn(record.turnId);
@@ -260,10 +263,20 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (!bytes) return blank();
     try { return validateState(JSON.parse(bytes.toString('utf8'))); } catch (error) { if (error.name === 'CheckpointError') throw error; throw fail('metadata', 'Checkpoint metadata is malformed'); }
   }
-  async function save(state) {
+  async function save(state, keep) {
+    // Drop the oldest records instead of failing: a long session must keep capturing, and only their undo is lost.
+    // Records are independent snapshots, so the ones that remain restore exactly as before. A capture in flight is not
+    // counted: most turns change nothing, and evicting a real record for each of them would empty undo.
+    const room = limits.maxCheckpoints + (keep?.status === 'captured' ? 1 : 0);
+    let data;
+    for (;;) {
+      state.storedBytes = charged(state.records);
+      data = Buffer.from(JSON.stringify(state));
+      if (state.records.length <= room && data.length <= limits.maxMetadataBytes) break;
+      if (state.records.length < 2) throw fail('cap', 'Checkpoint metadata byte cap exceeded');
+      state.records.splice(state.records[0] === keep ? 1 : 0, 1);
+    }
     validateState(state);
-    const data = Buffer.from(JSON.stringify(state));
-    if (data.length > limits.maxMetadataBytes) throw fail('cap', 'Checkpoint metadata byte cap exceeded');
     await ensureDir(`.apex/checkpoints/${sessionKey}`, true);
     const temporary = path.join(store, `state-${randomUUID()}.tmp`);
     const handle = await open(temporary, 'wx', 0o600);
@@ -345,7 +358,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       files[relative] = { ...collected.files[relative], blob: match[2] };
     }
     if (Object.keys(files).length !== Object.keys(collected.files).length || !hex(commit, [40, 64])) throw fail('metadata', 'Checkpoint shadow Git snapshot is incomplete');
-    return { commit, files, bytes: added };
+    return { commit, files };
   }
   const result = record => structuredClone({ turnId: record.turnId, status: record.status, beforeCommit: record.beforeCommit, ...(record.afterCommit ? { afterCommit: record.afterCommit } : {}), changedPaths: record.changedPaths, skippedPaths: record.skippedPaths ?? [], capturedAt: record.capturedAt, ...(record.finishedAt ? { finishedAt: record.finishedAt } : {}) });
   function schedule(options, work) {
@@ -375,13 +388,12 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     const job = schedule(options, async signal => {
       const state = await load(signal); const existing = state.records.find(record => record.turnId === turnId);
       if (existing) return result(existing);
-      if (state.records.length >= limits.maxCheckpoints) throw fail('cap', 'Checkpoint record count cap exceeded');
       const collected = await collect(signal);
       const before = await snapshot(collected, state, turnId, 'before', signal);
       cancelled(signal);
       const record = { turnId, status: 'captured', beforeCommit: before.commit, before: before.files, changedPaths: [], skippedPaths: collected.skipped, capturedAt: new Date().toISOString() };
-      state.records.push(record); state.storedBytes += before.bytes;
-      await save(state);
+      state.records.push(record);
+      await save(state, record);
       return result(record);
     });
     captures.set(turnId, job); job.finally(() => captures.delete(turnId)).catch(() => {});
@@ -394,13 +406,19 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       if (!record) throw fail('unknown-turn', 'Unknown checkpoint turn');
       if (record.status !== 'captured') return result(record);
       const collected = await collect(signal);
+      const skippedPaths = [...new Set([...record.skippedPaths ?? [], ...collected.skipped])].sort();
+      // A turn that changed nothing (tests or a read through bash) has nothing to undo; keeping it would only evict one that does.
+      if (!changes({ before: record.before, after: collected.files, skippedPaths }).length) {
+        state.records.splice(state.records.indexOf(record), 1);
+        await save(state);
+        return { ...result(record), status: 'unchanged' };
+      }
       const after = await snapshot(collected, state, turnId, 'after', signal);
       cancelled(signal);
-      record.after = after.files; record.afterCommit = after.commit;
-      record.skippedPaths = [...new Set([...record.skippedPaths ?? [], ...collected.skipped])].sort();
+      record.after = after.files; record.afterCommit = after.commit; record.skippedPaths = skippedPaths;
       record.changedPaths = changes(record);
-      record.status = 'finished'; record.finishedAt = new Date().toISOString(); state.storedBytes += after.bytes;
-      await save(state);
+      record.status = 'finished'; record.finishedAt = new Date().toISOString();
+      await save(state, record);
       return result(record);
     });
   }
@@ -457,7 +475,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
         // Durable shadow marker is written only after actual file restoration.
         await git(['update-ref', ref, record.beforeCommit], shadow, signal); marker = true;
         record.status = 'restored'; record.restoredAt = new Date().toISOString();
-        await save(state);
+        await save(state, record);
         committed = true;
         await rm(transaction, { recursive: true });
         return result(record);

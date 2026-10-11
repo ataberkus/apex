@@ -21,14 +21,15 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   const persist=()=>pi.appendEntry(STATE,structuredClone(meta));
   const summary=ctx=>accounting.summarizeSession(ctx.sessionManager.getEntries(),{context:ctx.getContextUsage?.(),model:ctx.model,pricing:ctx.model?.cost,activeLeaf:ctx.sessionManager.getLeafId?.()??ctx.sessionManager.getBranch().at(-1)?.id??null});
   const updateCost=ctx=>{if(flags.has('cost')&&ctx.hasUI&&typeof ctx.ui?.setStatus==='function')ctx.ui.setStatus('apex-cost',accounting.formatCost(summary(ctx)));};
-  const rememberCheckpoint=id=>{if(!meta.checkpointIds.includes(id))meta.checkpointIds.push(id);persist();};
-  const closeTurn=async()=>{if(checkpoints&&turnId&&captured){await checkpoints.finish(turnId);rememberCheckpoint(turnId);}turnId=undefined;captured=false;};
+  // A turn that changed nothing leaves no record (checkpoints.finish reports 'unchanged'), so there is nothing to undo.
+  const rememberCheckpoint=(id,finished)=>{if(finished?.status==='unchanged')return;if(!meta.checkpointIds.includes(id))meta.checkpointIds=[...meta.checkpointIds,id].slice(-50);persist();};
+  const closeTurn=async()=>{if(checkpoints&&turnId&&captured)rememberCheckpoint(turnId,await checkpoints.finish(turnId));turnId=undefined;captured=false;};
   const command=(name,description,handler)=>pi.registerCommand(name,{description,async handler(args,ctx){try{return await handler(args,ctx);}catch(error){const r={ok:false,reason:reason(error)};notify(ctx,r.reason);return r;}}});
   const checkpointed=async(operation,ctx)=>{
    if(!checkpoints)return operation();
    meta.turnCounter++;persist();const id=String(meta.turnCounter);
    await checkpoints.capture(id,{signal:ctx.signal});
-   try{return await operation();}finally{await checkpoints.finish(id);rememberCheckpoint(id);}
+   try{return await operation();}finally{rememberCheckpoint(id,await checkpoints.finish(id));}
   };
   const initialize=async(_event,ctx)=>{
    await checkpoints?.shutdown();releaseMode();
