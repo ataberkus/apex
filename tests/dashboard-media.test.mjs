@@ -19,7 +19,7 @@ async function chat(t) {
     {id: 'text', title: 'Text only', cwd: 'C:\\project', model: 'muse', input: ['text'], thinking: 'high', status: 'idle', pending: [], settled: 0},
     {id: 'unsigned', title: 'Unsigned Codex', cwd: 'C:\\project', model: 'sol', provider: 'openai-codex', input: ['text', 'image'], thinking: 'high', status: 'idle', pending: [], settled: 0},
   ];
-  const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: []}], models: [{id: 'muse', label: 'Muse', input: ['text', 'image']}], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}}};
+  const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: [], archived: []}], models: [{id: 'muse', label: 'Muse', input: ['text', 'image']}], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}}};
   let error = null;
   window.fetch = async (path, options) => {
     if (path === '/api/state') return {ok: true, json: async () => state};

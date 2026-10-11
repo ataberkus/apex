@@ -95,8 +95,12 @@ small{font-size:12.5px;color:var(--muted)}
 .row[aria-current=true]{background:var(--signal-wash)}
 .row b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved-row{display:flex;align-items:center;gap:2px}
+.saved-row .row{flex:1;min-width:0}
+.saved-row .more{color:var(--muted);font-weight:400;font-size:13px}
 .st{font-weight:600}
 .st.running{color:var(--signal)}.st.asks,.st.finished{color:var(--amber)}.st.error{color:var(--red)}.st.idle,.st.saved,.st.done{color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor;margin-right:7px;vertical-align:1px}
 .empty{color:var(--muted);padding:4px 8px}
 .usage-summary{border-top:1px solid var(--line);padding:10px 14px;color:var(--muted);font-size:12.5px}
 

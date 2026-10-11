@@ -9,6 +9,7 @@ const ago = ms => { const m = Math.max(0, (Date.now() - ms) / 60000); return m <
 const base = p => p.split(/[\\/]/).filter(Boolean).pop() || p;
 const usd = n => '$' + (n < 0.1 ? n.toFixed(4) : n.toFixed(2));
 const until = ms => { const m = Math.max(0, (ms - Date.now()) / 60000); return m < 60 ? Math.round(m) + ' min' : m < 1440 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' d'; };
+const dur = ms => { const s = ms / 1000; return s < 60 ? s.toFixed(1) + 's' : s < 3600 ? `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s` : `${Math.floor(s / 3600)}h ${Math.floor(s / 60 % 60)}m`; };
 const percent = limit => limit.used == null ? 'unknown' : Math.round(limit.used * 100) + '% used';
 // Subscription windows from oh-my-pi's usage providers, the same rows omp's /usage shows.
 const usageRows = () => Object.values(state.usage ?? {});
@@ -325,13 +326,32 @@ function label(s) {
   return ['idle', 'Idle'];
 }
 
+// Decorative state dot; colour comes from the same `.st.<kind>` mapping, the word in <small> carries the meaning.
+const dot = kind => { const d = el('span', 'dot st ' + kind); d.setAttribute('aria-hidden', 'true'); return d; };
+
 function sessionButton(s, onclick, extra) {
   const b = el('button', 'row'), [kind, words] = label(s);
   b.type = 'button'; b.setAttribute('aria-current', String(s.id === sel?.id));
   const small = el('small'); small.append(el('span', 'st ' + kind, words), document.createTextNode(extra ?? ', ' + routeWords(s)));
   b.append(el('b', '', s.title || 'New session'), small); b.onclick = onclick;
+  b.firstChild.prepend(dot(kind));
+  // Running time ticks client-side (see the interval at the bottom); state only changes on start/settle.
+  if (s.status === 'running' && s.startedAt) { const t = el('small', 'run', 'Running ' + dur(Date.now() - s.startedAt)); t.dataset.since = s.startedAt; b.append(t); }
+  else if (s.ranMs != null) b.append(el('small', 'run', 'Last run ' + dur(s.ranMs)));
   return b;
 }
+
+// A saved or archived session: the title opens it, the side button moves it between the two lists (files never change).
+function savedRow(w, s, words, action, endpoint) {
+  const line = el('div', 'saved-row'), b = el('button', 'row'); b.type = 'button';
+  const m = el('small'); m.append(el('span', 'st saved', words), document.createTextNode(', ' + ago(s.mtime)));
+  b.append(el('b', '', s.title), m); b.firstChild.prepend(dot('saved')); b.onclick = () => openLaunch(w.path, s.file, s.title);
+  const act = el('button', 'ghost more', action); act.type = 'button'; act.title = 'The session stays on disk';
+  act.setAttribute('aria-label', `${action} ${s.title}`);
+  act.onclick = async () => { await post(endpoint, {file: s.file}).catch(e => alert(e.message)); refresh(); };
+  line.append(b, act); return line;
+}
+const archivedOpen = new Set(); // workspaces whose Archived group is expanded, kept across re-renders
 
 function renderSide() {
   const groups = $('groups'); groups.replaceChildren();
@@ -366,12 +386,15 @@ function renderSide() {
     more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); };
     head.append(title, add, more); body.append(small, menu); sec.append(head, body);
     for (const s of w.live) body.append(sessionButton(s, () => select(s)));
-    for (const s of w.saved) {
-      const b = el('button', 'row'); b.type = 'button';
-      const m = el('small'); m.append(el('span', 'st saved', 'Saved'), document.createTextNode(', ' + ago(s.mtime)));
-      b.append(el('b', '', s.title), m); b.onclick = () => openLaunch(w.path, s.file, s.title); body.append(b);
-    }
+    for (const s of w.saved) body.append(savedRow(w, s, 'Saved', 'Archive', '/api/sessions/archive'));
     if (!w.live.length && !w.saved.length) body.append(el('p', 'empty', 'No sessions yet.'));
+    if (w.archived.length) {
+      const open = archivedOpen.has(w.path), list = el('div'); list.hidden = !open;
+      const toggle = el('button', 'ghost more', `Archived (${w.archived.length})`); toggle.type = 'button'; toggle.setAttribute('aria-expanded', String(open));
+      toggle.onclick = () => { list.hidden = !list.hidden; toggle.setAttribute('aria-expanded', String(!list.hidden)); archivedOpen[list.hidden ? 'delete' : 'add'](w.path); };
+      for (const s of w.archived) list.append(savedRow(w, s, 'Archived', 'Restore', '/api/sessions/unarchive'));
+      body.append(toggle, list);
+    }
     groups.append(sec);
   }
   $('subscription-usage').textContent = usageRows().map(p => `${p.label}: ` + (p.error ? 'usage unavailable'
@@ -1083,3 +1106,4 @@ $('theme').onchange = () => {
 };
 
 refresh().then(renderInfo); setInterval(refresh, 3000);
+setInterval(() => { for (const t of document.querySelectorAll('[data-since]')) t.textContent = 'Running ' + dur(Date.now() - t.dataset.since); }, 1000);

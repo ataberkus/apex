@@ -46,8 +46,8 @@ const authState = async () => Object.fromEntries(await Promise.all(Object.entrie
 })));
 
 let saved = (() => { try { return JSON.parse(readFileSync(store, 'utf8')); } catch { return {}; } })();
-let workspaces = saved.workspaces ?? [];
-const persist = () => { mkdirSync(apexDir, {recursive: true}); writeFileSync(store, JSON.stringify({workspaces}, null, 1)); };
+let workspaces = saved.workspaces ?? [], archived = saved.archived ?? []; // archived: session .jsonl paths hidden from the list
+const persist = () => { mkdirSync(apexDir, {recursive: true}); writeFileSync(store, JSON.stringify({workspaces, archived}, null, 1)); };
 
 const sessionDir = cwd => join(agentDir, 'sessions', `--${cwd.replace(/^[\\/]/, '').replace(/[\\/:]/g, '-')}--`);
 
@@ -70,12 +70,19 @@ function titleOf(file) {
   return 'Untitled session';
 }
 
-function savedSessions(cwd) {
+// Saved sessions (newest 15) or, with `inArchive`, every archived one; `archived` decides which side a file is on.
+// Titles are cached per file until its mtime changes, so the 3 s poll doesn't re-read every (mostly archived) file.
+const titles = new Map();
+function savedSessions(cwd, inArchive = false) {
   const dir = sessionDir(cwd);
   try {
-    return readdirSync(dir).filter(name => name.endsWith('.jsonl')).map(name => join(dir, name))
-      .map(file => ({file, mtime: statSync(file).mtimeMs})).sort((a, b) => b.mtime - a.mtime).slice(0, 15)
-      .map(session => ({...session, title: titleOf(session.file)}));
+    return readdirSync(dir).filter(name => name.endsWith('.jsonl')).map(name => join(dir, name)).filter(file => archived.includes(file) === inArchive)
+      .map(file => ({file, mtime: statSync(file).mtimeMs})).sort((a, b) => b.mtime - a.mtime).slice(0, inArchive ? undefined : 15)
+      .map(session => {
+        let cached = titles.get(session.file);
+        if (cached?.mtime !== session.mtime) titles.set(session.file, cached = {mtime: session.mtime, title: titleOf(session.file)});
+        return {...session, title: cached.title};
+      });
   } catch { return []; }
 }
 
@@ -124,8 +131,8 @@ function record(session, line) {
   let event;
   try { event = JSON.parse(line); } catch { return; }
   const auto = autoApproves(session, event);
-  if (event.type === 'agent_start') session.status = 'running';
-  if (event.type === 'agent_settled') { session.status = 'idle'; session.settled++; }
+  if (event.type === 'agent_start') { session.status = 'running'; session.startedAt = Date.now(); }
+  if (event.type === 'agent_settled') { session.status = 'idle'; session.settled++; session.ranMs = Date.now() - session.startedAt; }
   if (event.type === 'agent_settled' || event.type === 'turn_end') send(session, {id: 'stats', type: 'get_session_stats'});
   if (event.type === 'agent_settled') send(session, {id: 'state', type: 'get_state'});
   if (event.type === 'response') session.requests.get(event.id)?.(event.success ? null : new Error(event.error || 'The agent rejected the message.'), event.data);
@@ -377,7 +384,8 @@ async function readBody(req, limit = 1_000_000) {
 const summary = session => ({id: session.id, cwd: session.cwd, status: session.status, title: session.title, file: session.file, model: session.model, provider: session.provider, input: session.input,
   thinking: session.thinking, levels: session.levels, lock: lockOf(session),
   pair: session.pair && {plan: {model: session.pair.plan.model, thinking: session.pair.plan.thinking}, build: {model: session.pair.build.model}},
-  target: session.target, logins: loginsOf(session), flags: session.flags, pending: [...session.pending.values()], autoApprove: session.autoApprove, spent: session.counted, settled: session.settled});
+  target: session.target, logins: loginsOf(session), flags: session.flags, pending: [...session.pending.values()], autoApprove: session.autoApprove, spent: session.counted, settled: session.settled,
+  startedAt: session.startedAt, ranMs: session.ranMs});
 
 const conflict = message => Object.assign(new Error(message), {status: 409});
 const samePair = (a, b) => Boolean(a && b) && a.plan.model === b.plan.model && a.plan.thinking === b.plan.thinking && a.build.model === b.build.model;
@@ -447,7 +455,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {thinking: THINKING, models: modelCatalog(runtime), groups: GROUPS, paid: Boolean(runtimePolicy().paid_runs_enabled), usage: usageState(), auth: await authState(),
         defaults: Object.fromEntries(Object.entries(WINDOWS_AUTO).map(([group, flags]) => [group, flags.split(',')])),
         workspaces: workspaces.map(path => ({path, checkpoints: checkpointsUsable(path), live: sessions.filter(session => session.cwd === path),
-          saved: savedSessions(path).filter(entry => !sessions.some(session => session.file === entry.file))}))});
+          saved: savedSessions(path).filter(entry => !sessions.some(session => session.file === entry.file)),
+          archived: savedSessions(path, true).filter(entry => !sessions.some(session => session.file === entry.file))}))});
     }
     if (req.method === 'GET' && url.pathname === '/api/events') {
       const session = live.get(url.searchParams.get('id'));
@@ -498,6 +507,16 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/pick-folder') return json(res, 200, {path: await pickFolder()});
     if (url.pathname === '/api/workspaces/remove') { // list entry only; never touches files
       workspaces = workspaces.filter(path => path !== body.path);
+      persist();
+      return json(res, 200, {});
+    }
+    if (url.pathname === '/api/sessions/archive') { // list entry only; the .jsonl stays where it is
+      if (typeof body.file !== 'string') return fail(res, 400, 'Missing session file');
+      if (!archived.includes(body.file)) { archived.push(body.file); persist(); }
+      return json(res, 200, {});
+    }
+    if (url.pathname === '/api/sessions/unarchive') { // list entry only; the .jsonl stays where it is
+      archived = archived.filter(file => file !== body.file);
       persist();
       return json(res, 200, {});
     }

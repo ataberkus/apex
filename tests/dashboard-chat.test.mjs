@@ -19,7 +19,7 @@ async function chat(t) {
     {id: 'first', title: 'Working session', cwd: 'C:\\project', model: 'sol', thinking: 'xhigh', status: 'running', pending: [], settled: 0},
     {id: 'second', title: 'Other session', cwd: 'C:\\project', model: 'sol', thinking: 'xhigh', status: 'idle', pending: [], settled: 0},
   ];
-  const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: []}], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: true}}};
+  const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: [], archived: []}], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: true}}};
   let sendError = null;
   window.fetch = async (path, options) => {
     if (path === '/api/state') return {ok: true, json: async () => state};
