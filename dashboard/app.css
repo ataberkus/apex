@@ -111,6 +111,8 @@ small{font-size:12.5px;color:var(--muted)}
 .who h2{font:600 19px/1.25 var(--display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .who p{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .who p.path{font:12px/1.5 var(--mono)}
+.who p.usage{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.who p.usage .meter{width:44px;height:6px;margin:0}
 .actions{display:flex;gap:8px}
 .btn.auto.on{background:var(--amber-wash);border-color:var(--amber);color:var(--amber);font-weight:600}
 #log{flex:1;overflow:auto;padding:20px}

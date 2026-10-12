@@ -36,6 +36,7 @@ const nearest = (levels, want) => levels.includes(want) ? want : levels.reduce((
 const pairable = m => Boolean(m?.target && m.apex); // pairs run through the Windows target on saved logins
 const shortName = id => (modelById(id)?.label ?? id ?? '').replace(/^Claude /, '').replace(/ \(latest\)$/, '');
 const contextWords = n => !n ? '' : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M context` : `${Math.round(n / 1000)}k context`;
+const kilo = n => n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : String(n);
 const routeOf = s => s.model === PAIR && s.pair ? {mode: 'pair', plan: {...s.pair.plan}, build: {model: s.pair.build.model, thinking: s.thinking}} : {mode: 'single', model: s.model, thinking: s.thinking};
 const sameRoute = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const samePair = (route, pair) => Boolean(pair) && route.plan.model === pair.plan.model && route.plan.thinking === pair.plan.thinking && route.build.model === pair.build.model;
@@ -428,6 +429,22 @@ function header() {
   $('auto').textContent = `Auto-approve: ${auto ? 'on' : 'off'}`; $('auto').setAttribute('aria-pressed', String(auto)); $('auto').className = auto ? 'btn auto on' : 'btn auto';
   $('where').className = empty ? '' : 'path'; $('form').hidden = empty || Boolean(sel.viewOnly); // read-only: no sending, no model changes
   syncComposer();
+  renderUsage();
+}
+
+function renderUsage() { // compact copy of "This session" for the header; refreshed with renderInfo
+  const u = $('usage'), s = sel && !sel.viewOnly ? view.stats : null;
+  u.replaceChildren(); u.hidden = !s;
+  if (!s) return;
+  const total = Number(s.tokens?.total), cost = Number(s.cost), c = s.contextUsage ?? {}, pct = c.percent;
+  const spend = [Number.isFinite(total) && `${kilo(total)} tokens`, Number.isFinite(cost) && usd(cost)].filter(Boolean).join(' \u00B7 ');
+  if (spend) u.append(el('span', '', spend));
+  if (pct != null && Number.isFinite(+pct)) {
+    const m = el('span', 'meter' + (pct >= 80 ? ' hot' : '')), i = el('i'); i.style.width = Math.min(100, pct) + '%'; m.append(i);
+    m.setAttribute('role', 'meter'); m.setAttribute('aria-valuenow', Math.round(pct)); m.setAttribute('aria-valuemin', 0); m.setAttribute('aria-valuemax', 100); m.setAttribute('aria-label', 'Context window used');
+    u.append(m, el('span', '', `${Math.round(pct)}%` + (c.tokens != null && c.contextWindow ? ` ${kilo(c.tokens)} / ${kilo(c.contextWindow)}` : '')));
+  }
+  u.hidden = !u.childNodes.length;
 }
 
 function select(s) {
@@ -813,6 +830,7 @@ function renderInfo() {
   }
 
   use.replaceChildren(); section(use, 'This session');
+  renderUsage();
   const s = view.stats;
   if (!sel) hint(use, 'Open a session to see its usage.');
   else if (!s) hint(use, sel.viewOnly ? 'Resume the session to see its usage.' : 'Usage appears after the first turn.');
@@ -840,7 +858,7 @@ function renderInfo() {
   const rows = usageRows();
   if (rows.length) section(use, 'Subscription usage');
   for (const p of rows) {
-    if (p.error) { use.append(el('p', 'note', `${p.label}: usage unavailable. Sign in again if this persists.`)); continue; }
+    if (p.error) { use.append(el('p', 'note', `${p.label}: usage unavailable` + (p.signIn ? '. Sign in again if this persists.' : ` (${p.error}), retrying.`))); continue; }
     const kv = el('table', 'kv');
     for (const l of p.limits) { const tr = el('tr'); tr.append(el('td', '', `${p.label} ${limitName(p, l)}`), el('td', '', percent(l) + (l.resetsAt ? `, resets in ${until(l.resetsAt)}` : ''))); kv.append(tr); }
     use.append(kv);
@@ -1129,12 +1147,12 @@ $('route-form').onsubmit = async e => {
 const launch = $('launch');
 let launchFor = null, choice = (() => {
   const saved = stored('launch', {});
-  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'default'};
+  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, autocompactTokens: saved.autocompactTokens ?? 300000, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'default'};
 })();
 // `set` is the picks, a function resolved when the preset applies, or null for every feature the model can run.
 // An unknown remembered preset (such as the earlier default `all`) falls back to the first one.
 const PRESETS = [
-  {id: 'default', label: 'Default', note: 'What bare apex runs on Windows: the cache ledger, path and edit checks, cost, plan, report, resume, compaction at 300k, and undo in a Git repository. The default.',
+  {id: 'default', label: 'Default', note: 'What bare apex runs on Windows: the cache ledger, path and edit checks, cost, plan, report, resume, compaction (at 300k unless you change it), and undo in a Git repository. The default.',
     set: () => ({...state.defaults, features: [...state.defaults.features, ...(state.workspaces.find(w => w.path === launchFor?.cwd)?.checkpoints ? ['checkpoints'] : [])]})},
   {id: 'everything', label: 'All features', note: 'Every Apex feature this model can run. Measured at about twice stock Pi\'s cost and time, with no more tasks solved.', set: null},
   {id: 'lean', label: 'Lean context', note: 'Shorter reads, searches, edits and output.', set: {context: ['shape', 'mask', 'read', 'search', 'edit'], core: [], features: []}},
@@ -1171,6 +1189,7 @@ function syncLaunch() {
   if (r?.mode === 'single' && strictLaunch() && r.thinking !== 'xhigh') { r.thinking = 'xhigh'; launchEditor.render(); }
   else launchEditor.render();
   const tb = $('timebox'); if (tb) tb.hidden = !launch.querySelector('input[value=time]')?.checked;
+  const ab = $('autocompactbox'); if (ab) ab.hidden = !launch.querySelector('input[value=autocompact]')?.checked;
   let total = 0;
   for (const d of launch.querySelectorAll('.group')) { const n = d.querySelectorAll('input:checked').length; total += n; d.querySelector('em').textContent = n ? `${n} on` : ''; }
   $('feature-count').textContent = total ? `${total} on` : 'none on';
@@ -1207,6 +1226,10 @@ function buildLaunch() {
         const t = el('label', 'field timebox'); t.id = 'timebox'; t.append(document.createTextNode('Time budget in seconds'));
         const n = el('input'); n.type = 'number'; n.id = 'timebudget'; n.min = 1; n.max = 86400; n.value = choice.timeBudget ?? 600; t.append(n); items.append(t);
       }
+      if (f.needs === 'autocompactTokens') {
+        const t = el('label', 'field timebox'); t.id = 'autocompactbox'; t.append(document.createTextNode('Compact past this many context tokens'));
+        const n = el('input'); n.type = 'number'; n.id = 'autocompacttokens'; n.min = 1; n.max = 100000000; n.step = 1; n.value = choice.autocompactTokens ?? 300000; t.append(n); items.append(t);
+      }
     }
     d.append(items); fe.append(d);
   }
@@ -1225,12 +1248,12 @@ $('launch-form').onsubmit = async e => {
   const apex = launchApex(), pickedFor = group => apex ? checked(group) : [];
   const route = r.mode === 'pair' ? {pair: {plan: r.plan, build: r.build}} : {model: r.model, thinking: r.thinking};
   const body = {...launchFor, ...route, context: pickedFor('context'), core: pickedFor('core'), features: pickedFor('features'),
-    timeBudget: Number($('timebudget')?.value), evalMode: apex && $('evalmode').checked};
+    timeBudget: Number($('timebudget')?.value), autocompactTokens: Number($('autocompacttokens')?.value), evalMode: apex && $('evalmode').checked};
   go.disabled = true;
   try {
     const {id} = await post('/api/start', body);
     const preset = launch.querySelector('input[name=preset]:checked')?.value ?? choice.preset;
-    choice = {route: structuredClone(r), timeBudget: body.timeBudget || 600, evalMode: body.evalMode, preset};
+    choice = {route: structuredClone(r), timeBudget: body.timeBudget || 600, autocompactTokens: body.autocompactTokens || 300000, evalMode: body.evalMode, preset};
     try { localStorage.launch = JSON.stringify(choice); } catch { /* remembered choices are a convenience */ }
     rememberModels(r);
     stateSig = ''; await refresh(); launch.close();
