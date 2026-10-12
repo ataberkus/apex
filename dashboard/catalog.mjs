@@ -49,7 +49,7 @@ export const GROUPS = [
     f('safety', 'Ask before risky tool calls', 'Pauses risky calls and asks you here before they run. A guardrail, not a sandbox.'),
     f('report', 'Token report', 'Adds /report with token categories for this session.', {commands: ['/report']}),
     f('resume', 'Session inspection', 'Adds /resume-info to check a session file without replaying tools.', {commands: ['/resume-info']}),
-    f('autocompact', 'Compact at 300k', 'Summarizes the session with Pi\'s own compaction once a finished run passes 300k context tokens, so later requests send less.'),
+    f('autocompact', 'Autocompact', 'Summarizes the session with Pi\'s own compaction once a finished run passes the context-token threshold you set (300k by default), so later requests send less.', {needs: 'autocompactTokens'}),
   ]},
 ];
 

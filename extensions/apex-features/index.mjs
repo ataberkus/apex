@@ -1,6 +1,6 @@
 import {fileURLToPath} from 'node:url';
 import {markFeatureMode} from './lifecycle.mjs';
-import {AUTOCOMPACT_TOKENS,parseFeatureFlags,runtimePolicy} from './config.mjs';
+import {parseAutocompactTokens,parseFeatureFlags,runtimePolicy} from './config.mjs';
 
 // codemode is a container: every tool its script calls fires tool_call itself, so mutating nested calls capture before they run.
 // todo/contract change only session state; explore/verify run fresh-context sessions or isolated copies outside the working tree.
@@ -16,7 +16,8 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
  return pi=>{
   pi.registerFlag('apex-feature-flags',{type:'string',default:'',description:'Opt-in daily-driver features; every feature defaults off.'});
   pi.registerFlag('apex-eval',{type:'boolean',default:false,description:'Explicit eval isolation: disables project learnings and interactive safety prompts.'});
-  let flags=new Set(),evalMode=false,accounting,checkpoints,plan,learnings,safety,workflows;
+  pi.registerFlag('apex-autocompact-tokens',{type:'string',default:'',description:'Context tokens past which autocompact compacts a settled session; empty means 300000.'});
+  let flags=new Set(),evalMode=false,autocompactTokens,accounting,checkpoints,plan,learnings,safety,workflows;
   let meta={version:1,turnCounter:0,checkpointIds:[]},turnId,baseTools,captured=false,releaseMode=()=>{};const owner=Symbol('Apex feature mode');
   const persist=()=>pi.appendEntry(STATE,structuredClone(meta));
   const summary=ctx=>accounting.summarizeSession(ctx.sessionManager.getEntries(),{context:ctx.getContextUsage?.(),model:ctx.model,pricing:ctx.model?.cost,activeLeaf:ctx.sessionManager.getLeafId?.()??ctx.sessionManager.getBranch().at(-1)?.id??null});
@@ -37,6 +38,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    if(plan?.isActive()&&baseTools)pi.setActiveTools(baseTools);
    checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;
    flags=new Set(parseFeatureFlags(pi.getFlag('apex-feature-flags')));evalMode=pi.getFlag('apex-eval')===true;
+   if(flags.has('autocompact'))autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));
    meta={version:1,turnCounter:0,checkpointIds:[]};baseTools=undefined;
    if(!flags.size&&!evalMode)return;
    releaseMode=markFeatureMode(ctx,{owner,safety:flags.has('safety'),evalMode});
@@ -121,7 +123,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    await closeTurn();updateCost(ctx);
    // Settled means no retry, continuation or compaction is pending, so Pi's abort-first manual compaction loses no work.
    const usage=flags.has('autocompact')&&!plan?.isActive()?ctx.getContextUsage?.():undefined;
-   if(usage?.tokens>AUTOCOMPACT_TOKENS&&usage.contextWindow>AUTOCOMPACT_TOKENS)ctx.compact({
+   if(usage?.tokens>autocompactTokens&&usage.contextWindow>autocompactTokens)ctx.compact({
     onComplete:()=>{notify(ctx,`Compacted at ${Math.round(usage.tokens/1000)}k context tokens.`);updateCost(ctx);},
     onError:error=>notify(ctx,'Autocompact failed: '+reason(error)),
    });

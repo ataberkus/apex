@@ -12,6 +12,7 @@ import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {checkpointsUsable, WINDOWS_AUTO, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
+import {parseAutocompactTokens} from '../extensions/apex-features/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
 import {formatPair} from '../extensions/apex-router/pair.mjs';
 import {createLogins, LOGINS, subscriptionUsage} from './provider-login.mjs';
@@ -224,11 +225,16 @@ function launchArguments(body, file) {
     if (!Number.isFinite(timeBudget) || timeBudget <= 0 || timeBudget > 86400) throw new Error('Set a time budget between 1 and 86400 seconds');
     apexArgs.push('--time-budget', String(timeBudget));
   }
+  let autocompactTokens;
+  if (picked.features.includes('autocompact')) {
+    autocompactTokens = parseAutocompactTokens(body.autocompactTokens ?? ''); // an API client that sends none gets the 300k default
+    apexArgs.push('--autocompact-tokens', String(autocompactTokens));
+  }
   if (body.evalMode) apexArgs.push('--apex-eval');
   const route = pair ? ['--apex-pair', formatPair({plan: pair.plan, build: {provider: pair.build.provider, id: pair.build.id}})] : ['--provider', model.provider, '--model', model.model];
   const args = [...apexArgs, ...route, '--thinking', thinking, '--mode', 'rpc', ...(file ? ['--session', file] : [])];
   buildPiInvocation(withWindowsDefaults(args), resolvePi().cli); // same steps bin/apex takes, so a refusal reads clearly here instead of as a crashed child
-  const flags = {...picked, timeBudget, evalMode: Boolean(body.evalMode)};
+  const flags = {...picked, timeBudget, autocompactTokens, evalMode: Boolean(body.evalMode)};
   return {args, model, pair, thinking, target, flags, request: flags};
 }
 

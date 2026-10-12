@@ -119,3 +119,11 @@ test('autocompact compacts a settled session past 300k context tokens, once per 
  const off=fixture('cost');createApexFeatures()(off.pi);await off.emit('session_start');off.ctx.compact=()=>assert.fail('not selected');
  off.ctx.getContextUsage=()=>({tokens:900_000,contextWindow:1_000_000});await off.emit('agent_settled');
 });
+test('autocompact compacts at a custom threshold and keeps the model-window rule',async()=>{
+ const h=fixture('autocompact');h.values['apex-autocompact-tokens']='200000';createApexFeatures()(h.pi);await h.emit('session_start');
+ const calls=[];h.ctx.compact=options=>calls.push(options);
+ for(const usage of [{tokens:200_000,contextWindow:1_000_000},{tokens:250_000,contextWindow:200_000}]){h.ctx.getContextUsage=()=>usage;await h.emit('agent_settled');}
+ assert.equal(calls.length,0);
+ h.ctx.getContextUsage=()=>({tokens:200_001,contextWindow:272_000});await h.emit('agent_settled');
+ assert.equal(calls.length,1,'below the 300k default, past the custom threshold');
+});

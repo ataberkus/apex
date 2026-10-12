@@ -7,7 +7,7 @@ import {runtimePolicy,parseCoreFlags} from '../extensions/apex-core/config.mjs';
 import {parseLocalCommand,formatSessionReport} from '../lib/commands.mjs';
 
 const HELP = [
-  'Apex: apex [--apex-off] [--apex-target windows] [--profile default|headless|max] [--apex-context FLAGS] [--apex-core FLAGS] [--apex-features FLAGS] [--apex-eval] [--apex-pair PLAN,BUILD] [--time-budget SECONDS] [Pi arguments]',
+  'Apex: apex [--apex-off] [--apex-target windows] [--profile default|headless|max] [--apex-context FLAGS] [--apex-core FLAGS] [--apex-features FLAGS] [--apex-eval] [--apex-pair PLAN,BUILD] [--time-budget SECONDS] [--autocompact-tokens TOKENS] [Pi arguments]',
   'Context: cache,shape,mask,compact,read,search,edit,patch,lazy,route,output.',
   'Core: snapshot,entrypoints,headless,contract,todo,verify,loops,bg,time,correct,diagnostics,subagents,max,recovery.',
   'Features: cost,checkpoints,review,plan,remember,skills,safety,report,resume,autocompact.',
