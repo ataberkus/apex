@@ -3,7 +3,7 @@ import test from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, readFile, rm, stat, chmod, readdir, link } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { createCheckpointManager } from '../extensions/apex-features/checkpoints.mjs';
 import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
@@ -243,6 +243,37 @@ test('oversized files are recorded as skipped and undo never writes or deletes t
   assert.equal((await stat(path.join(cwd, 'big.bin'))).size, 65);
 });
 
+test('past the snapshot byte cap the largest files are skipped, so a large repository keeps capturing', async t => {
+  // Kept files total 125 bytes. In name order Assets/ would fill the budget and tracked.txt would be left out.
+  const { cwd, manager } = await fixture(t, { limits: { maxBytes: 100 } });
+  await mkdir(path.join(cwd, 'Assets'));
+  await writeFile(path.join(cwd, 'Assets/model.bin'), Buffer.alloc(60, 1));
+  assert.deepEqual((await manager.capture('large')).skippedPaths, ['Assets/model.bin']);
+  await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
+  await writeFile(path.join(cwd, 'Assets/model.bin'), Buffer.alloc(60, 2));
+  const finished = await manager.finish('large');
+  assert.deepEqual(finished.skippedPaths, ['Assets/model.bin']);
+  assert.deepEqual(finished.changedPaths, ['tracked.txt']);
+  assert.equal((await manager.restore('large')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'dirty source\n');
+  assert.deepEqual(await readFile(path.join(cwd, 'Assets/model.bin')), Buffer.alloc(60, 2));
+});
+
+test('a snapshot filled to the byte cap with incompressible content still fits private storage on later turns', async t => {
+  // About 120 kB kept: the old mirror plus a 2x reserve passes 500 kB once the previous mirror is counted as well.
+  const { cwd, manager } = await fixture(t, { limits: { maxBytes: 200000, maxStoredBytes: 500000 } });
+  await mkdir(path.join(cwd, 'Assets'));
+  await writeFile(path.join(cwd, 'Assets/big.bin'), randomBytes(150000));
+  await writeFile(path.join(cwd, 'Assets/small.bin'), randomBytes(120000));
+  for (let turn = 1; turn <= 2; turn++) {
+    assert.deepEqual((await manager.capture(`fill-${turn}`)).skippedPaths, ['Assets/big.bin']);
+    await writeFile(path.join(cwd, 'tracked.txt'), `agent ${turn}`);
+    assert.deepEqual((await manager.finish(`fill-${turn}`)).changedPaths, ['tracked.txt']);
+  }
+  assert.equal((await manager.restore('fill-2')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'agent 1');
+});
+
 test('history charges unchanged content once, so long sessions in large projects keep capturing', async t => {
   const { cwd, manager } = await fixture(t, { limits: { maxStoredBytes: 450000 } });
   await writeFile(path.join(cwd, 'unchanged.bin'), Buffer.alloc(100000));
@@ -256,7 +287,7 @@ test('history charges unchanged content once, so long sessions in large projects
 });
 
 test('capture and restore enforce file and byte caps', async t => {
-  for (const limits of [{ maxFiles: 1 }, { maxBytes: 2 }, { maxStoredBytes: 64 }]) {
+  for (const limits of [{ maxFiles: 1 }, { maxStoredBytes: 64 }]) {
     const { manager } = await fixture(t, { limits });
     await assert.rejects(manager.capture('cap'), /cap|limit/i);
     assert.deepEqual(await manager.list(), []);

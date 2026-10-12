@@ -199,18 +199,24 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     }).sort();
     if (candidates.length > limits.maxFiles) throw fail('cap', 'Checkpoint file count cap exceeded');
     const excluded = await ignored(candidates, repo, signal);
+    // Smallest first, so past maxBytes the large files (assets, datasets) are the ones left out, not source code.
+    // A stat error sorts the path first and leaves sourceFile to report it as before.
+    const sized = [];
+    for (const relative of candidates) if (!excluded.has(relative)) { cancelled(signal); sized.push([relative, await lstat(path.join(root, relative)).then(info => info.size, () => 0)]); }
+    sized.sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1));
     const files = Object.create(null); const contents = new Map(); const skipped = []; let bytes = 0;
-    for (const relative of candidates) {
-      if (excluded.has(relative)) continue;
+    for (const [relative, size] of sized) {
+      // A file that does not fit is skipped unread: a large repository must not block every mutation, nor be read in full per capture.
+      if (bytes + size > limits.maxBytes) { skipped.push(relative); continue; }
       let file;
       // One oversized file (a dataset, a build artifact) must not block every mutation: leave it out and record it.
       try { file = await sourceFile(relative, signal); } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
       if (!file) continue;
+      if (bytes + file.bytes.length > limits.maxBytes) { skipped.push(relative); continue; }
       bytes += file.bytes.length;
-      if (bytes > limits.maxBytes) throw fail('cap', 'Checkpoint snapshot byte cap exceeded');
       files[relative] = file.descriptor; contents.set(relative, file.bytes);
     }
-    return { files, contents, bytes, repo, skipped };
+    return { files, contents, bytes, repo, skipped: skipped.sort() };
   }
   const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
   function validateState(state) {
@@ -327,15 +333,16 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     for (const file of Object.values(collected.files)) if (!held.has(file.hash)) { held.add(file.hash); added += file.size; }
     if (state.storedBytes + added > limits.maxStoredBytes) throw fail('cap', 'Checkpoint history byte cap exceeded');
     await shadowReady(signal);
-    // Reserve a full new mirror and uncompressed object allowance, including
-    // abandoned snapshots/retained recovery backups in the existing budget.
-    await storageBudget(collected.bytes * 2 + collected.contents.size * 1024 + 65536, signal);
     for (const entry of await readdir(shadow, { withFileTypes: true })) {
       if (entry.name === '.git') continue;
       // This is owned private scratch only, never the user's worktree.
       if (entry.isSymbolicLink()) throw fail('symlink', 'Checkpoint shadow worktree contains a symlink');
       await rm(path.join(shadow, entry.name), { recursive: true });
     }
+    // Reserve a full new mirror and uncompressed object allowance, including
+    // abandoned snapshots/retained recovery backups in the existing budget. The previous mirror is cleared first:
+    // counting it too failed the second snapshot of a project with 64 MiB of incompressible kept files.
+    await storageBudget(collected.bytes * 2 + collected.contents.size * 1024 + 65536, signal);
     const names = new Map();
     for (const [relative, bytes] of collected.contents) {
       cancelled(signal);

@@ -62,7 +62,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      const entries=(await checkpoints.list({signal:ctx.signal})).filter(entry=>meta.checkpointIds.includes(entry.turnId));
      const id=args.trim()||[...entries].reverse().find(entry=>entry.status==='finished')?.turnId;
      if(!id||!entries.some(entry=>entry.turnId===id)){const r={ok:false,reason:'No finished checkpoint is available on the active branch.'};notify(ctx,r.reason);return r;}
-     const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.${r.skippedPaths?.length?` ${r.skippedPaths.length} oversized files were not tracked and are unchanged.`:''}`);return r;
+     const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.${r.skippedPaths?.length?` ${r.skippedPaths.length} files over the checkpoint size caps were not tracked and are unchanged.`:''}`);return r;
     });
    }
    if(flags.has('plan')||flags.has('review'))workflows=await import('./workflows.mjs');
