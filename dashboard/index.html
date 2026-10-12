@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/app.css">
 <script>try{var theme=JSON.parse(localStorage.theme||'"dark"')}catch(e){theme='dark'}if(theme!=='system')document.documentElement.setAttribute('data-theme',theme)</script>
 </head>
-<body data-pane="chat">
+<body data-pane="side">
 <a class="skip" href="#box">Skip to message box</a>
 
 <nav id="side" aria-label="Workspaces and sessions">
@@ -70,10 +70,10 @@
 </main>
 
 <aside id="info" aria-label="Session details">
-  <div class="tabs" role="tablist">
-    <button role="tab" id="t-plan" aria-selected="true" aria-controls="p-plan">Plan</button>
-    <button role="tab" id="t-use" aria-selected="false" aria-controls="p-use">Usage</button>
-    <button role="tab" id="t-cmd" aria-selected="false" aria-controls="p-cmd">Commands</button>
+  <div class="tabs" role="tablist" aria-label="Session details">
+    <button role="tab" type="button" id="t-plan" aria-selected="true" aria-controls="p-plan">Plan</button>
+    <button role="tab" type="button" id="t-use" aria-selected="false" aria-controls="p-use" tabindex="-1">Usage</button>
+    <button role="tab" type="button" id="t-cmd" aria-selected="false" aria-controls="p-cmd" tabindex="-1">Commands</button>
   </div>
   <section role="tabpanel" id="p-plan" aria-labelledby="t-plan"></section>
   <section role="tabpanel" id="p-use" aria-labelledby="t-use" hidden></section>
@@ -81,9 +81,9 @@
 </aside>
 
 <nav id="panes" aria-label="Panels">
-  <button data-pane="side" type="button">Sessions</button>
-  <button data-pane="chat" type="button">Chat</button>
-  <button data-pane="info" type="button">Details</button>
+  <button data-pane="side" id="pane-side" type="button" aria-current="page">Sessions</button>
+  <button data-pane="chat" type="button" aria-current="false">Chat</button>
+  <button data-pane="info" type="button" aria-current="false">Details</button>
 </nav>
 
 <dialog id="launch" class="wide" aria-labelledby="launch-h">
@@ -142,7 +142,7 @@
     <footer>
       <p id="ws-error" class="error" role="alert"></p>
       <button class="btn" type="button" id="ws-cancel">Cancel</button>
-      <button class="btn primary" type="submit">Add workspace</button>
+      <button class="btn primary" type="submit" id="ws-go">Add workspace</button>
     </footer>
   </form>
 </dialog>
@@ -172,7 +172,7 @@
     <footer>
       <p id="auth-error" class="error" role="alert"></p>
       <button class="btn quiet" id="auth-signout" type="button" hidden>Sign out</button>
-      <button class="btn" id="auth-close" type="button">Close</button>
+      <button class="btn" id="auth-close" type="button" autofocus>Close</button>
       <button class="btn primary" id="auth-retry" type="button" hidden>Sign in</button>
     </footer>
   </form>

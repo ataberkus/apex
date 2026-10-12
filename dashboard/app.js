@@ -355,13 +355,17 @@ function savedRow(w, s, words, action, endpoint) {
   act.onclick = async () => { await post(endpoint, {file: s.file}).catch(e => alert(e.message)); refresh(); };
   line.append(b, act); return line;
 }
-const archivedOpen = new Set(); // workspaces whose Archived group is expanded, kept across re-renders
+const archivedOpen = new Set(), menuOpen = new Set(); // workspaces whose Archived group or More menu is open, kept across re-renders
+// The sidebar rebuilds on every state change; this key finds the same control afterwards so keyboard focus stays put.
+const sideKey = b => [b.closest('section')?.id || b.closest('section')?.getAttribute('aria-label'), b.getAttribute('aria-label') ?? b.firstChild?.textContent, b.className].join('|');
 
 function renderSide() {
   const groups = $('groups'); groups.replaceChildren();
   const live = state.workspaces.flatMap(w => w.live.map(s => ({...s, ws: base(w.path)})));
   const waiting = live.filter(s => ['asks', 'finished', 'error'].includes(label(s)[0]));
   $('queue').hidden = !waiting.length; $('queue-n').textContent = waiting.length ? `(${waiting.length})` : '';
+  // Narrow screens show one pane and the tab may sit in the background: carry the count to the Sessions tab and the title.
+  $('pane-side').textContent = waiting.length ? `Sessions (${waiting.length})` : 'Sessions'; document.title = waiting.length ? `(${waiting.length}) Apex` : 'Apex';
   const list = $('queue-list'); list.replaceChildren();
   for (const s of waiting) { const b = sessionButton(s, () => select(s), ''); b.querySelector('small').append(document.createTextNode(' in ' + s.ws)); list.append(b); }
   if (!state.workspaces.length) groups.append(el('p', 'empty', 'No workspaces yet. Add a project folder to start.'));
@@ -381,14 +385,14 @@ function renderSide() {
     h.append(toggle);
     const small = el('small', 'ws-path', w.path); small.title = w.path; title.append(h);
     const add = el('button', 'ghost', 'New session'); add.type = 'button'; add.setAttribute('aria-label', 'New session in ' + base(w.path)); add.onclick = () => openLaunch(w.path);
-    const more = el('button', 'ghost more', 'More'); more.type = 'button'; more.setAttribute('aria-expanded', 'false');
-    const menu = el('div'); menu.hidden = true;
+    const more = el('button', 'ghost more', 'More'); more.type = 'button';
+    const menu = el('div', 'ws-menu'); menu.hidden = !menuOpen.has(w.path); more.setAttribute('aria-expanded', String(!menu.hidden));
     const reveal = el('button', 'ghost', 'Show in file explorer'); reveal.type = 'button'; reveal.onclick = () => post('/api/reveal', {path: w.path}).catch(e => alert(e.message));
     const remove = el('button', 'ghost more', 'Remove from list'); remove.type = 'button'; remove.title = 'Files and sessions stay on disk';
     remove.onclick = async () => { if (confirm(`Remove ${base(w.path)} from the list? Files and sessions stay on disk.`)) { await post('/api/workspaces/remove', {path: w.path}); refresh(); } };
     menu.append(reveal, remove);
-    more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); };
-    head.append(title, add, more); body.append(small, menu); sec.append(head, body);
+    more.onclick = () => { menu.hidden = !menu.hidden; more.setAttribute('aria-expanded', String(!menu.hidden)); menuOpen[menu.hidden ? 'delete' : 'add'](w.path); };
+    head.append(title, add, more); body.append(small); sec.append(head, menu, body); // the menu stays usable on a collapsed workspace
     for (const s of w.live) body.append(sessionButton(s, () => select(s)));
     for (const s of w.saved) body.append(savedRow(w, s, 'Saved', 'Archive', '/api/sessions/archive'));
     if (!w.live.length && !w.saved.length) body.append(el('p', 'empty', 'No sessions yet.'));
@@ -414,20 +418,23 @@ async function refresh() {
   const fresh = state.workspaces.flatMap(w => w.live).find(s => s.id === sel?.id);
   if (fresh) { sel = fresh; seen[sel.id] = sel.settled; localStorage.seen = JSON.stringify(seen); }
   else if (sel && !sel.viewOnly) sel = {...sel, status: 'done', pending: []};
+  const active = document.activeElement, focusKey = active?.tagName === 'BUTTON' && $('side').contains?.(active) ? sideKey(active) : null;
   renderAuth(); header(); renderSide(); renderAsks();
+  if (focusKey) [...$('side').querySelectorAll('button')].find(b => sideKey(b) === focusKey)?.focus();
   if (!sel) { $('log').replaceChildren(); blank(); }
 }
 
 function header() {
   const empty = !sel;
   $('title').textContent = sel?.title || (empty ? 'Pick a session' : 'New session');
-  $('where').textContent = empty ? 'Choose one on the left, or start a new one in a workspace.' : `${sel.cwd}, ${label(sel)[1].toLowerCase()}`;
+  $('where').textContent = empty ? 'Choose one under Sessions, or start a new one in a workspace.' : `${sel.cwd}, ${label(sel)[1].toLowerCase()}`;
   const running = sel?.status === 'running', alive = running || sel?.status === 'idle';
   $('stop').hidden = !running; $('end').hidden = !alive; $('resume').hidden = !sel?.viewOnly;
   const auto = Boolean(sel?.autoApprove); // only sessions with the safety feature ask before tool calls
   $('auto').hidden = !alive || !sel.flags?.features?.includes('safety');
   $('auto').textContent = `Auto-approve: ${auto ? 'on' : 'off'}`; $('auto').setAttribute('aria-pressed', String(auto)); $('auto').className = auto ? 'btn auto on' : 'btn auto';
-  $('where').className = empty ? '' : 'path'; $('form').hidden = empty || Boolean(sel.viewOnly); // read-only: no sending, no model changes
+  $('where').className = empty ? '' : 'path';
+  $('form').hidden = empty || Boolean(sel.viewOnly) || !alive; // read-only or ended: no sending, no model changes
   syncComposer();
   renderUsage();
 }
@@ -455,7 +462,7 @@ function select(s) {
   if (!s.viewOnly) { seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen); }
   $('log').replaceChildren(); renderQueued(); header(); renderSide(); renderAsks(); renderInfo();
   renderAuth();
-  document.body.dataset.pane = 'chat';
+  showPane('chat');
   if (s.viewOnly) { // the file as Pi's get_messages would return it; no agent process
     fetch('/api/transcript?file=' + encodeURIComponent(s.file)).then(async r => ({ok: r.ok, body: await r.json()}))
       .then(({ok, body}) => { if (sel === s) handle(ok ? {type: 'response', command: 'get_messages', success: true, data: body} : {type: 'response', success: false, error: body.error}); },
@@ -764,9 +771,13 @@ function handle(r) {
   queueInfo();
 }
 function blank() {
-  const d = el('div', 'blank');
+  const d = el('div', 'blank'), only = state.workspaces.length === 1 ? state.workspaces[0].path : null;
   if (sel) d.append(el('h3', '', 'Ready'), el('p', '', 'Describe the task below. Edits appear here as reviewable diffs.'));
-  else d.append(el('h3', '', state.workspaces.length ? 'No session open' : 'Add your first workspace'), el('p', '', state.workspaces.length ? 'Pick a session on the left, or choose New session under a workspace.' : 'A workspace is a project folder. Use Add workspace at the top left.'));
+  else d.append(el('h3', '', state.workspaces.length ? 'No session open' : 'Add your first workspace'), el('p', '', state.workspaces.length ? 'Pick a session under Sessions, or start a new one in a workspace.' : 'A workspace is a project folder. Sessions run inside it.'));
+  if (!sel && (only || !state.workspaces.length)) {
+    const b = el('button', 'btn primary', only ? 'New session in ' + base(only) : 'Add workspace'); b.type = 'button';
+    b.onclick = () => only ? openLaunch(only) : $('addws').click(); d.append(b);
+  }
   $('log').append(d);
 }
 
@@ -845,7 +856,7 @@ function renderInfo() {
       section(use, 'Context window'); use.append(m, el('small', '', `${Math.round(pct)}% used` + (pct >= 80 ? '. Consider starting a fresh session.' : '')));
     }
     const rb = el('button', 'btn', 'Load token breakdown'); rb.type = 'button'; rb.style.marginTop = '14px';
-    rb.onclick = async () => { rb.disabled = true; try { view.report = await (await fetch('/api/report?id=' + sel.id)).json(); if (view.report.error) throw new Error(view.report.error); } catch (e) { view.report = {error: e.message}; } renderInfo(); };
+    rb.onclick = async () => { rb.disabled = true; rb.textContent = 'Loading…'; try { view.report = await (await fetch('/api/report?id=' + sel.id)).json(); if (view.report.error) throw new Error(view.report.error); } catch (e) { view.report = {error: e.message}; } renderInfo(); };
     if (!view.report) use.append(rb);
     else if (view.report.error) use.append(el('p', 'note', view.report.error));
     else {
@@ -868,14 +879,27 @@ function renderInfo() {
   if (!view.commands.length) hint(cmd, sel ? 'No commands reported yet.' : 'Open a session to see its commands.');
   for (const c of view.commands) {
     const b = el('button', 'cmdrow'); b.type = 'button'; const name = '/' + c.name.replace(/^\//, '');
-    b.append(el('b', '', name), el('small', '', c.description ?? '')); b.onclick = () => { $('box').value = name + ' '; syncComposer(); $('box').focus(); document.body.dataset.pane = 'chat'; };
+    b.append(el('b', '', name), el('small', '', c.description ?? '')); b.onclick = () => { $('box').value = name + ' '; syncComposer(); $('box').focus(); showPane('chat'); };
     cmd.append(b);
   }
 }
-for (const t of document.querySelectorAll('.tabs button')) t.onclick = () => {
-  for (const o of document.querySelectorAll('.tabs button')) { o.setAttribute('aria-selected', String(o === t)); $(o.getAttribute('aria-controls')).hidden = o !== t; }
-};
-for (const b of document.querySelectorAll('#panes button')) b.onclick = () => { document.body.dataset.pane = b.dataset.pane; };
+// Tabs follow the ARIA pattern: one tab stop, arrow keys (and Home/End) move between tabs.
+const tabs = [...document.querySelectorAll('.tabs button')];
+function showTab(t) { for (const o of tabs) { o.setAttribute('aria-selected', String(o === t)); o.tabIndex = o === t ? 0 : -1; $(o.getAttribute('aria-controls')).hidden = o !== t; } }
+for (const t of tabs) {
+  t.onclick = () => showTab(t);
+  t.onkeydown = e => {
+    const i = tabs.indexOf(t), to = {ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1}[e.key];
+    if (to === undefined) return;
+    e.preventDefault(); const next = tabs[(to + tabs.length) % tabs.length]; showTab(next); next.focus();
+  };
+}
+// Narrow screens show one pane; aria-current marks it for the highlight and for screen readers.
+function showPane(pane) {
+  document.body.dataset.pane = pane;
+  for (const b of document.querySelectorAll('#panes button')) b.setAttribute('aria-current', b.dataset.pane === pane ? 'page' : 'false');
+}
+for (const b of document.querySelectorAll('#panes button')) b.onclick = () => showPane(b.dataset.pane);
 
 /* composer: drafts and attachments belong to a session, including during asynchronous reads/sends. */
 const acceptsImages = () => (sel?.input ?? modelById(sel?.model)?.input ?? []).includes('image');
@@ -1011,6 +1035,7 @@ function openImage(src, alt) {
   $('image-viewer').showModal();
 }
 $('image-viewer-close').onclick = () => $('image-viewer').close();
+$('image-viewer').onclick = e => { if (e.target === $('image-viewer')) $('image-viewer').close(); }; // a click on the backdrop
 $('image-viewer').onclose = () => $('image-viewer-body').replaceChildren();
 $('log').addEventListener('click', e => { const img = e.target.closest('.image-preview')?.querySelector('img'); if (img) openImage(img.src, img.alt); });
 
@@ -1062,9 +1087,10 @@ $('addws').onclick = () => { $('ws-error').textContent = ''; $('wspath').value =
 $('ws-cancel').onclick = () => wsdlg.close();
 $('pick').onclick = async () => { $('pick').disabled = true; try { const {path} = await post('/api/pick-folder', {}); if (path) $('wspath').value = path; } catch (e) { $('ws-error').textContent = e.message; } $('pick').disabled = false; };
 $('ws-form').onsubmit = async e => {
-  e.preventDefault();
+  e.preventDefault(); $('ws-error').textContent = ''; $('ws-go').disabled = true; $('ws-go').textContent = 'Adding…';
   try { await post('/api/workspaces', {path: $('wspath').value.trim()}); wsdlg.close(); stateSig = ''; refresh(); }
   catch (err) { $('ws-error').textContent = err.message + '. Check the path exists and is a folder.'; }
+  finally { $('ws-go').disabled = false; $('ws-go').textContent = 'Add workspace'; }
 };
 
 /* the route strip above the message box, and the dialog that changes a running session's models */
@@ -1104,7 +1130,7 @@ let routeBusy = false;
 function syncRoute() {
   if (!sel || !routeEditor.route) return;
   const r = routeEditor.route, before = routeOf(sel), restart = r.mode === 'pair' && !samePair(r, sel.pair), running = sel.status === 'running';
-  $('route-go').textContent = restart ? 'Restart with these models' : 'Switch now';
+  $('route-go').textContent = routeBusy ? (restart ? 'Restarting…' : 'Switching…') : restart ? 'Restart with these models' : 'Switch now';
   $('route-go').disabled = routeBusy || sameRoute(r, before) || (restart && running);
   $('route-effect').textContent = sameRoute(r, before) ? 'This is the current setup.'
     : restart ? (running ? 'Wait for this run to finish, or stop it. The new pair needs a restart.' : 'The agent restarts on this conversation with the new pair. Your Apex features stay on.')
@@ -1136,7 +1162,7 @@ $('route-form').onsubmit = async e => {
       if (next) { if (sel) drafts.set(next.id, sessionDraft(id)); select(next); }
       add('note quiet', `Restarted on the same conversation. Now ${words}.`);
     } else if (sel?.id === id) {
-      sel = {...sel, ...fresh}; header();
+      sel = {...sel, ...fresh}; header(); $('box').focus();
       add('note quiet', `Now ${words}. ` + (sel.status === 'running' ? 'Applies from the next model call.' : 'Applies from your next message.'));
     }
   } catch (err) { $('route-error').textContent = err.message; }
@@ -1249,7 +1275,7 @@ $('launch-form').onsubmit = async e => {
   const route = r.mode === 'pair' ? {pair: {plan: r.plan, build: r.build}} : {model: r.model, thinking: r.thinking};
   const body = {...launchFor, ...route, context: pickedFor('context'), core: pickedFor('core'), features: pickedFor('features'),
     timeBudget: Number($('timebudget')?.value), autocompactTokens: Number($('autocompacttokens')?.value), evalMode: apex && $('evalmode').checked};
-  go.disabled = true;
+  const idle = go.textContent; go.disabled = true; go.textContent = launchFor.file ? 'Resuming…' : 'Starting…';
   try {
     const {id} = await post('/api/start', body);
     const preset = launch.querySelector('input[name=preset]:checked')?.value ?? choice.preset;
@@ -1259,7 +1285,7 @@ $('launch-form').onsubmit = async e => {
     stateSig = ''; await refresh(); launch.close();
     const s = state.workspaces.flatMap(w => w.live).find(x => x.id === id); if (s) select(s);
   } catch (err) { $('launch-error').textContent = err.message; }
-  go.disabled = false;
+  go.disabled = false; go.textContent = idle;
 };
 
 /* theme: a per-browser preference; the inline script in index.html applies it before first paint */
