@@ -31,7 +31,7 @@ function omp(op, input, {signal, onEvent} = {}) {
       let message;
       try { message = JSON.parse(line); } catch { return; }
       if (message.type === 'done') resolve(message.result);
-      else if (message.type === 'error') reject(new Error(`oh-my-pi ${op} failed (${message.name})`));
+      else if (message.type === 'error') reject(Object.assign(new Error(`oh-my-pi ${op} failed (${message.name})`), {code: message.name}));
       else try { onEvent?.(message, reply); } catch (error) { reject(error); stop(); }
     });
     if (input) reply(input);
@@ -54,17 +54,26 @@ async function refreshClaude(credentials, signal) {
 }
 
 // Subscription windows and resets (omp's /usage) for each signed-in OAuth login oh-my-pi has a usage provider for.
-export async function subscriptionUsage(runtime, signal) {
+// `previous` is the last result: Claude's /usage throttles per IP for minutes (HTTP 429), so a failure that is not a
+// refused token keeps the last report instead of replacing it. Failures carry only a class name and whether to sign in.
+export async function subscriptionUsage(runtime, signal, previous = {}) {
   const saved = await runtime.listCredentials({signal});
   const ids = Object.keys(LOGINS).filter(id => saved.some(c => c.providerId === id && c.type === 'oauth'));
   const reports = await Promise.all(ids.map(async id => {
     const {label} = LOGINS[id];
+    let access;
     try {
-      const access = (await runtime.getAuth(id, {signal}))?.auth?.apiKey;
-      const limits = access && await omp('usage', {provider: id, access}, {signal});
-      return limits ? [id, {label, limits}] : [id, {label, error: true}];
-    } catch {
-      return [id, {label, error: true}];
+      access = (await runtime.getAuth(id, {signal}))?.auth?.apiKey;
+    } catch (error) {
+      return [id, {label, error: error?.name ?? 'Error', signIn: true}]; // refresh failed
+    }
+    if (!access) return [id, {label, error: 'NoToken', signIn: true}];
+    try {
+      return [id, {label, limits: await omp('usage', {provider: id, access}, {signal})}];
+    } catch (error) {
+      const reason = error?.code ?? error?.name ?? 'Error';
+      const signIn = reason === 'HTTP401' || reason === 'HTTP403';
+      return [id, !signIn && previous[id]?.limits ? previous[id] : {label, error: reason, signIn}];
     }
   }));
   return Object.fromEntries(reports);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createHash} from 'node:crypto';
-import {readFile, mkdtemp, rm} from 'node:fs/promises';
+import {readFile, writeFile, mkdtemp, rm} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -81,6 +81,7 @@ test('Claude login, refresh and usage run through oh-my-pi: callback or code#sta
   const home = await mkdtemp(join(tmpdir(), 'apex-claude-login-'));
   const options = {authPath: join(home, 'auth.json'), modelsPath: null, allowModelNetwork: false, refreshOnCreate: false};
   const requests = [], resetsAt = new Date(Date.now() + 2 * 3600000).toISOString();
+  let usageStatus = 200;
   let tokenResponse = {access_token: 'fixture-claude-access', refresh_token: 'fixture-claude-refresh', expires_in: 3600,
     account: {uuid: 'acct-1', email_address: 'me@example.com'}, organization: {uuid: 'org-1', name: 'Max plan'}};
   const anthropic = createServer(async (req, res) => {
@@ -89,6 +90,7 @@ test('Claude login, refresh and usage run through oh-my-pi: callback or code#sta
     requests.push({path: req.url.split('?')[0], headers: req.headers, body: body ? JSON.parse(body) : undefined});
     const reply = req.method === 'POST' && req.url === '/v1/oauth/token' ? tokenResponse
       : req.url === '/api/oauth/usage' ? {five_hour: {utilization: 42, resets_at: resetsAt}, seven_day: {utilization: 7, resets_at: resetsAt}} : undefined;
+    if (req.url === '/api/oauth/usage' && usageStatus !== 200) return res.writeHead(usageStatus, {'content-type': 'application/json'}).end('{"error":{"type":"rate_limit_error"}}');
     res.writeHead(reply ? 200 : 404, {'content-type': 'application/json'}).end(JSON.stringify(reply ?? {}));
   });
   await new Promise(resolve => anthropic.listen(0, '127.0.0.1', resolve));
@@ -174,6 +176,25 @@ test('Claude login, refresh and usage run through oh-my-pi: callback or code#sta
     {label: 'Claude 7 Day', used: 0.07, resetsAt: Date.parse(resetsAt)}]});
   assert.equal(requests.find(request => request.path === '/api/oauth/usage').headers.authorization, 'Bearer fixture-claude-access');
   assert.doesNotMatch(JSON.stringify(usage), /fixture-claude/);
+
+  // Claude's /usage throttles per IP for minutes: a 429 (or 5xx) keeps the last report instead of asking to sign in again.
+  usageStatus = 429;
+  assert.deepEqual(await subscriptionUsage(runtime, undefined, usage), usage);
+  assert.deepEqual((await subscriptionUsage(runtime)).anthropic, {label: 'Claude', error: 'HTTP429', signIn: false});
+  // A refused token is a sign-in problem, whatever was shown before.
+  usageStatus = 401;
+  assert.deepEqual((await subscriptionUsage(runtime, undefined, usage)).anthropic, {label: 'Claude', error: 'HTTP401', signIn: true});
+  usageStatus = 200;
+
+  // An expired access token is refreshed through oh-my-pi before usage is fetched, and the refreshed token is used.
+  const expiring = JSON.parse(await readFile(options.authPath, 'utf8'));
+  expiring.anthropic.expires = 0;
+  await writeFile(options.authPath, JSON.stringify(expiring));
+  tokenResponse = {access_token: 'fixture-after-expiry', expires_in: 7200};
+  const restarted = await ModelRuntime.create(options);
+  new OAuthLogin(restarted, 'anthropic'); // as the dashboard does at startup: Pi refreshes through oh-my-pi
+  assert.deepEqual((await subscriptionUsage(restarted)).anthropic, usage.anthropic);
+  assert.equal(requests.findLast(request => request.path === '/api/oauth/usage').headers.authorization, 'Bearer fixture-after-expiry');
 
   assert.equal((await login.logout()).signedIn, false);
 });

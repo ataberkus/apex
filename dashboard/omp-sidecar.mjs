@@ -29,9 +29,13 @@ const ops = {
     const {provider, access} = await input;
     const usage = defaultUsageProvider(provider);
     const params = {provider, credential: {type: 'oauth', accessToken: access}, signal: controller.signal};
-    if (!usage || usage.supports?.(params) === false) return null;
-    const report = await usage.fetchUsage(params, {fetch});
-    return report && report.limits.map(limit => ({label: limit.label, used: resolveUsedFraction(limit), resetsAt: limit.window?.resetsAt}));
+    if (!usage || usage.supports?.(params) === false) throw Object.assign(new Error(), {name: 'Unsupported'});
+    // A refused or throttled request comes back as no report; its HTTP status (never the body) names the failure.
+    let status;
+    const logger = {debug() {}, info() {}, error() {}, warn: (_message, meta) => { status = meta?.status ?? status; }};
+    const report = await usage.fetchUsage(params, {fetch, logger});
+    if (!report) throw Object.assign(new Error(), {name: status ? `HTTP${status}` : 'NoUsageReport'});
+    return report.limits.map(limit => ({label: limit.label, used: resolveUsedFraction(limit), resetsAt: limit.window?.resetsAt}));
   },
 };
 

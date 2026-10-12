@@ -253,14 +253,14 @@ test('dashboard shows oh-my-pi subscription windows and resets, and flags unavai
   const resetsAt = Date.now() + 2 * 3600000 + 60000;
   const state = {workspaces: [], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: false}},
     usage: {anthropic: {label: 'Claude', limits: [{label: 'Claude 5 Hour', used: 0.42, resetsAt}, {label: 'Claude 7 Day', used: 0.07}]},
-      'openai-codex': {label: 'Codex', error: true}}};
+      'openai-codex': {label: 'Codex', error: 'HTTP401', signIn: true}, other: {label: 'Other', error: 'HTTP429', signIn: false}}};
   const script = (await readFile(new URL('../dashboard/app.js', import.meta.url), 'utf8')).replace(/^import .* from .*;\r?\n/gm, '');
   runInNewContext(script, {
     document, localStorage: {}, IMAGE_HELP, MAX_IMAGES, fetch: async () => ({json: async () => state}), setInterval() {},
   });
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(nodes.get('subscription-usage').textContent, 'Claude: 5 Hour 42% used, 7 Day 7% used · Codex: usage unavailable');
+  assert.equal(nodes.get('subscription-usage').textContent, 'Claude: 5 Hour 42% used, 7 Day 7% used · Codex: usage unavailable · Other: usage unavailable');
   const text = node => [node.textContent, ...node.children.map(text)].join(' ');
-  assert.match(text(nodes.get('p-use')), /Subscription usage.*Claude 5 Hour 42% used, resets in 2 h.*Claude 7 Day 7% used .*Codex: usage unavailable/);
+  assert.match(text(nodes.get('p-use')), /Subscription usage.*Claude 5 Hour 42% used, resets in 2 h.*Claude 7 Day 7% used .*Codex: usage unavailable\. Sign in again if this persists\..*Other: usage unavailable \(HTTP429\), retrying\./);
   assert.doesNotMatch(text(nodes.get('p-use')), /estimate|allowance/);
 });

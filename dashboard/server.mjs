@@ -101,7 +101,7 @@ let usage = {}, usageAt = 0;
 function usageState() {
   if (Date.now() - usageAt > 60000) {
     usageAt = Date.now();
-    subscriptionUsage(runtime, AbortSignal.timeout(30000)).then(next => { usage = next; }, () => {});
+    subscriptionUsage(runtime, AbortSignal.timeout(30000), usage).then(next => { usage = next; }, () => {});
   }
   return usage;
 }
