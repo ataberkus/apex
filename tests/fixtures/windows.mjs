@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import {PI_VERSION} from '../../lib/launcher.mjs';
 
 export function windowsFixture(t) {
   const root = mkdtempSync(path.join(os.tmpdir(), 'apex windows ç-'));
@@ -9,7 +10,7 @@ export function windowsFixture(t) {
   const file = (relative, content = '') => {
     const full = path.join(root, relative); mkdirSync(path.dirname(full), {recursive: true}); writeFileSync(full, content); return full;
   };
-  file('node_modules/@earendil-works/pi-coding-agent/package.json', JSON.stringify({version: '0.99.2'}));
+  file('node_modules/@earendil-works/pi-coding-agent/package.json', JSON.stringify({version: PI_VERSION}));
   for (const name of ['git.exe', 'bash.exe', 'fd.exe', 'rg.exe']) file(`bin/${name}`);
   file('Windows/System32/WindowsPowerShell/v1.0/powershell.exe');
   file('extensions/apex-context/private-spill.ps1');

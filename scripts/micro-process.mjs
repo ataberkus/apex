@@ -5,6 +5,7 @@ import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PINNED_PI_VERSION } from './micro-session.mjs';
 
 // A tool mechanics check: no AgentSession, model, auth store, or provider call.
 // Only the CLI main path allocates resources; importing this module is inert.
@@ -174,7 +175,7 @@ export async function runProcessMicro() {
     const entry = fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'));
     piVersion = (await readJson(path.resolve(path.dirname(entry), '../package.json'))).version;
   } catch { return skip('native Pi package unavailable'); }
-  if (piVersion !== '0.99.2') return skip('requires pinned native Pi 0.99.2');
+  if (piVersion !== PINNED_PI_VERSION) return skip(`requires pinned native Pi ${PINNED_PI_VERSION}`);
   artifact.pi_version = piVersion;
   const fixture = await mkdtemp(path.join(process.cwd(), 'process-micro-'));
   const token = randomUUID();

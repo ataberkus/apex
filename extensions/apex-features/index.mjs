@@ -35,7 +35,9 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   const initialize=async(_event,ctx)=>{
    await checkpoints?.shutdown();releaseMode();
    // Tree navigation has already moved the branch. Do not append old plan state into it.
-   if(plan?.isActive()&&baseTools)pi.setActiveTools(baseTools);
+   // Pi 1.3 restores the target branch's recorded loadout first; only undo our read-only loadout when
+   // the target declares none, so Pi left it in place.
+   if(plan?.isActive()&&baseTools&&!workflows.recordedToolNames(ctx.sessionManager.buildSessionProjection?.().messages))pi.setActiveTools(baseTools);
    checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;
    flags=new Set(parseFeatureFlags(pi.getFlag('apex-feature-flags')));evalMode=pi.getFlag('apex-eval')===true;
    if(flags.has('autocompact'))autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));
@@ -65,10 +67,15 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.${r.skippedPaths?.length?` ${r.skippedPaths.length} files over the checkpoint size caps were not tracked and are unchanged.`:''}`);return r;
     });
    }
+   if(flags.has('remember')&&!evalMode){
+    // Register before plan restoration so a restored prior loadout can include this tool.
+    const {createLearnings}=await import('./learnings.mjs');learnings=createLearnings({cwd:ctx.cwd,evalMode:false});pi.registerTool(learnings.tool());
+   }
    if(flags.has('plan')||flags.has('review'))workflows=await import('./workflows.mjs');
    if(flags.has('plan')){
     baseTools=latest(branch,'apex-plan-state')?.tools??pi.getActiveTools();
-    plan=workflows.createPlanManager({cwd:ctx.cwd,pi,policy,branch,persist:entry=>pi.appendEntry(entry.customType,entry.data)});
+    plan=workflows.createPlanManager({cwd:ctx.cwd,pi,policy,branch,recordedTools:workflows.recordedToolNames(ctx.sessionManager.buildSessionProjection?.().messages),
+     persist:entry=>pi.appendEntry(entry.customType,entry.data)});
     command('plan','Enter read-only planning, save literal Markdown, or cancel',async(args,ctx)=>{
      await ctx.waitForIdle();
      let r;
@@ -82,9 +89,6 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
     await ctx.waitForIdle();const r=await workflows.runReview({cwd:ctx.cwd,task:args.trim()||'Verify the current changes against their requirements and check for regressions.',policy},ctx);
     notify(ctx,r.reason??r.result?.content?.filter(part=>part.type==='text').map(part=>part.text).join('\n')??'Review completed.');return r;
    });
-   if(flags.has('remember')&&!evalMode){
-    const {createLearnings}=await import('./learnings.mjs');learnings=createLearnings({cwd:ctx.cwd,evalMode:false});pi.registerTool(learnings.tool());
-   }
    if(flags.has('safety'))safety=(await import('./safety.mjs')).createSafetyGate({pi,evalMode});
    if(flags.has('resume'))command('resume-info','Inspect the current session without replaying tools',async(args,ctx)=>{
     const file=args.trim()||ctx.sessionManager.getSessionFile?.();

@@ -52,7 +52,8 @@ test('native codemode loadout omits deferred declarations and classifier access'
   const codemode = runner.getToolDefinition('codemode');
   const loadout = {declared: [codemode], callable: rare, registered: [codemode, ...rare],
     getExposure: name => name === 'codemode' ? 'model-only' : rare.find(tool => tool.name === name).exposure,
-    getNamespace: name => rare.find(tool => tool.name === name)?.namespace};
+    getNamespace: name => rare.find(tool => tool.name === name)?.namespace,
+    getPromptGuidelines: name => [codemode, ...rare].find(tool => tool.name === name)?.promptGuidelines ?? []};
   const before = codemode.prepareLoadout(loadout).descriptions.codemode;
   assert.match(before, /inline_compare/);
   assert.doesNotMatch(before, /Extract source symbols|rare_outline\(/);

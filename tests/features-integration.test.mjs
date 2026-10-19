@@ -44,7 +44,7 @@ test('core todo and verification do not force planning continuations',async()=>{
  const h=fixture('plan');h.values['apex-core-flags']='todo,verify';createApexCore()(h.pi);createApexFeatures()(h.pi);await h.emit('session_start');
  await h.commands.get('plan').handler('study entry point',h.ctx);
  const boundary={outcome:'completed',entries:[],context:{canContinue:true,pendingMessages:[]}};
- await h.emit('before_agent_start',{prompt:'plan',systemPromptOptions:{sections:{}}});
+ await h.emit('before_agent_start',{messageType:'user',prompt:'plan',systemPromptOptions:{sections:{}}});
  assert.notEqual((await h.emit('turn_end',{...boundary,turnIndex:1,toolResults:[]}))?.continue,true);
  // An error restores the active tools and persists a concrete planning failure.
  const settled=await h.emit('agent_before_settle',{...boundary,outcome:'error'});assert.notEqual(settled?.continue,true);assert.deepEqual(h.pi.getActiveTools(),['read','write','edit','bash']);

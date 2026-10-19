@@ -20,7 +20,7 @@ test('default Phase 2 factory and lifecycle are inert',async()=>{
   assert.ok(extension,'Phase 2 coordinator missing');
   const h=harness();extension.default(h.api);assert.equal(h.tools.length,0);
   await h.hooks.get('session_start')({reason:'startup'},h.ctx);
-  const event={prompt:'task',systemPromptOptions:{sections:{native:'preserve'}}};
+  const event={messageType:'user',prompt:'task',systemPromptOptions:{sections:{native:'preserve'}}};
   assert.equal(await h.hooks.get('before_agent_start')(event,h.ctx),undefined);
   assert.deepEqual(event.systemPromptOptions.sections,{native:'preserve'});
   assert.equal(h.branch.length,0);assert.equal(h.tools.length,0);
@@ -33,7 +33,7 @@ test('initial snapshot is a context message and static mode sections retain nati
   const h=harness('snapshot,headless');
   extension.createApexCore({captureEnvironment:async()=>{captured++;return {text:'local fixture',details:{fixture:true}};}})(h.api);
   await h.hooks.get('session_start')({reason:'startup'},h.ctx);
-  const event={prompt:'task',systemPromptOptions:{sections:{native:'keep'}}};
+  const event={messageType:'user',prompt:'task',systemPromptOptions:{sections:{native:'keep'}}};
   const first=await h.hooks.get('before_agent_start')(event,h.ctx);
   assert.ok(first.message.content.includes('local fixture'));
   assert.equal(event.systemPromptOptions.sections.native,'keep');
@@ -43,12 +43,24 @@ test('initial snapshot is a context message and static mode sections retain nati
   await h.hooks.get('turn_end')({...boundary,toolResults:[],turnIndex:0},h.ctx);
   assert.equal(captured,1);
 });
+test('an extension-triggered custom run keeps the mode section without starting a new task',async()=>{
+  assert.ok(extension,'Phase 2 coordinator missing');
+  let captured=0;
+  const h=harness('snapshot,headless');
+  extension.createApexCore({captureEnvironment:async()=>{captured++;return {text:'local fixture',details:{}};}})(h.api);
+  await h.hooks.get('session_start')({reason:'startup'},h.ctx);
+  const custom={messageType:'custom',message:{role:'custom',customType:'other-extension',content:'wake',display:false},
+    systemPromptOptions:{sections:{native:'keep'}}};
+  assert.equal(await h.hooks.get('before_agent_start')(custom,h.ctx),undefined);
+  assert.match(custom.systemPromptOptions.sections.apex_mode,/Headless mode/);
+  assert.equal(captured,0);
+});
 test('time appends threshold notes without volatile prompt edits or forced continuation',async()=>{
   assert.ok(extension,'Phase 2 coordinator missing');
   let ms=0;
   const h=harness('time',{time:'100'});extension.createApexCore({now:()=>ms})(h.api);
   await h.hooks.get('session_start')({reason:'startup'},h.ctx);
-  await h.hooks.get('before_agent_start')({prompt:'task',systemPromptOptions:{sections:{}}},h.ctx);
+  await h.hooks.get('before_agent_start')({messageType:'user',prompt:'task',systemPromptOptions:{sections:{}}},h.ctx);
   ms=91_000;
   const sentinel={type:'custom',customType:'other-extension',data:{keep:true}};
   const boundary={outcome:'completed',entries:[sentinel],context:{canContinue:true,pendingMessages:[]},toolResults:[],turnIndex:0};

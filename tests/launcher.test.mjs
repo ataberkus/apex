@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
-import { buildPiInvocation } from '../lib/launcher.mjs';
+import { buildPiInvocation, PI_VERSION } from '../lib/launcher.mjs';
 
 test('default profile forwards prompt and tool arguments without shell interpolation', () => {
   const result = buildPiInvocation(['--model', 'provider/model', 'literal $(secret) `text`'], '/pi cli.js');
@@ -39,7 +39,7 @@ test('dry-run CLI resolves real pinned Pi without invoking a provider', {skip: !
   const result = spawnSync(process.execPath, ['bin/apex', '--apex-dry-run', '--apex-off', '--profile', 'headless', 'hello'], {encoding: 'utf8'});
   assert.equal(result.status, 0, result.stderr);
   const invocation = JSON.parse(result.stdout);
-  assert.equal(invocation.pi_version, '0.99.2');
+  assert.equal(invocation.pi_version, PI_VERSION);
   assert.deepEqual(invocation.args, ['--print', '--mode', 'json', 'hello']);
 });
 

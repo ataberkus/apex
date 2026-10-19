@@ -3,6 +3,7 @@ import {appendFile, lstat, mkdir, open, readdir, realpath, writeFile} from 'node
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {assertPaidRunAuthorized, createRequestGuard, redactProviderStream} from '../evals/micro/provider-smoke.mjs';
+import {PI_VERSION} from '../lib/launcher.mjs';
 
 const NAMES = ['evolve_read', 'evolve_list', 'evolve_submit'];
 const TIMEOUT_MS = 120000;
@@ -80,7 +81,7 @@ export async function runProposer({authorization, corpus = '/corpus', output = '
   if (!key) throw Error('api_key_missing');
   const sdk = await import('@earendil-works/pi-coding-agent');
   const packageFile = path.join(path.dirname(fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'))), '..', 'package.json');
-  if (JSON.parse(readFileSync(packageFile, 'utf8')).version !== '0.99.2') throw Error('pi_version_mismatch');
+  if (JSON.parse(readFileSync(packageFile, 'utf8')).version !== PI_VERSION) throw Error('pi_version_mismatch');
   const controller = new AbortController();
   let session, unsubscribe;
   const timer = setTimeout(() => {controller.abort(); session?.agent.abort();}, TIMEOUT_MS);

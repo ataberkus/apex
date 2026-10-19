@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import test from 'node:test';
+import {PI_VERSION} from '../lib/launcher.mjs';
 
 const gateUrl = new URL('../scripts/micro-phase2.mjs', import.meta.url);
 const load = () => import(gateUrl).catch(error => {
@@ -41,7 +42,7 @@ test('native Phase 2 gate proves supported opt-in state and reports Unix-only pr
     assert.equal(result.checks.native_bg_owned_cleanup, false);
     t.diagnostic('Supported native checks exercised; owned-process survival/cleanup unexercised on Windows.');
   }
-  assert.equal(result.pi_version, '0.99.2');
+  assert.equal(result.pi_version, PI_VERSION);
   assert.equal(result.model, 'openrouter/meta/muse-spark-1.3-contributor');
   assert.equal(result.thinking_level, 'xhigh');
   assert.equal(result.model_performance_measured, false);

@@ -11,7 +11,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate loads only Node builtins. SDK, factories, fixtures and
 // processes exist only inside a bounded, deliberately offline child run.
@@ -100,7 +100,7 @@ function fixtureLoader(pi, spec, settings, factories) {
     noThemes: true, noContextFiles: true, appendSystemPrompt: [], extensionFactories: factories,
     agentsFilesOverride: () => ({agentsFiles: [{path: path.join(spec.fixture, 'AGENTS.md'),
       content: 'NATIVE_CONTEXT_SENTINEL: preserve this explicitly supplied fixture context.'}]})});
-  // no* flags apply after package resolution in 0.99.2. Isolate the actual
+  // no* flags apply after package resolution in Pi 1.3.0. Isolate the actual
   // package-manager discovery seam as well, rather than trusting flags alone.
   if (spec.fixtureMode !== 'ambient-discovery') {
     if (typeof loader.packageManager?.resolve !== 'function' ||
@@ -187,8 +187,14 @@ async function makeSession(pi, spec, shared, {flags = 'all', phase1 = false, man
     if (result.isError && !allowError) throw new Error('fixture_tool_failed');
     return result;
   };
+  // Mirrors Pi 1.3.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
+  // unless a handler edited selectedTools, then record the prompt/tool loadout.
   const start = async task => {
-    const result = await session.extensionRunner.emitBeforeAgentStart(task, undefined, session._baseSystemPromptOptions);
+    const before = session._baseSystemPromptOptions.selectedTools;
+    const result = await session.extensionRunner.emitBeforeAgentStart({messageType: 'user', prompt: task}, session._baseSystemPromptOptions);
+    const selected = result.systemPromptOptions.selectedTools;
+    if (selected.length === before.length && selected.every((name, index) => name === before[index]))
+      result.systemPromptOptions.selectedTools = session.getActiveToolNames();
     const update = session._preparePromptAndToolLoadout(result.systemPromptOptions);
     session._runSystemPromptOptions = result.systemPromptOptions;
     if (update) manager.appendMessage(update);
@@ -410,7 +416,7 @@ async function childMain(spec) {
     observed.stage = 'sdk';
     const pi = await import('@earendil-works/pi-coding-agent');
     const version = JSON.parse(await readFile(path.join(root, 'node_modules/@earendil-works/pi-coding-agent/package.json'), 'utf8')).version;
-    if (version !== '0.99.2') throw new Error('unexpected_pi_version');
+    if (version !== PINNED_PI_VERSION) throw new Error('unexpected_pi_version');
     const runtime = await offlineRuntime(pi, calls, observed);
     const shared = {...runtime, calls, registered_flags: new Map(), session_starts: 0, extension_errors: []};
     observed.stage = 'native_session';

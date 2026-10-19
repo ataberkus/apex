@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(import.meta.url);
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
+// Mirrors lib/launcher.mjs PI_VERSION; the micro gates stay builtin-only at import.
+export const PINNED_PI_VERSION = '1.3.0';
 export const WINDOWS_FIXTURE_ENV = Object.freeze([
   'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
   'SYSTEMDRIVE', 'USERNAME', 'USERDOMAIN', 'LOGONSERVER', 'PATHEXT',
@@ -158,7 +160,7 @@ async function childCreate(spec, calls) {
   const pi = await import('@earendil-works/pi-coding-agent');
   const packagePath = fileURLToPath(new URL('../node_modules/@earendil-works/pi-coding-agent/package.json', import.meta.url));
   const version = JSON.parse(await readFile(packagePath, 'utf8')).version;
-  if (version !== '0.99.2') throw new Error('unexpected_pi_version');
+  if (version !== PINNED_PI_VERSION) throw new Error('unexpected_pi_version');
   const {runtime, model, denyInference} = await offlineRuntime(pi, calls);
   const manager = pi.SessionManager.create(spec.fixture, path.join(spec.fixture, 'sessions'));
   manager.appendModelChange(model.provider, model.id);

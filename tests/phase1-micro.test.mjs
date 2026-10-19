@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import test from 'node:test';
+import {PI_VERSION} from '../lib/launcher.mjs';
 
 const gateUrl = new URL('../scripts/micro-phase1.mjs', import.meta.url);
 const load = () => import(gateUrl).catch(error => {
@@ -58,7 +59,7 @@ test('native Phase 1 factory initializes actual wrappers, lazy loadout and cance
   const result = await runPhase1Micro();
   assert.equal(result.kind, 'offline_phase1_contract');
   assert.equal(result.status, 'PASS', JSON.stringify(result));
-  assert.equal(result.pi_version, '0.99.2');
+  assert.equal(result.pi_version, PI_VERSION);
   assert.equal(result.model, 'openrouter/meta/muse-spark-1.3-contributor');
   assert.equal(result.thinking_level, 'xhigh');
   assert.equal(result.model_performance_measured, false);

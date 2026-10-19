@@ -44,7 +44,7 @@ class PlanTests(unittest.TestCase):
         plan = prepare_plan(config, 'pilot', 1, SHA, attempts=5)
         self.assertEqual(plan['status'], 'ready_for_review')
         command = plan['harbor_argv']
-        self.assertIn('version=0.99.2', command)
+        self.assertIn('version=1.3.0', command)
         self.assertIn('5', command)
         self.assertNotIn('--agent-timeout-multiplier', command)
         self.assertNotIn('--force-build', command)

@@ -95,7 +95,9 @@ export function createApexCore({now=()=>performance.now(),policy=runtimePolicy()
     pi.on('before_agent_start',async(event,ctx)=>{
       if(!features.size||activePlan(ctx))return;
       if(modePrompt)event.systemPromptOptions.sections.apex_mode=modePrompt;
-      // before_agent_start is a user prompt boundary, not an automatic continuation.
+      // Pi 1.2+ also emits this for idle pi.sendMessage(...,{triggerTurn:true}) runs (messageType 'custom', no prompt).
+      // Only a user prompt is an Apex task boundary; custom runs keep the stable mode section and current task state.
+      if(event.messageType!=='user')return;
       await state?.begin(event.prompt,{newRun:true});
       loops?.reset();time?.reset();diagnostics?.reset();notes=[];
       meta={version:1,loopNotes:0,timeThresholds:[]};
