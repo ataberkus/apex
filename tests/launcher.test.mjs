@@ -73,10 +73,11 @@ test('--apex-help lists every selectable flag, the pair option and the current t
   const {FEATURE_FEATURES} = await import('../extensions/apex-features/config.mjs');
   const result = spawnSync(process.execPath, [new URL('../bin/apex', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--apex-help'], {encoding: 'utf8'});
   assert.equal(result.status, 0);
-  const line = prefix => result.stdout.split('\n').find(text => text.startsWith(prefix)) ?? '';
-  assert.deepEqual(line('Context: ').slice(9).replace(/\.$/, '').split(','), [...CONTEXT_FEATURES]);
-  assert.deepEqual(line('Core: ').slice(6).replace(/\.$/, '').split(','), [...CORE_FEATURES]);
-  assert.deepEqual(line('Features: ').slice(10).replace(/\.$/, '').split(','), [...FEATURE_FEATURES]);
+  // Piped help is plain: each feature set is one row, `  NAME   a, b, c`, under FEATURE FLAGS.
+  const values = name => (result.stdout.split('\n').find(text => text.startsWith(`  ${name} `)) ?? '').trim().slice(name.length).trim().split(', ');
+  assert.deepEqual(values('context'), [...CONTEXT_FEATURES]);
+  assert.deepEqual(values('core'), [...CORE_FEATURES]);
+  assert.deepEqual(values('features'), [...FEATURE_FEATURES]);
   assert.match(result.stdout, /--apex-pair PLAN,BUILD/);
   assert.doesNotMatch(result.stdout, /thinking: xhigh\./);
 });

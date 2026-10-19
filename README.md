@@ -89,6 +89,8 @@ node bin/apex --version
 
 These commands perform no model inference. A normal task invocation will use Pi's configured credentials and can incur provider charges; benchmark tasks remain blocked pending a container host; see RESULTS.md for the live synthetic smoke.
 
+Apex's own output (`--apex-help`, `apex report SESSION` and its error messages) uses color and a framed report layout on a color terminal. Piped or redirected output, `NO_COLOR` and `TERM=dumb` give plain text with no escape codes or box drawing; `apex report SESSION --json` and `--apex-dry-run` always print raw JSON.
+
 Apex options occupy the prefix, before all Pi arguments. default forwards Pi arguments unchanged; headless ensures --print --mode json. Pi option values and literal task text are preserved. Use -- to end option parsing for tasks beginning with a dash. Equals-mode arguments are unsupported by pinned Pi; use --mode json. With no --apex-context prefix, no extra prompt, tools, environment snapshot or thinking policy is injected.
 
 The package declares host Pi as a peer and pins local development Pi 0.99.2. The package declares three inert-by-default context, core and daily-driver extensions. Installing it registers selection flags but adds no model-visible resource until enabled. Virtual apex/auto is a separate explicit extension loaded by the route option before model selection.
