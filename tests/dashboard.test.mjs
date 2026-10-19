@@ -113,9 +113,13 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
     assert.equal((await post('/api/workspaces', {path: home})).status, 200);
     const started = await post('/api/start', {cwd: home, model: 'sol'});
     assert.equal(started.status, 200, started.text);
-    // The child's bin/apex adds the Windows defaults to a launch without selection, so "Plain agent" must opt out.
+    // Plain agent picks nothing, so bin/apex's Windows defaults must not apply. On native Windows a signed-in model
+    // still takes the bare target, which adds only the Claude identity patch; elsewhere it runs stock Pi.
     const [plainArgs] = (await readFile(join(home, 'argv.jsonl'), 'utf8')).trim().split('\n').map(JSON.parse);
-    assert.ok(!buildPiInvocation(withWindowsDefaults(plainArgs), resolvePi().cli).args.includes('--extension'), 'nothing picked runs stock Pi');
+    const plain = buildPiInvocation(withWindowsDefaults(plainArgs), resolvePi().cli).args;
+    assert.deepEqual(plain.filter((arg, index) => plain[index - 1] === '--extension').map(file => file.split(/[/\\]/).at(-1)),
+      process.platform === 'win32' ? ['claude-identity.mjs'] : [], 'nothing picked adds no Apex feature');
+    assert.ok(!plain.some(arg => /^--apex-(?:context|core|feature)-flags$/.test(arg)));
     const {id} = JSON.parse(started.text);
     const sent = await post('/api/send', {id, message: 'Offline fixture prompt'});
     assert.equal(sent.status, 200, sent.text);
@@ -123,8 +127,10 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
     const thought = await settings({thinking: 'medium'});
     assert.equal(thought.code, 200); assert.equal(thought.thinking, 'medium'); assert.deepEqual(thought.levels, ['low', 'medium', 'high', 'xhigh']);
     assert.equal((await settings({thinking: 'max'})).thinking, 'xhigh', 'the agent clamps unsupported levels and the dashboard reports what it chose');
+    // A plain session on a signed-in model carries the bare Windows target on native Windows, so it stays on signed-in models.
     const switched = await settings({model: 'muse'});
-    assert.equal(switched.model, 'muse'); assert.deepEqual(switched.input, ['text']);
+    if (process.platform === 'win32') assert.match(switched.error, /switch between signed-in models/);
+    else { assert.equal(switched.model, 'muse'); assert.deepEqual(switched.input, ['text']); }
     assert.match((await settings({thinking: 'loud'})).error, /Unknown thinking level/);
     assert.match((await settings({model: 'nope'})).error, /Choose a model/);
     assert.equal((await post('/api/stop', {id})).status, 200);
@@ -159,8 +165,8 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
       assert.deepEqual([mixed.model, mixed.thinking, mixed.logins], ['apex/pair', 'medium', ['anthropic', 'openai-codex']]);
       assert.equal((await post('/api/stop', {id: mixed.id})).status, 200);
       // The extended Windows target accepts every signed-in provider through the same launcher parser.
-      // Without a chosen level a model starts at xhigh, or at its top level when it has no xhigh.
-      for (const [model, level] of [['anthropic/claude-opus-5-5', 'xhigh'], ['opencode-go/kimi-k3', 'max']]) {
+      // Without a chosen level a Windows model starts at medium, or at its top level when it has no medium.
+      for (const [model, level] of [['anthropic/claude-opus-5-5', 'medium'], ['opencode-go/kimi-k3', 'max']]) {
         const other = await post('/api/start', {cwd: home, model, context: ['read'], core: ['todo']});
         assert.equal(other.status, 200, other.text);
         const live = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === JSON.parse(other.text).id);

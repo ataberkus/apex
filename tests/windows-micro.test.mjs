@@ -7,20 +7,20 @@ import {windowsFixture, nativeProbe} from './fixtures/windows.mjs';
 
 function reportFor(name) {
   const kinds = {tools: 'offline_tool_contract', session: 'offline_session_contract', context: 'offline_phase1_contract',
-    core: 'offline_phase2_windows_contract', features: 'offline_phase3_contract', sol: 'offline_windows_sol_contract'};
+    core: 'offline_phase2_windows_contract', features: 'offline_phase3_contract', default: 'offline_windows_default_contract'};
   return {kind: kinds[name], status: 'PASS', provider_calls: 0, model_performance_measured: false,
     results: Array.from({length: 8}, () => ({passed: true})), checks: {fixture_check: true},
     attempted_calls: {network: 0, auth: 0, inference: 0, credentials: 0}, resource_discovery_attempts: 0,
     cleanup: {fixture_removed: true, owned_processes_removed: true},
     ...(name === 'core' ? {scope: 'windows', checks: {windows_bg_refused_before_allocation: true}, background: {status: 'NOT_APPLICABLE'}} : {}),
-    ...(name === 'sol' ? {model: 'openai-codex/gpt-6.1-sol', thinking_level: 'xhigh', checks: {windows_literal_paths_crlf: true, windows_context_tools: true,
-      windows_shape_checkpoint_composition: true, windows_composed_undo: true, windows_sol_launcher: true}} : {})};
+    ...(name === 'default' ? {model: 'anthropic/claude-opus-5-5', thinking_level: 'medium', checks: {windows_literal_paths_crlf: true, windows_context_tools: true,
+      windows_shape_checkpoint_composition: true, windows_composed_undo: true, windows_default_launcher: true}} : {})};
 }
-const names = ['tools', 'session', 'context', 'core', 'features', 'sol'];
+const names = ['tools', 'session', 'context', 'core', 'features', 'default'];
 const identify = args => {
   const file = path.basename(args[0]);
   return {'micro-tools.mjs': 'tools', 'micro-session.mjs': 'session', 'micro-phase1.mjs': 'context',
-    'micro-phase2.mjs': 'core', 'micro-phase3.mjs': args.includes('--windows-sol') ? 'sol' : 'features'}[file];
+    'micro-phase2.mjs': 'core', 'micro-phase3.mjs': args.includes('--windows-default') ? 'default' : 'features'}[file];
 };
 
 test('Windows acceptance requires native evidence, not skips, nonzero access, empty checks or the old full-scope artifact', () => {
@@ -33,8 +33,9 @@ test('Windows acceptance requires native evidence, not skips, nonzero access, em
   assert.equal(windowsContractPassed('tools', {...reportFor('tools'), results: [{passed: true}]}), false);
   assert.equal(windowsContractPassed('core', {...reportFor('core'), kind: 'offline_phase2_contract'}), false);
   assert.equal(windowsContractPassed('core', {...reportFor('core'), checks: {another: true}}), false);
-  assert.equal(windowsContractPassed('sol', {...reportFor('sol'), model: 'openrouter/meta/muse-spark-1.3-contributor'}), false);
-  assert.equal(windowsContractPassed('sol', {...reportFor('sol'), checks: {one: true}}), false);
+  assert.equal(windowsContractPassed('default', {...reportFor('default'), model: 'openrouter/meta/muse-spark-1.3-contributor'}), false);
+  assert.equal(windowsContractPassed('default', {...reportFor('default'), thinking_level: 'xhigh'}), false);
+  assert.equal(windowsContractPassed('default', {...reportFor('default'), checks: {one: true}}), false);
   assert.equal(windowsContractPassed('unknown', reportFor('session')), false);
 });
 

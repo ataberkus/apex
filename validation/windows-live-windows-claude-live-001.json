@@ -1,0 +1,1140 @@
+{
+  "schema_version": 1,
+  "kind": "windows_live_features_acceptance",
+  "run_id": "windows-claude-live-001",
+  "provider": "anthropic",
+  "model": "claude-opus-5-5",
+  "thinking": "medium",
+  "platform": "win32",
+  "passed": true,
+  "checks": {
+    "native_session_completed": true,
+    "exact_model_thinking": true,
+    "read": true,
+    "search": true,
+    "edit": true,
+    "write": true,
+    "bash": true,
+    "patch": true,
+    "lazy": true,
+    "contract": true,
+    "todo": true,
+    "verification_gate": true,
+    "fixture_exact": true,
+    "shaping": true,
+    "exact_recovery": true,
+    "remember": true,
+    "skills": true,
+    "checkpoint": true,
+    "accounting": true,
+    "resume": true,
+    "offline_auxiliary_no_sends": true,
+    "network_policy": true,
+    "final_completed": true,
+    "extensions_no_errors": true
+  },
+  "failure": null,
+  "physical_requests": 10,
+  "sends": [
+    {
+      "ordinal": 1,
+      "payload_bytes": 28231,
+      "payload_sha256": "2afbba079c27a69b429700e282f2433657505bb4276836947f631654657642d6",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.461155,
+      "sent_at": "2026-10-19T18:22:03.631Z",
+      "status": 200,
+      "response_id": "msg_011CgC4UuLhEbU13ULtr1nWi",
+      "catalog_usd": 0.067016
+    },
+    {
+      "ordinal": 2,
+      "payload_bytes": 34332,
+      "payload_sha256": "127ae4659bca422ed0002363c32a9cf0b971bbaaf310872fae04f56778013ce8",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.49166,
+      "sent_at": "2026-10-19T18:22:24.680Z",
+      "status": 200,
+      "response_id": "msg_011CgC4WSANXxTtA5d48qCWQ",
+      "catalog_usd": 0.0192738
+    },
+    {
+      "ordinal": 3,
+      "payload_bytes": 43843,
+      "payload_sha256": "525a0b75a465458c6185c43f790b12381d864642d754dec100aeffc4c3e81474",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.539215,
+      "sent_at": "2026-10-19T18:22:42.957Z",
+      "status": 200,
+      "response_id": "msg_011CgC4XnE9QLvVB5ja3NwGx",
+      "catalog_usd": 0.0511124
+    },
+    {
+      "ordinal": 4,
+      "payload_bytes": 53132,
+      "payload_sha256": "ffcbf4bad2fc87a246fa4fd112cd6e4de381ae546a55f3f498aeb71a66045650",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.58566,
+      "sent_at": "2026-10-19T18:22:48.004Z",
+      "status": 200,
+      "response_id": "msg_011CgC4Y9seNHdsGvCf2uyNj",
+      "catalog_usd": 0.0493614
+    },
+    {
+      "ordinal": 5,
+      "payload_bytes": 58856,
+      "payload_sha256": "c98809558c37084ebc7af5d655719ee144d6f680bd5373131bb1f97a79469543",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.61428,
+      "sent_at": "2026-10-19T18:22:50.454Z",
+      "status": 200,
+      "response_id": "msg_011CgC4YLS933nssduBH1KTF",
+      "catalog_usd": 0.2948306
+    },
+    {
+      "ordinal": 6,
+      "payload_bytes": 74794,
+      "payload_sha256": "577abea7f14dbe9bb74f0c61ae89cb6dbc1af718889d70c55ef1bc4a8e7ea428",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.69397,
+      "sent_at": "2026-10-19T18:24:15.949Z",
+      "status": 200,
+      "response_id": "msg_011CgC4eeFceJ2ZDtDYVwBsE",
+      "catalog_usd": 0.0742638
+    },
+    {
+      "ordinal": 7,
+      "payload_bytes": 75591,
+      "payload_sha256": "86449ef79721388b2ddf52bb4abcc14341e72a5b42b0170396bde2944e550451",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.697955,
+      "sent_at": "2026-10-19T18:24:18.091Z",
+      "status": 200,
+      "response_id": "msg_011CgC4eocgVoFapWmvvRuCX",
+      "catalog_usd": 0.0138324
+    },
+    {
+      "ordinal": 8,
+      "payload_bytes": 60412,
+      "payload_sha256": "af1d1f5876d45c34e042270aa54aee0a1d29a8bfec964831efe9baa7f3bc6fb5",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.62206,
+      "sent_at": "2026-10-19T18:24:21.457Z",
+      "status": 200,
+      "response_id": "msg_011CgC4f3Wri58NSNsQxnBoN",
+      "catalog_usd": 0.1274838
+    },
+    {
+      "ordinal": 9,
+      "payload_bytes": 64292,
+      "payload_sha256": "e5eed9f48c14a89ce8b9400bc1ef1524a730c5f668560c028f83148337056efa",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.64146,
+      "sent_at": "2026-10-19T18:24:29.487Z",
+      "status": 200,
+      "response_id": "msg_011CgC4fefxRbD5mCkbYBbDx",
+      "catalog_usd": 0.013349799999999998
+    },
+    {
+      "ordinal": 10,
+      "payload_bytes": 66079,
+      "payload_sha256": "da0f4e2910241bd757a36f06a3ea5d270e0ea4dfc804f879ac281f860eb43da5",
+      "model": "claude-opus-5-5",
+      "thinking": "medium",
+      "worst_usd": 0.650395,
+      "sent_at": "2026-10-19T18:24:34.860Z",
+      "status": 200,
+      "response_id": "msg_011CgC4g2sh2SwPnGfa6Eani",
+      "catalog_usd": 0.010908600000000001
+    }
+  ],
+  "blocked_reasons": [],
+  "external_network_attempts": [],
+  "wall_seconds": 156.732,
+  "catalog_token_cost_usd": 0.7214326,
+  "billed_cost_usd": null,
+  "run_cap_usd": 4,
+  "max_output_tokens": 16000,
+  "output_bound_source": "guard-lowered payload max_tokens; a catalog estimate, not an invoice",
+  "responses": [
+    {
+      "id": "msg_011CgC4UuLhEbU13ULtr1nWi",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 11004,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 11004,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 599,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4WSANXxTtA5d48qCWQ",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2293,
+        "cache_read_input_tokens": 11004,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 2293,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 280,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4XnE9QLvVB5ja3NwGx",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 8445,
+        "cache_read_input_tokens": 13297,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8445,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 311,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4Y9seNHdsGvCf2uyNj",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 8321,
+        "cache_read_input_tokens": 21742,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 8321,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 170,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4YLS933nssduBH1KTF",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 5166,
+        "cache_read_input_tokens": 30063,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 5166,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 13149,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 166
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4eeFceJ2ZDtDYVwBsE",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 13378,
+        "cache_read_input_tokens": 35229,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 13378,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 16,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4eocgVoFapWmvvRuCX",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 215,
+        "cache_read_input_tokens": 48607,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 215,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 151,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4f3Wri58NSNsQxnBoN",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 22515,
+        "cache_read_input_tokens": 11004,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 22515,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 635,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 179
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4fefxRbD5mCkbYBbDx",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 834,
+        "cache_read_input_tokens": 33519,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 834,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 123,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 44
+        }
+      },
+      "complete": true
+    },
+    {
+      "id": "msg_011CgC4g2sh2SwPnGfa6Eani",
+      "model": "claude-opus-5-5",
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 134,
+        "cache_read_input_tokens": 34353,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 134,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 168,
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard",
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        }
+      },
+      "complete": true
+    }
+  ],
+  "accounting": {
+    "cost": {
+      "totals": {
+        "input": 26,
+        "cacheRead": 238818,
+        "cacheWrite": 72305,
+        "output": 15602,
+        "totalTokens": 326751,
+        "thinking": 389,
+        "cacheWrite1h": 0
+      },
+      "knownTotals": {
+        "input": 26,
+        "cacheRead": 238818,
+        "cacheWrite": 72305,
+        "output": 15602,
+        "totalTokens": 326751,
+        "thinking": 389,
+        "cacheWrite1h": 0
+      },
+      "cost": {
+        "label": "estimate, not invoice",
+        "nativeEstimateUsd": 0.7214326,
+        "knownNativeEstimateUsd": 0.7214326,
+        "pricingEstimateUsd": 0.7214326,
+        "knownPricingEstimateUsd": 0.7214326
+      },
+      "completeness": {
+        "usage": true,
+        "cost": true,
+        "thinking": true,
+        "issues": []
+      },
+      "scope": "session",
+      "model": {
+        "provider": "anthropic",
+        "id": "claude-opus-5-5"
+      },
+      "currentTaskId": "28c3ffa2-418d-49dc-ac00-7937967d6c39",
+      "context": {
+        "tokens": 34657,
+        "window": 1000000,
+        "percent": 3.4657
+      },
+      "categories": {
+        "estimateMethod": "utf8-bytes/4",
+        "label": "stored content proxy, not exact input attribution",
+        "user": {
+          "bytes": 1821,
+          "estimatedTokens": 455.25
+        },
+        "assistant": {
+          "bytes": 1673,
+          "estimatedTokens": 418.25
+        },
+        "thinking": {
+          "bytes": 376,
+          "estimatedTokens": 94
+        },
+        "toolCalls": {
+          "bytes": 14648,
+          "estimatedTokens": 3662
+        },
+        "toolResults": {
+          "bytes": 24181,
+          "estimatedTokens": 6045.25
+        },
+        "summaries": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "system": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "custom": {
+          "bytes": 2163,
+          "estimatedTokens": 540.75
+        },
+        "other": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        }
+      },
+      "topConsumers": [
+        {
+          "entryId": "bec9cf3f",
+          "type": "message",
+          "bytes": 13452,
+          "estimatedTokens": 3363
+        },
+        {
+          "entryId": "a44f09c4",
+          "type": "message",
+          "bytes": 8144,
+          "estimatedTokens": 2036
+        },
+        {
+          "entryId": "4de3c5f7",
+          "type": "message",
+          "bytes": 8144,
+          "estimatedTokens": 2036
+        },
+        {
+          "entryId": "6d6fc583",
+          "type": "message",
+          "bytes": 5163,
+          "estimatedTokens": 1290.75
+        },
+        {
+          "entryId": "960360e7",
+          "type": "message",
+          "bytes": 1821,
+          "estimatedTokens": 455.25
+        },
+        {
+          "entryId": "9d6741be",
+          "type": "message",
+          "bytes": 1346,
+          "estimatedTokens": 336.5
+        },
+        {
+          "entryId": "19319adf",
+          "type": "message",
+          "bytes": 1040,
+          "estimatedTokens": 260
+        },
+        {
+          "entryId": "2d41fba0",
+          "type": "custom_message",
+          "bytes": 985,
+          "estimatedTokens": 246.25
+        },
+        {
+          "entryId": "f0587ac8",
+          "type": "custom_message",
+          "bytes": 589,
+          "estimatedTokens": 147.25
+        },
+        {
+          "entryId": "ee64059a",
+          "type": "custom_message",
+          "bytes": 589,
+          "estimatedTokens": 147.25
+        }
+      ],
+      "tasks": [
+        {
+          "taskId": "28c3ffa2-418d-49dc-ac00-7937967d6c39",
+          "totals": {
+            "input": 26,
+            "cacheRead": 238818,
+            "cacheWrite": 72305,
+            "output": 15602,
+            "totalTokens": 326751,
+            "thinking": 389,
+            "cacheWrite1h": 0
+          },
+          "knownTotals": {
+            "input": 26,
+            "cacheRead": 238818,
+            "cacheWrite": 72305,
+            "output": 15602,
+            "totalTokens": 326751,
+            "thinking": 389,
+            "cacheWrite1h": 0
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": 0.7214326,
+            "knownNativeEstimateUsd": 0.7214326,
+            "pricingEstimateUsd": 0.7214326,
+            "knownPricingEstimateUsd": 0.7214326
+          },
+          "completeness": {
+            "usage": true,
+            "cost": true,
+            "thinking": true,
+            "issues": []
+          }
+        }
+      ],
+      "counts": {
+        "entries": 189,
+        "usageRecords": 10,
+        "duplicateEntries": 0,
+        "duplicateRequests": 0,
+        "missingHelperRecords": 0
+      }
+    },
+    "report": {
+      "totals": {
+        "input": 26,
+        "cacheRead": 238818,
+        "cacheWrite": 72305,
+        "output": 15602,
+        "totalTokens": 326751,
+        "thinking": 389,
+        "cacheWrite1h": 0
+      },
+      "knownTotals": {
+        "input": 26,
+        "cacheRead": 238818,
+        "cacheWrite": 72305,
+        "output": 15602,
+        "totalTokens": 326751,
+        "thinking": 389,
+        "cacheWrite1h": 0
+      },
+      "cost": {
+        "label": "estimate, not invoice",
+        "nativeEstimateUsd": 0.7214326,
+        "knownNativeEstimateUsd": 0.7214326,
+        "pricingEstimateUsd": 0.7214326,
+        "knownPricingEstimateUsd": 0.7214326
+      },
+      "completeness": {
+        "usage": true,
+        "cost": true,
+        "thinking": true,
+        "issues": []
+      },
+      "scope": "session",
+      "model": {
+        "provider": "anthropic",
+        "id": "claude-opus-5-5"
+      },
+      "currentTaskId": "28c3ffa2-418d-49dc-ac00-7937967d6c39",
+      "context": {
+        "tokens": 34657,
+        "window": 1000000,
+        "percent": 3.4657
+      },
+      "categories": {
+        "estimateMethod": "utf8-bytes/4",
+        "label": "stored content proxy, not exact input attribution",
+        "user": {
+          "bytes": 1821,
+          "estimatedTokens": 455.25
+        },
+        "assistant": {
+          "bytes": 1673,
+          "estimatedTokens": 418.25
+        },
+        "thinking": {
+          "bytes": 376,
+          "estimatedTokens": 94
+        },
+        "toolCalls": {
+          "bytes": 14648,
+          "estimatedTokens": 3662
+        },
+        "toolResults": {
+          "bytes": 24181,
+          "estimatedTokens": 6045.25
+        },
+        "summaries": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "system": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "custom": {
+          "bytes": 2163,
+          "estimatedTokens": 540.75
+        },
+        "other": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        }
+      },
+      "topConsumers": [
+        {
+          "entryId": "bec9cf3f",
+          "type": "message",
+          "bytes": 13452,
+          "estimatedTokens": 3363
+        },
+        {
+          "entryId": "a44f09c4",
+          "type": "message",
+          "bytes": 8144,
+          "estimatedTokens": 2036
+        },
+        {
+          "entryId": "4de3c5f7",
+          "type": "message",
+          "bytes": 8144,
+          "estimatedTokens": 2036
+        },
+        {
+          "entryId": "6d6fc583",
+          "type": "message",
+          "bytes": 5163,
+          "estimatedTokens": 1290.75
+        },
+        {
+          "entryId": "960360e7",
+          "type": "message",
+          "bytes": 1821,
+          "estimatedTokens": 455.25
+        },
+        {
+          "entryId": "9d6741be",
+          "type": "message",
+          "bytes": 1346,
+          "estimatedTokens": 336.5
+        },
+        {
+          "entryId": "19319adf",
+          "type": "message",
+          "bytes": 1040,
+          "estimatedTokens": 260
+        },
+        {
+          "entryId": "2d41fba0",
+          "type": "custom_message",
+          "bytes": 985,
+          "estimatedTokens": 246.25
+        },
+        {
+          "entryId": "f0587ac8",
+          "type": "custom_message",
+          "bytes": 589,
+          "estimatedTokens": 147.25
+        },
+        {
+          "entryId": "ee64059a",
+          "type": "custom_message",
+          "bytes": 589,
+          "estimatedTokens": 147.25
+        }
+      ],
+      "tasks": [
+        {
+          "taskId": "28c3ffa2-418d-49dc-ac00-7937967d6c39",
+          "totals": {
+            "input": 26,
+            "cacheRead": 238818,
+            "cacheWrite": 72305,
+            "output": 15602,
+            "totalTokens": 326751,
+            "thinking": 389,
+            "cacheWrite1h": 0
+          },
+          "knownTotals": {
+            "input": 26,
+            "cacheRead": 238818,
+            "cacheWrite": 72305,
+            "output": 15602,
+            "totalTokens": 326751,
+            "thinking": 389,
+            "cacheWrite1h": 0
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": 0.7214326,
+            "knownNativeEstimateUsd": 0.7214326,
+            "pricingEstimateUsd": 0.7214326,
+            "knownPricingEstimateUsd": 0.7214326
+          },
+          "completeness": {
+            "usage": true,
+            "cost": true,
+            "thinking": true,
+            "issues": []
+          }
+        }
+      ],
+      "counts": {
+        "entries": 189,
+        "usageRecords": 10,
+        "duplicateEntries": 0,
+        "duplicateRequests": 0,
+        "missingHelperRecords": 0
+      }
+    }
+  },
+  "offline": {
+    "plan": {
+      "ok": true,
+      "active": true,
+      "prompted": false,
+      "reason": "Offline plan mode is active. Save explicit Markdown with /plan save, or cancel; no model request was started."
+    },
+    "planCancel": {
+      "ok": true,
+      "active": false
+    },
+    "review": {
+      "ok": false,
+      "blocked": true,
+      "reason": "Model work is blocked by offline-only authorization."
+    },
+    "explore": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Auxiliary model work is blocked by offline-only authorization."
+        }
+      ],
+      "isError": true,
+      "details": {
+        "status": "blocked",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinkingLevel": "xhigh",
+        "depth": 1,
+        "usage": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "totalTokens": 0,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "checks": [],
+        "truncated": false,
+        "apexAux": {
+          "version": 1,
+          "kind": "explore",
+          "provider": "openrouter",
+          "model": "meta/muse-spark-1.3-contributor",
+          "attempted": false,
+          "complete": false
+        }
+      }
+    },
+    "verify": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Auxiliary model work is blocked by offline-only authorization."
+        }
+      ],
+      "isError": true,
+      "details": {
+        "status": "blocked",
+        "model": "openrouter/meta/muse-spark-1.3-contributor",
+        "thinkingLevel": "xhigh",
+        "depth": 1,
+        "usage": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "totalTokens": 0,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "checks": [],
+        "truncated": false,
+        "apexAux": {
+          "version": 1,
+          "kind": "verify",
+          "provider": "openrouter",
+          "model": "meta/muse-spark-1.3-contributor",
+          "attempted": false,
+          "complete": false
+        }
+      }
+    },
+    "compact": {
+      "cancel": true
+    },
+    "physical_requests": 0
+  },
+  "undo": {
+    "turnId": "5",
+    "status": "restored",
+    "beforeCommit": "0e7eeb94c7e660f97707efea81340a440f8667e7",
+    "afterCommit": "cb21c8e54a2d7f1c7820617bece8fe69f8b453c1",
+    "changedPaths": [
+      "recovered.txt"
+    ],
+    "skippedPaths": [],
+    "capturedAt": "2026-10-19T18:24:14.922Z",
+    "finishedAt": "2026-10-19T18:24:15.938Z",
+    "recovered_file_removed": true
+  },
+  "resume": {
+    "file": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\runs\\model-smoke\\windows-claude-live-001\\sessions\\2026-10-19T18-22-03-290Z_01a15566-3219-745f-b060-7847e1be2030.jsonl",
+    "bytes": 403285,
+    "header": {
+      "type": "session",
+      "version": 3,
+      "id": "01a15566-3219-745f-b060-7847e1be2030",
+      "timestamp": "2026-10-19T18:22:03.290Z",
+      "cwd": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\runs\\model-smoke\\windows-claude-live-001\\fixture"
+    },
+    "leafId": "4503b3c5",
+    "branchIds": [
+      "cf48785b",
+      "b81c267c",
+      "33b87d33",
+      "18b4b4d3",
+      "2d6a0aae",
+      "c1847f12",
+      "04672b45",
+      "a1e2099d",
+      "2e660b0d",
+      "4dcd16cd",
+      "b101c4fe",
+      "268338c7",
+      "aba0feeb",
+      "960360e7",
+      "2d41fba0",
+      "cb7b6b0e",
+      "9d44c7e2",
+      "b3ea36ab",
+      "430492af",
+      "f90dd5d2",
+      "659e6087",
+      "99117bbb",
+      "6a35c5d0",
+      "324e199e",
+      "141fb57e",
+      "16955f4c",
+      "2ecb8884",
+      "4a5aca86",
+      "262e909d",
+      "df8ff40e",
+      "c3eb315b",
+      "2c34dc3b",
+      "d9624071",
+      "d4c56a21",
+      "00800695",
+      "4bbcdddb",
+      "9e401bf5",
+      "a899dd1d",
+      "4b865029",
+      "7cbb25d3",
+      "7d70b626",
+      "71abdd76",
+      "890f9663",
+      "7a99e9a8",
+      "2149f931",
+      "b9a0adab",
+      "0a942b03",
+      "19319adf",
+      "b68e55f5",
+      "c5d8fe62",
+      "3e74d9ab",
+      "75ec4ab4",
+      "9dc34268",
+      "8c423bc7",
+      "890b75bb",
+      "5d7e4738",
+      "aa49edf1",
+      "b913eba1",
+      "6f95687d",
+      "c5baf6e5",
+      "78d1fcfc",
+      "de2fbf05",
+      "82c006fc",
+      "406721b4",
+      "cd34ac8f",
+      "ba523727",
+      "c04e3649",
+      "3827e7bf",
+      "00a9d397",
+      "79d28b1f",
+      "7ffecd76",
+      "c2a207a8",
+      "aab458ad",
+      "a44f09c4",
+      "ea196865",
+      "64a308e4",
+      "08218920",
+      "2aa52859",
+      "a2879332",
+      "ece57b82",
+      "f5bdcdf8",
+      "4a81052b",
+      "d05f8346",
+      "2484c9ab",
+      "dafe9673",
+      "bd0ed9fb",
+      "185dd5c2",
+      "eab6f2b4",
+      "6badd2c8",
+      "4de3c5f7",
+      "43a63305",
+      "7aed8556",
+      "d4462228",
+      "4350cbca",
+      "8052ea23",
+      "d201647c",
+      "d0696ff4",
+      "753c4b7f",
+      "481cedd9",
+      "9f5b92a8",
+      "d606c952",
+      "c7ff675a",
+      "c5316069",
+      "76acf07c",
+      "8012b71e",
+      "6d6fc583",
+      "74a15928",
+      "2bfc412f",
+      "74507307",
+      "fc6abdb4",
+      "bec9cf3f",
+      "b7ea5faf",
+      "179add69",
+      "c33f39df",
+      "a303a105",
+      "901c3184",
+      "8f87d4de",
+      "befca2da",
+      "ed775f19",
+      "83a0a53e",
+      "0fb1eda1",
+      "61637320",
+      "f51e83a5",
+      "a21d670a",
+      "e62aac03",
+      "ade386d7",
+      "1885046a",
+      "4ee7f585",
+      "2b844457",
+      "8e1f220e",
+      "653dbf49",
+      "ae8f5146",
+      "aa88a304",
+      "beb2226a",
+      "561b88e8",
+      "fc2f78fe",
+      "7fe0da0e",
+      "524a1aa4",
+      "da3a3788",
+      "537aaea4",
+      "d0f9fae3",
+      "b484012c",
+      "a408bfb6",
+      "167a4f22",
+      "f0587ac8",
+      "0909c5d2",
+      "7fec2484",
+      "a7583236",
+      "5bbd564d",
+      "f90f4d97",
+      "9d4ba936",
+      "8b1ad84b",
+      "ce7080c8",
+      "c071fb60",
+      "40a7b73d",
+      "d648c849",
+      "b7ee2b82",
+      "75d9a306",
+      "a84d7226",
+      "2f0e0ef4",
+      "3f70ee60",
+      "fdbc2677",
+      "3e2f961c",
+      "9d6741be",
+      "5d1f0eaf",
+      "64bc130d",
+      "21d5097c",
+      "1182187a",
+      "c19f75c2",
+      "7a772a9b",
+      "ee64059a",
+      "5f9359d3",
+      "75e5c568",
+      "0c377c8c",
+      "2451dc27",
+      "c7f86d56",
+      "b0e4a546",
+      "65b5a8d5",
+      "03b1f8d5",
+      "73bb23bb",
+      "657b37a6",
+      "25a376a8",
+      "3c9c5ef2",
+      "c6fa1b37",
+      "95a00b9c",
+      "998523b8",
+      "33acd6a7",
+      "a2d53844",
+      "4503b3c5"
+    ],
+    "model": "claude-opus-5-5",
+    "thinkingLevel": "medium",
+    "tornTail": false,
+    "unterminatedTail": false,
+    "pendingTools": [],
+    "replaySafe": false,
+    "replayPerformed": false,
+    "warning": null,
+    "native_reopened": true,
+    "thinking": "medium",
+    "accounting_preserved": true,
+    "learnings_retained": true,
+    "physical_requests": 0,
+    "fixture_unchanged": true
+  },
+  "fixtureOutcomes": {
+    "sample": true,
+    "summary": true,
+    "recovered": true,
+    "verification_script_unchanged": true,
+    "output_script_unchanged": true
+  },
+  "extension_errors": [],
+  "active_tools": [
+    "read",
+    "bash",
+    "edit",
+    "write",
+    "grep",
+    "find",
+    "ls",
+    "codemode",
+    "tool_search",
+    "contract",
+    "todo",
+    "explore",
+    "verify",
+    "apply_patch",
+    "remember"
+  ],
+  "boundaries": {
+    "cache": "live prefix ledger; provider cache hit not guaranteed",
+    "mask": "enabled; short fixture may not reach rewrite threshold",
+    "compact": "offline-only refusal; no auxiliary model compaction",
+    "snapshot": "native before_agent_start snapshot",
+    "entrypoints": "fixture entrypoint probing",
+    "headless": "native SDK noninteractive mode, not Windows Terminal UI",
+    "loops": "enabled; repeated-error escalation not induced",
+    "time": "420-second budget configured; threshold warnings not forced",
+    "correct": "enabled; safe commands only",
+    "diagnostics": "enabled; fixture has no external project checker",
+    "subagents": "offline-only refusals, not live auxiliary inference",
+    "plan": "offline read-only mode without model request",
+    "review": "offline-only refusal",
+    "safety": "safe fixture calls, no interactive risky action",
+    "unsupported": [
+      "context route/output Muse-only",
+      "core bg/max/recovery unsupported on Windows"
+    ]
+  },
+  "raw_provider_events_file": "runs\\model-smoke\\windows-claude-live-001\\provider-events.jsonl",
+  "raw_events_file": "runs\\model-smoke\\windows-claude-live-001\\events.jsonl",
+  "raw_session_file": "runs/model-smoke/windows-claude-live-001/session.jsonl",
+  "benchmark_result": false,
+  "usage_complete": true,
+  "ledger_remaining_catalog_equivalent_usd": 9.2785674
+}

@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {runWindowsPreflight, windowsProbeEnvironment} from './preflight-windows.mjs';
 import {fixtureEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
-import {WINDOWS_DEFERRED} from '../lib/windows-target.mjs';
+import {WINDOWS_DEFERRED, WINDOWS_MODEL, WINDOWS_THINKING} from '../lib/windows-target.mjs';
 
 const GATES = Object.freeze([
   {name: 'tools', file: 'micro-tools.mjs', kind: 'offline_tool_contract', timeout: 30000},
@@ -12,7 +12,7 @@ const GATES = Object.freeze([
   {name: 'context', file: 'micro-phase1.mjs', kind: 'offline_phase1_contract', timeout: 30000},
   {name: 'core', file: 'micro-phase2.mjs', args: ['--windows'], kind: 'offline_phase2_windows_contract', timeout: 330000},
   {name: 'features', file: 'micro-phase3.mjs', kind: 'offline_phase3_contract', timeout: 330000},
-  {name: 'sol', file: 'micro-phase3.mjs', args: ['--windows-sol'], kind: 'offline_windows_sol_contract', timeout: 330000},
+  {name: 'default', file: 'micro-phase3.mjs', args: ['--windows-default'], kind: 'offline_windows_default_contract', timeout: 330000},
 ]);
 
 export function windowsContractPassed(name, result) {
@@ -24,8 +24,8 @@ export function windowsContractPassed(name, result) {
     ['network', 'auth', 'inference', 'credentials'].every(key => result.attempted_calls[key] === 0) &&
     Object.keys(result.checks ?? {}).length > 0 && Object.values(result.checks).every(value => value === true) &&
     result.cleanup?.fixture_removed === true &&
-    (name !== 'sol' || (result.model === 'openai-codex/gpt-6.1-sol' && result.thinking_level === 'xhigh' &&
-      ['windows_literal_paths_crlf', 'windows_context_tools', 'windows_shape_checkpoint_composition', 'windows_composed_undo', 'windows_sol_launcher']
+    (name !== 'default' || (result.model === WINDOWS_MODEL && result.thinking_level === WINDOWS_THINKING &&
+      ['windows_literal_paths_crlf', 'windows_context_tools', 'windows_shape_checkpoint_composition', 'windows_composed_undo', 'windows_default_launcher']
         .every(key => result.checks[key] === true))) &&
     (name !== 'core' || (result.scope === 'windows' && result.checks.windows_bg_refused_before_allocation === true &&
       result.background?.status === 'NOT_APPLICABLE' && result.cleanup.owned_processes_removed === true));

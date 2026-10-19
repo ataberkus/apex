@@ -111,7 +111,8 @@ export function smokeWindowsPackage() {
     let invocation;
     try {invocation = JSON.parse(dry.stdout);} catch {}
     result.checks.packaged_windows_selection = dry.status === 0 && invocation?.target === 'windows' &&
-      invocation.args[invocation.args.indexOf('--model') + 1] === 'openai-codex/gpt-6.1-sol' && invocation.args.at(-1) === 'literal task';
+      invocation.args[invocation.args.indexOf('--model') + 1] === 'anthropic/claude-opus-5-5' &&
+      invocation.args[invocation.args.indexOf('--thinking') + 1] === 'medium' && invocation.args.at(-1) === 'literal task';
     const cliHelp = run('packaged-cli-help', process.execPath, [path.join(packageRoot, 'bin', 'apex'), '--apex-target', 'windows',
       '--apex-context', 'shape', '--apex-features', 'cost,plan', '--offline', '--help']);
     result.checks.packaged_feature_cli_loads = cliHelp.status === 0 && cliHelp.stdout.includes('--apex-context-flags') && cliHelp.stdout.includes('--apex-feature-flags');

@@ -87,7 +87,7 @@
         "cleanup": {
           "fixture_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-ykof1p",
+        "fixture": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\session-micro-cJy0NH",
         "pi_version": "0.99.2",
         "compaction": {
           "entry_count": 1,
@@ -151,7 +151,7 @@
         "cleanup": {
           "fixture_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-PyU9zk\\phase1-micro-rWPawh",
+        "fixture": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\.windows-micro-home-yr4Fko\\phase1-micro-r6ree1",
         "pi_version": "0.99.2",
         "settings": {
           "cache_warming": "off",
@@ -198,8 +198,8 @@
           },
           "mask": {
             "original_bytes": 26600,
-            "returned_bytes": 216,
-            "returned_ratio": 0.0081203007518797,
+            "returned_bytes": 250,
+            "returned_ratio": 0.009398496240601503,
             "source": "synthetic text observation in native persisted projection"
           },
           "provider_token_savings_measured": false
@@ -256,7 +256,7 @@
           "owned_processes_removed": true,
           "recovered_owned_ids": 0
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-PyU9zk\\phase2-micro-iYGQSj",
+        "fixture": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\.windows-micro-home-yr4Fko\\phase2-micro-HNfXDS",
         "gate": {
           "initial_context_can_continue": false,
           "forced_continuations": 2,
@@ -377,12 +377,13 @@
           "fixture_removed": true,
           "owned_processes_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-PyU9zk\\phase3-micro-Wkeb3T",
+        "fixture": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\.windows-micro-home-yr4Fko\\phase3-micro-H5VzFf",
         "registration": {
           "session_starts": 5,
           "flags": {
             "apex-feature-flags": "",
-            "apex-eval": false
+            "apex-eval": false,
+            "apex-autocompact-tokens": ""
           },
           "commands": [
             "cost",
@@ -499,14 +500,14 @@
         "pi_version": "0.99.2"
       }
     },
-    "sol": {
+    "default": {
       "status": "PASS",
       "exit_code": 0,
       "report": {
-        "kind": "offline_windows_sol_contract",
+        "kind": "offline_windows_default_contract",
         "status": "PASS",
-        "model": "openai-codex/gpt-6.1-sol",
-        "thinking_level": "xhigh",
+        "model": "anthropic/claude-opus-5-5",
+        "thinking_level": "medium",
         "transcript_source": "Script-seeded native commands/tools/resources/session boundaries; no model completion.",
         "model_performance_measured": false,
         "provider_calls": 0,
@@ -552,7 +553,7 @@
           "windows_context_tools": true,
           "windows_shape_checkpoint_composition": true,
           "windows_composed_undo": true,
-          "windows_sol_launcher": true,
+          "windows_default_launcher": true,
           "structured_results_preserved": true,
           "no_extension_errors": true,
           "environment_sanitized": true,
@@ -562,12 +563,13 @@
           "fixture_removed": true,
           "owned_processes_removed": true
         },
-        "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\.windows-micro-home-PyU9zk\\windows sol ç-NdjOmh",
+        "fixture": "C:\\Users\\Valo\\.omp-web\\worktrees\\3c3ba9dc-a3a8-4139-aa25-fae2f78acfc7\\.windows-micro-home-yr4Fko\\windows default ç-3Cljtw",
         "registration": {
           "session_starts": 6,
           "flags": {
             "apex-feature-flags": "",
-            "apex-eval": false
+            "apex-eval": false,
+            "apex-autocompact-tokens": ""
           },
           "commands": [
             "cost",
@@ -618,7 +620,7 @@
             "nativeEstimateUsd": null,
             "knownNativeEstimateUsd": 0.0001492,
             "pricingEstimateUsd": null,
-            "knownPricingEstimateUsd": 0.0004402
+            "knownPricingEstimateUsd": 0.0008804
           },
           "clean_native_totals": {
             "input": 101,

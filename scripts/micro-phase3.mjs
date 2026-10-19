@@ -87,10 +87,12 @@ async function offlineRuntime(pi, calls, observed, selection = 'muse') {
     return {aborted: false, errors: new Map()};
   };
   runtime.models.refresh = deny('auth');
-  const model = selection === 'windows-sol' ? runtime.getPhysicalModel('openai-codex', 'gpt-6.1-sol') :
+  const windows = selection === 'windows' ? await import('../lib/windows-target.mjs') : undefined;
+  const model = windows ? runtime.getPhysicalModel(windows.WINDOWS_PROVIDER, windows.WINDOWS_MODEL_ID) :
     runtime.getPhysicalModel('openrouter', modelId);
-  if (model?.thinkingLevelMap?.xhigh !== 'xhigh') throw new Error('physical_model_contract_missing');
-  return {runtime, model, denyInference: deny('inference')};
+  const thinking = windows?.WINDOWS_THINKING ?? 'xhigh';
+  if (model?.thinkingLevelMap?.[thinking] !== thinking) throw new Error('physical_model_contract_missing');
+  return {runtime, model, thinking, denyInference: deny('inference')};
 }
 
 function fixtureLoader(pi, spec, settings, factories) {
@@ -163,14 +165,14 @@ async function makeSession(pi, spec, shared, {flags = 'all', coreFlags = '', con
   });
   manager ??= pi.SessionManager.create(spec.fixture, path.join(spec.fixture, 'sessions'));
   if (!manager.getEntries().some(entry => entry.type === 'model_change')) manager.appendModelChange(shared.model.provider, shared.model.id);
-  if (!manager.getEntries().some(entry => entry.type === 'thinking_level_change')) manager.appendThinkingLevelChange('xhigh');
+  if (!manager.getEntries().some(entry => entry.type === 'thinking_level_change')) manager.appendThinkingLevelChange(shared.thinking);
   const settings = pi.SettingsManager.inMemory({compaction: {enabled: false, keepRecentTokens: 96, reserveTokens: 256},
     shellPath: fixtureShellPath(), cacheWarming: 'off', retry: {enabled: false, maxRetries: 0}, packages: [], extensions: [], codemode: {mode: 'on', inlineBudget: 3000}});
   const loader = fixtureLoader(pi, spec, settings, factories);
   await loader.reload();
   if (loader.getExtensions().errors.length) throw Error('fixture_extension_failed_to_load');
   const {session} = await pi.createAgentSession({cwd: spec.fixture, agentDir: path.join(spec.fixture, 'agent'),
-    modelRuntime: shared.runtime, model: shared.model, thinkingLevel: 'xhigh', settingsManager: settings,
+    modelRuntime: shared.runtime, model: shared.model, thinkingLevel: shared.thinking, settingsManager: settings,
     sessionManager: manager, resourceLoader: loader});
   session.agent.streamFunction = shared.denyInference;
   await session.bindExtensions({onError: event => {shared.extension_errors.push({event: event.event, error: String(event.error)});}});
@@ -357,7 +359,7 @@ async function nativeFixture(pi, spec, shared, observed) {
       session.extensionRunner.getRegisteredCommands().some(item => item.invocationName === name)) &&
       session.getToolDefinition('remember')?.exposure === 'deferred' &&
       shared.registered_flags.get('apex-feature-flags') === '' && shared.registered_flags.get('apex-eval') === false,
-    effective_model: session.model.provider === shared.model.provider && session.model.id === shared.model.id && session.thinkingLevel === 'xhigh',
+    effective_model: session.model.provider === shared.model.provider && session.model.id === shared.model.id && session.thinkingLevel === shared.thinking,
     offline_settings: fixture.settings.getCacheWarmingMode() === 'off' && fixture.settings.getRetrySettings().enabled === false &&
       fixture.settings.getCompactionSettings(shared.model).enabled === false};
   try {
@@ -541,7 +543,8 @@ async function nativeFixture(pi, spec, shared, observed) {
       ['--apex-features', 'all', '--apex-eval', '--thinking', 'low'],
     ].map(args => {try {buildPiInvocation(args, '/unused-offline-cli'); return false;} catch {return true;}});
     const cliDenied = [];
-    for (const args of [['--profile', 'max', '--apex-core', 'max'],
+    // Naming Muse keeps native Windows from implying --apex-target windows, so the offline max policy answers.
+    for (const args of [['--profile', 'max', '--apex-core', 'max', '--model', 'openrouter/meta/muse-spark-1.3-contributor'],
       ['--apex-features', 'all', '--model', 'openai/gpt-4.1'], ['resume', sessionFile],
       ['resume', sessionFile, '--apex-dry-run']]) cliDenied.push(await guardedCli(spec, args));
     const cliReport = await guardedCli(spec, ['report', sessionFile, '--json']);
@@ -555,16 +558,17 @@ async function nativeFixture(pi, spec, shared, observed) {
       /offline-only|disabled/i.test(cliDenied[2].stderr) && /unresolved|replay/i.test(cliDenied[3].stderr) &&
       cliReport.status === 0 && cliReported?.replayPerformed === false &&
       cliReported.pendingTools?.some(call => call.id === 'phase3-unfinished-native') && cliGuards && allZero(shared.calls);
-    if (spec.selection === 'windows-sol') {
+    if (spec.selection === 'windows') {
       observed.stage = 'windows_context_composition';
       Object.assign(checks, await windowsContextFixture(pi, spec, shared));
       const cliWindows = await guardedCli(spec, ['--apex-dry-run', '--apex-target', 'windows', '--profile', 'headless',
         '--apex-context', 'read,search,edit,shape', '--apex-features', 'cost,checkpoints,plan,report', '--', 'literal --apex-core bg']);
       let invocation;
       try {invocation = JSON.parse(cliWindows.output);} catch {}
-      checks.windows_sol_launcher = cliWindows.status === 0 && cliWindows.guard?.sdkLoads === 0 &&
+      const option = name => invocation?.args[invocation.args.indexOf(name) + 1];
+      checks.windows_default_launcher = cliWindows.status === 0 && cliWindows.guard?.sdkLoads === 0 &&
         allZero(cliWindows.guard?.calls ?? {missing: 1}) && invocation?.target === 'windows' &&
-        invocation.args[invocation.args.indexOf('--model') + 1] === 'openai-codex/gpt-6.1-sol' &&
+        option('--model') === `${shared.model.provider}/${shared.model.id}` && option('--thinking') === shared.thinking &&
         invocation.args.at(-1) === 'literal --apex-core bg';
     }
     checks.structured_results_preserved = shared.structured_results_preserved && remembered.structuredContent?.ok === true;
@@ -673,16 +677,17 @@ async function runChild(spec) {
 }
 
 export async function runPhase3Micro({fixtureMode = 'success', selection = 'muse'} = {}) {
-  if (!['muse', 'windows-sol'].includes(selection)) throw Error('unknown_model_selection');
-  if (selection === 'windows-sol' && process.platform !== 'win32') throw Error('windows_micro_requires_native_windows');
+  if (!['muse', 'windows'].includes(selection)) throw Error('unknown_model_selection');
+  if (selection === 'windows' && process.platform !== 'win32') throw Error('windows_micro_requires_native_windows');
+  const windows = selection === 'windows' ? await import('../lib/windows-target.mjs') : undefined;
   if (!['success', 'missing-plan-gate', 'ambient-discovery', 'interrupted-fixture'].includes(fixtureMode)) throw Error('unknown_fixture_mode');
-  const artifact = {kind: selection === 'windows-sol' ? 'offline_windows_sol_contract' : 'offline_phase3_contract',
-    status: 'FAIL', model: selection === 'windows-sol' ? 'openai-codex/gpt-6.1-sol' : modelName, thinking_level: 'xhigh',
+  const artifact = {kind: windows ? 'offline_windows_default_contract' : 'offline_phase3_contract',
+    status: 'FAIL', model: windows?.WINDOWS_MODEL ?? modelName, thinking_level: windows?.WINDOWS_THINKING ?? 'xhigh',
     transcript_source: 'Script-seeded native commands/tools/resources/session boundaries; no model completion.',
     model_performance_measured: false, provider_calls: 0, benchmark_runs: 0, network_attempts: 0, transport_attempts: 0,
     resource_discovery_attempts: 0, attempted_calls: counters(), checks: {},
     cleanup: {fixture_removed: false, owned_processes_removed: true}};
-  const fixture = await mkdtemp(path.join(os.tmpdir(), selection === 'windows-sol' ? 'windows sol ç-' : 'phase3-micro-'));
+  const fixture = await mkdtemp(path.join(os.tmpdir(), windows ? 'windows default ç-' : 'phase3-micro-'));
   artifact.fixture = fixture;
   try {
     const result = await runChild({fixture, fixtureMode, selection});
@@ -709,8 +714,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   try {
     if (process.argv[2] === '--phase3-micro-child') result = await childMain(JSON.parse(process.argv[3]));
     else {
-      if (process.argv.slice(2).some(arg => arg !== '--windows-sol') || process.argv.length > 3) throw Error('unknown_micro_argument');
-      result = await runPhase3Micro({selection: process.argv[2] === '--windows-sol' ? 'windows-sol' : 'muse'});
+      if (process.argv.slice(2).some(arg => arg !== '--windows-default') || process.argv.length > 3) throw Error('unknown_micro_argument');
+      result = await runPhase3Micro({selection: process.argv[2] === '--windows-default' ? 'windows' : 'muse'});
     }
   } catch {result = {kind: 'offline_phase3_contract', status: 'FAIL', failure: 'phase3_micro_cli_failed'};}
   process.stdout.write(`${JSON.stringify(result)}\n`);

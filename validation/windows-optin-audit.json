@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "windows_feature_coverage_audit",
+  "date": "2026-10-19",
+  "model": "anthropic/claude-opus-5-5 at medium (Claude OAuth)",
+  "sources": {
+    "live_sdk": "validation/windows-live-windows-claude-live-001.json (every supported context/core flag plus features all, 24/24 checks)",
+    "terminal": "validation/windows-terminal-acceptance.json (PowerShell 5.1 conhost)",
+    "dashboard": "validation/windows-dashboard-acceptance.json",
+    "micro": "validation/windows-native-micro.json (six offline contracts, 123 checks, zero provider calls)",
+    "unit": "validation/windows-native-unit-2026-10-19.log (574 tests, 531 pass, 43 audited skips)",
+    "pair": "runs/pair-smoke/events.jsonl (gitignored raw events)"
+  },
+  "defaults": {
+    "context cache": {"terminal": "pass", "dashboard": "pass", "live_sdk": "prefix ledger recorded"},
+    "core correct": {"terminal": "pass (edits and bash through the corrected path)", "dashboard": "pass", "live_sdk": "pass"},
+    "features cost": {"terminal": "/cost pass, including after native compaction", "dashboard": "/cost and side panel pass", "live_sdk": "accounting pass"},
+    "features plan": {"terminal": "read-only turn, PLAN.md saved and notified, /undo, cancel", "dashboard": "same", "micro": "plan read/mutation/nested/deferred gates"},
+    "features report": {"terminal": "/report JSON", "dashboard": "/report JSON", "micro": "native_report"},
+    "features resume": {"terminal": "/resume-info and reopened session", "dashboard": "/resume-info", "live_sdk": "resume pass"},
+    "features autocompact": {"terminal": "compacted at 42k with --autocompact-tokens 20000; cost priced on the session model", "dashboard": "--autocompact-tokens 300000 passed by the Default preset; compaction itself not re-triggered there"},
+    "features checkpoints (Git root)": {"terminal": "/undo of edit and of saved plan", "dashboard": "/undo of edit and of saved plan", "live_sdk": "checkpoint pass"}
+  },
+  "opt_ins": {
+    "context shape": "live_sdk shaping + exact_recovery; micro windows shaping with private spills",
+    "context mask": "micro persisted_masking; live fixture too short to reach the rewrite threshold",
+    "context compact": "offline-policy refusal verified (micro native_compaction_cancelled; live boundary); inferred summaries are denied by policy, not by Windows",
+    "context read, search, edit": "live_sdk read/search/edit; micro windows_context_tools",
+    "context patch": "live_sdk patch",
+    "context lazy": "live_sdk lazy; micro native_lazy_loadout",
+    "core snapshot, entrypoints": "loaded live with no extension errors; micro native_initial_context_persisted",
+    "core headless": "live SDK noninteractive mode; micro native_profile_preserves_context",
+    "core contract, todo, verify": "live_sdk contract, todo, verification_gate; micro gate checks",
+    "core loops": "micro native_loop_notes_bounded; escalation not induced live",
+    "core time": "micro native_time_notes_bounded; live 420 s budget configured",
+    "core diagnostics": "unit: real Node syntax diagnostics pass; TypeScript checker unavailable (audited skip)",
+    "core subagents": "offline-policy refusals of explore/verify subagents verified (micro native_review_guarded, live offline_auxiliary_no_sends)",
+    "features review": "offline-policy refusal verified; independent review is auxiliary inference",
+    "features remember": "live_sdk remember; micro remember/learnings/eval isolation",
+    "features skills": "live_sdk skills; micro discovery/expansion",
+    "features safety": "terminal Esc denies / Enter allows edit and bash; dashboard Deny, Allow, Allow all, Auto-approve toggle",
+    "--apex-pair": "pass: headless pair anthropic/claude-opus-5-5:low plan, anthropic/claude-haiku-4-5:low build; plan model edited sample.txt, build model answered PAIR_DONE; 2 requests, $0.021117"
+  },
+  "unavailable": {
+    "core bg": "Unix session leaders and process-group signals; no Job Object API in Node, so no Windows-native version with the same ownership guarantees; refusal before allocation tested",
+    "core max, recovery": "free-only offline policy (multi-attempt inference, retry settings); unavailable in the Windows target",
+    "context route, output": "Muse-specific"
+  },
+  "remaining_gaps": [
+    "File-symlink boundaries need a Windows privilege this account lacks (13 Node skips); no elevation requested.",
+    "No complete TypeScript checker is installed (1 Node skip).",
+    "POSIX modes, FIFOs, setsid/nohup, Unix process groups and Linux-only checks (29 Node skips) are outside native Windows scope.",
+    "Pi's conhost palette hides violet spans in the default system theme; use Pi's dark theme.",
+    "Pi's exit hint names 'pi --session <id>'; resume with 'apex --session <id>' to keep Apex features.",
+    "Pi prints a static warning about Anthropic subscription auth in third-party harnesses; requests completed on the subscription."
+  ]
+}

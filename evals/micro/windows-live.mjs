@@ -5,16 +5,15 @@ import {createHash} from 'node:crypto';
 import {dirname, join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseArgs} from 'node:util';
-import {zstdDecompressSync} from 'node:zlib';
 import {resolvePi} from '../../lib/launcher.mjs';
 import {assertWindowsTarget} from '../../lib/windows-target.mjs';
 import {fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from '../../scripts/micro-session.mjs';
 import {windowsProbeEnvironment} from '../../scripts/preflight-windows.mjs';
 import {redactProviderStream} from './provider-smoke.mjs';
 
-export const PROFILE = Object.freeze({provider:'openai-codex', model:'gpt-6.1-sol', thinking:'xhigh',
-  endpoint:'https://chatgpt.com/backend-api/codex/responses', maxRequests:24, maxPayloadBytes:262144,
-  protocolTokens:4096, deadlineMs:240000, maxVisibleBytes:524288,
+export const PROFILE = Object.freeze({provider:'anthropic', model:'claude-opus-5-5', thinking:'medium',
+  endpoint:'https://api.anthropic.com/v1/messages', maxRequests:16, maxPayloadBytes:262144, maxOutputTokens:16000,
+  runCapUsd:4, deadlineMs:420000, maxVisibleBytes:524288,
   context:'cache,shape,mask,compact,read,search,edit,patch,lazy',
   core:'snapshot,entrypoints,headless,contract,todo,verify,loops,time,correct,diagnostics,subagents', daily:'all'});
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -24,60 +23,74 @@ const save = (file, value) => writeFileSync(file, JSON.stringify(value,null,2)+'
 const hash = value => createHash('sha256').update(value).digest('hex');
 const text = value => (value?.content??[]).filter(part=>part.type==='text').map(part=>part.text).join('\n');
 const boundedInteger = value => Number.isSafeInteger(value)&&value>=0;
+const USAGE_KEYS = ['input_tokens','output_tokens','cache_read_input_tokens','cache_creation_input_tokens'];
 
-/** Counts physical attempts, including HTTP failures, before invoking transport. */
+/**
+ * Counts physical attempts, including HTTP failures, before invoking transport. Each send must fit the run's catalog
+ * cap at its worst case: payload bytes bound input tokens from above, and the guard lowers max_tokens to bound output.
+ */
 export function createWindowsGuard(model, {started=Date.now(), profile=PROFILE}={}) {
-  if(model?.provider!==profile.provider||model.id!==profile.model||model.api!=='openai-codex-responses'||
-    model.baseUrl!=='https://chatgpt.com/backend-api'||model.thinkingLevelMap?.xhigh!=='xhigh') fail('model_mismatch');
+  if(model?.provider!==profile.provider||model.id!==profile.model||model.api!=='anthropic-messages'||
+    model.baseUrl!=='https://api.anthropic.com'||model.thinkingLevelMap?.[profile.thinking]!==profile.thinking) fail('model_mismatch');
   if(!boundedInteger(model.maxTokens)||!model.maxTokens) fail('catalog_output_bound_missing');
   for(const key of ['input','output','cacheRead','cacheWrite']) if(!Number.isFinite(model.cost?.[key])||model.cost[key]<0) fail('catalog_price_missing');
+  const maxOutputTokens = Math.min(profile.maxOutputTokens, model.maxTokens);
   const inputRate = Math.max(model.cost.input,model.cost.cacheRead,model.cost.cacheWrite);
-  const reservedUsd = profile.maxRequests*((profile.maxPayloadBytes+profile.protocolTokens)*inputRate+model.maxTokens*model.cost.output)/1e6;
+  const worstUsd = bytes => (bytes*inputRate+maxOutputTokens*model.cost.output)/1e6;
+  const usageUsd = usage => ((usage.input_tokens??0)*model.cost.input+(usage.cache_read_input_tokens??0)*model.cost.cacheRead+
+    (usage.cache_creation_input_tokens??0)*model.cost.cacheWrite+(usage.output_tokens??0)*model.cost.output)/1e6;
   const sends=[],blocked=[],responses=new Map();
-  let visibleBytes=0;
+  let visibleBytes=0,current;
   const block = code => {blocked.push(code);fail(code);};
   const deadline = () => {if(Date.now()-started>=profile.deadlineMs) block('deadline_exceeded');};
+  // A send without a completed usage report stays charged at its worst case.
+  const committed = () => sends.reduce((sum,send)=>sum+(send.catalog_usd??send.worst_usd),0);
+  const effort = value => value?.messages?.at(-1)?.output_config?.effort;
   function payload(value) {
     deadline();
-    if(!value||value.model!==profile.model||value.reasoning?.effort!=='xhigh') block('payload_model_thinking_mismatch');
-    if(value.stream!==true||value.store!==false) block('payload_stream_storage_mismatch');
-    for(const key of ['models','route','fallback','fallbacks','service_tier','max_output_tokens']) if(Object.hasOwn(value,key)) block('fallback_or_unsupported_parameter');
-    if(Buffer.byteLength(JSON.stringify(value))>profile.maxPayloadBytes) block('payload_limit');
-    return value;
+    if(!value||value.model!==profile.model||value.thinking?.type!=='adaptive'||effort(value)!==profile.thinking) block('payload_model_thinking_mismatch');
+    if(value.stream!==true) block('payload_stream_mismatch');
+    for(const key of ['fallback','fallbacks','fallback_models','service_tier']) if(Object.hasOwn(value,key)) block('fallback_or_unsupported_parameter');
+    const bounded={...value,max_tokens:Math.min(value.max_tokens??maxOutputTokens,maxOutputTokens)};
+    if(Buffer.byteLength(JSON.stringify(bounded))>profile.maxPayloadBytes) block('payload_limit');
+    return bounded;
   }
-  return {reservedUsd,sends,blocked,responses,maxOutputTokens:model.maxTokens,payload,
+  return {sends,blocked,responses,maxOutputTokens,payload,committed,
+    cost:()=>[...responses.values()].reduce((sum,response)=>sum+usageUsd(response.usage),0),
     observe(chunk) {
-      const response=chunk?.response;
-      if(response?.model&&response.model!==profile.model) block('response_model_mismatch');
-      if(chunk?.type==='response.completed'&&response?.id) {
-        const usage=response.usage;
-        if(usage&&(!boundedInteger(usage.input_tokens)||!boundedInteger(usage.output_tokens)||!boundedInteger(usage.total_tokens)||
-          usage.output_tokens>model.maxTokens||usage.input_tokens>profile.maxPayloadBytes+profile.protocolTokens||
-          usage.total_tokens!==usage.input_tokens+usage.output_tokens)) block('response_usage_bound');
-        if(usage?.input_tokens_details?.cached_tokens!==undefined&&(!boundedInteger(usage.input_tokens_details.cached_tokens)||usage.input_tokens_details.cached_tokens>usage.input_tokens)) block('response_usage_bound');
-        if(usage?.output_tokens_details?.reasoning_tokens!==undefined&&(!boundedInteger(usage.output_tokens_details.reasoning_tokens)||usage.output_tokens_details.reasoning_tokens>usage.output_tokens)) block('response_usage_bound');
-        responses.set(response.id,{model:response.model,usage:usage?.total_tokens>0?usage:null});
-      }
-      if(chunk?.type==='response.output_text.delta'||chunk?.type==='response.reasoning_summary_text.delta') {
-        visibleBytes+=Buffer.byteLength(chunk.delta??'');if(visibleBytes>profile.maxVisibleBytes) block('visible_output_limit');
+      if(chunk?.type==='message_start') {
+        if(chunk.message?.model!==profile.model) block('response_model_mismatch');
+        current={model:chunk.message.model,usage:{...chunk.message.usage},complete:false};responses.set(chunk.message.id,current);
+        const send=sends.at(-1);if(send&&!send.response_id)send.response_id=chunk.message.id;
+      } else if(chunk?.type==='message_delta'&&current) {
+        for(const [key,value] of Object.entries(chunk.usage??{})) if(value!==null&&value!==undefined) current.usage[key]=value;
+      } else if(chunk?.type==='message_stop'&&current) {
+        const usage=current.usage;
+        if(USAGE_KEYS.some(key=>usage[key]!==undefined&&usage[key]!==null&&!boundedInteger(usage[key]))||!boundedInteger(usage.input_tokens)||
+          !boundedInteger(usage.output_tokens)||usage.output_tokens>maxOutputTokens||usage.input_tokens>profile.maxPayloadBytes) block('response_usage_bound');
+        current.complete=true;
+        const send=sends.find(item=>responses.get(item.response_id)===current);if(send)send.catalog_usd=usageUsd(usage);
+        current=undefined;
+      } else if(chunk?.type==='content_block_delta') {
+        visibleBytes+=Buffer.byteLength(chunk.delta?.text??chunk.delta?.thinking??'');if(visibleBytes>profile.maxVisibleBytes) block('visible_output_limit');
       }
     },
     wrapFetch(transport, signal) {
       return async (input, init={}) => {
         deadline();
-        const url=input instanceof Request?input.url:String(input);
-        if(url!==profile.endpoint||String(init.method??'GET').toUpperCase()!=='POST') block('endpoint_forbidden');
-        let body=init.body;
-        if(new Headers(init.headers).get('content-encoding')==='zstd') {
-          try {body=zstdDecompressSync(body,{maxOutputLength:profile.maxPayloadBytes});} catch {block('payload_compression_invalid');}
-        }
+        let url;try {url=new URL(input instanceof Request?input.url:String(input));} catch {block('endpoint_forbidden');}
+        if(url.origin+url.pathname!==profile.endpoint||[...url.searchParams.keys()].some(key=>key!=='beta')||String(init.method??'GET').toUpperCase()!=='POST') block('endpoint_forbidden');
+        const body=init.body;
         if(!(typeof body==='string'||ArrayBuffer.isView(body))) block('payload_invalid');
         const bytes=Buffer.byteLength(body);
         if(bytes>profile.maxPayloadBytes) block('payload_limit');
         let value;try {value=JSON.parse(Buffer.from(body).toString('utf8'));}catch {block('payload_invalid');}
         payload(value);
+        if(!boundedInteger(value.max_tokens)||value.max_tokens>maxOutputTokens) block('output_bound_missing');
         if(sends.length>=profile.maxRequests) block('request_limit');
-        const send={ordinal:sends.length+1,payload_bytes:bytes,payload_sha256:hash(body),model:value.model,thinking:value.reasoning.effort,sent_at:new Date().toISOString()};
+        const worst=worstUsd(bytes);
+        if(committed()+worst>profile.runCapUsd) block('run_cap_exceeded');
+        const send={ordinal:sends.length+1,payload_bytes:bytes,payload_sha256:hash(body),model:value.model,thinking:effort(value),worst_usd:worst,sent_at:new Date().toISOString()};
         sends.push(send);
         try {const response=await transport(input,{...init,redirect:'error',signal:init.signal?AbortSignal.any([init.signal,signal]):signal});send.status=response.status;return response;}
         catch {send.transport_failed=true;throw Error('transport_failed');}
@@ -86,39 +99,40 @@ export function createWindowsGuard(model, {started=Date.now(), profile=PROFILE}=
   };
 }
 
-function reserve(file,runId,guard) {
+function reserve(file,runId) {
   const ledger=json(file);
-  if(!['codex-oauth-testing-only','codex-oauth-only'].includes(ledger.execution_scope)||ledger.provider!==PROFILE.provider||ledger.model!==PROFILE.model||ledger.thinking_level!=='xhigh'||ledger.auth_type!=='oauth') fail('authorization_scope_mismatch');
+  if(ledger.execution_scope!=='claude-oauth-windows-acceptance'||ledger.provider!==PROFILE.provider||ledger.model!==PROFILE.model||ledger.thinking_level!==PROFILE.thinking||ledger.auth_type!=='oauth') fail('authorization_scope_mismatch');
   const reservations=ledger.reservations??[];
   const amount=value=>Number.isFinite(value)&&value>=0;
   if(!Array.isArray(ledger.runs)||!Array.isArray(reservations)||!amount(ledger.observed_catalog_token_cost_usd)||!amount(ledger.reserved_catalog_token_cost_usd)||
-    (ledger.budget_cap_usd!==null&&!amount(ledger.budget_cap_usd))||reservations.some(item=>!amount(item.reserved_catalog_token_cost_usd))) fail('catalog_ledger_invalid');
+    !amount(ledger.budget_cap_usd)||reservations.some(item=>!amount(item.reserved_catalog_token_cost_usd))) fail('catalog_ledger_invalid');
   const retained=reservations.filter(item=>item.status==='reserved').reduce((sum,item)=>sum+item.reserved_catalog_token_cost_usd,0);
   if(Math.abs(retained-ledger.reserved_catalog_token_cost_usd)>1e-9) fail('catalog_ledger_inconsistent');
-  if(reservations.some(item=>item.status==='reserved'&&item.usage_complete!==false)) fail('active_reservation_exists');
-  if((ledger.runs??[]).some(item=>item.run_id===runId)||reservations.some(item=>item.run_id===runId)) fail('run_id_reused');
-  if(ledger.budget_cap_usd!==null&&ledger.observed_catalog_token_cost_usd+ledger.reserved_catalog_token_cost_usd+guard.reservedUsd>ledger.budget_cap_usd) fail('catalog_budget_insufficient');
-  const entry={run_id:runId,status:'reserved',reserved_catalog_token_cost_usd:guard.reservedUsd,
-    max_physical_requests:PROFILE.maxRequests,max_payload_bytes:PROFILE.maxPayloadBytes,max_output_tokens:guard.maxOutputTokens,
-    output_bound_source:'pinned model catalog maxTokens; no configurable server output-token cap',reserved_at:new Date().toISOString()};
-  ledger.reservations=[...reservations,entry];ledger.reserved_catalog_token_cost_usd+=guard.reservedUsd;
-  if(ledger.budget_cap_usd!==null) ledger.remaining_catalog_equivalent_usd=ledger.budget_cap_usd-ledger.observed_catalog_token_cost_usd-ledger.reserved_catalog_token_cost_usd;
+  if(reservations.some(item=>item.status==='reserved')) fail('active_reservation_exists');
+  if(ledger.runs.some(item=>item.run_id===runId)||reservations.some(item=>item.run_id===runId)) fail('run_id_reused');
+  if(ledger.observed_catalog_token_cost_usd+ledger.reserved_catalog_token_cost_usd+PROFILE.runCapUsd>ledger.budget_cap_usd) fail('catalog_budget_insufficient');
+  const entry={run_id:runId,status:'reserved',reserved_catalog_token_cost_usd:PROFILE.runCapUsd,
+    max_physical_requests:PROFILE.maxRequests,max_payload_bytes:PROFILE.maxPayloadBytes,max_output_tokens:PROFILE.maxOutputTokens,
+    output_bound_source:'guard lowers each payload max_tokens and refuses a send whose worst case would pass the run cap',reserved_at:new Date().toISOString()};
+  ledger.reservations=[...reservations,entry];ledger.reserved_catalog_token_cost_usd+=PROFILE.runCapUsd;
+  ledger.remaining_catalog_equivalent_usd=ledger.budget_cap_usd-ledger.observed_catalog_token_cost_usd-ledger.reserved_catalog_token_cost_usd;
   save(file,ledger);
   return entry;
 }
 function reconcile(file,runId,guard,summary) {
   const ledger=json(file),reservation=ledger.reservations.find(item=>item.run_id===runId&&item.status==='reserved');
   if(!reservation) fail('reservation_lost');
-  const complete=guard.responses.size===guard.sends.length&&[...guard.responses.values()].every(response=>response.model===PROFILE.model&&response.usage);
-  reservation.status=complete?'reconciled':'reserved';reservation.physical_requests=guard.sends.length;
-  reservation.usage_complete=complete;reservation.reconciled_at=complete?new Date().toISOString():null;
-  const known=summary.catalog_token_cost_usd;
+  const complete=guard.sends.every(send=>guard.responses.get(send.response_id)?.complete===true);
+  // An incomplete run stays charged at the worst case of every send without a usage report.
+  const known=complete?summary.catalog_token_cost_usd:guard.committed();
+  reservation.status='reconciled';reservation.physical_requests=guard.sends.length;
+  reservation.usage_complete=complete;reservation.reconciled_at=new Date().toISOString();
   ledger.observed_catalog_token_cost_usd+=known;
   ledger.reserved_catalog_token_cost_usd=ledger.reservations.filter(item=>item.status==='reserved').reduce((sum,item)=>sum+item.reserved_catalog_token_cost_usd,0);
-  if(ledger.budget_cap_usd!==null) ledger.remaining_catalog_equivalent_usd=ledger.budget_cap_usd-ledger.observed_catalog_token_cost_usd-ledger.reserved_catalog_token_cost_usd;
-  ledger.runs.push({run_id:runId,purpose:'Native Windows enabled-features-together live acceptance',physical_requests:guard.sends.length,
+  ledger.remaining_catalog_equivalent_usd=ledger.budget_cap_usd-ledger.observed_catalog_token_cost_usd-ledger.reserved_catalog_token_cost_usd;
+  ledger.runs.push({run_id:runId,purpose:'Native Windows enabled-features-together live acceptance (SDK)',physical_requests:guard.sends.length,
     catalog_token_cost_usd:known,billed_cost_usd:null,summary_file:`runs/model-smoke/${runId}/summary.json`,benchmark_result:false,usage_complete:complete});
-  save(file,ledger);return {usage_complete:complete,reserved_catalog_token_cost_usd:ledger.reserved_catalog_token_cost_usd};
+  save(file,ledger);return {usage_complete:complete,ledger_remaining_catalog_equivalent_usd:ledger.remaining_catalog_equivalent_usd};
 }
 
 const VERIFY = 'node verify.cjs';
@@ -135,7 +149,7 @@ function prompt(fixture) {
 }
 
 export async function runWindowsLive(options={}) {
-  const lock=join(options.projectRoot??root,'evals','codex-budget.lock');
+  const lock=join(options.projectRoot??root,'evals','claude-budget.lock');
   try {mkdirSync(lock);}catch {fail('catalog_ledger_locked');}
   try {return await executeWindowsLive(options);}
   finally {rmdirSync(lock);}
@@ -172,7 +186,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
   runtime.refresh=async options=>{if(options?.allowNetwork!==false) fail('discovery_network_forbidden');return {aborted:false,errors:new Map()};};
   const model=runtime.getPhysicalModel(PROFILE.provider,PROFILE.model);
   const guard=createWindowsGuard(model,{started});
-  const ledger=join(projectRoot,'evals','codex-budget.json');reserve(ledger,runId,guard);
+  const ledger=join(projectRoot,'evals','claude-budget.json');reserve(ledger,runId);
   const controller=new AbortController();let session,manager,timedOut=false,failure=null;const events=[],errors=[];
   const timer=setTimeout(()=>{timedOut=true;controller.abort();session?.agent.abort();},Math.max(1,PROFILE.deadlineMs-(Date.now()-started)));
   const rawFile=join(directory,'provider-events.jsonl'),eventsFile=join(directory,'events.jsonl');
@@ -193,9 +207,10 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
     return Reflect.get(target,name);
   }}));
   const {default:context}=await import('../../extensions/apex-context/index.mjs');
+  const {default:claudeIdentity}=await import('../../extensions/apex-router/claude-identity.mjs');
   const {createApexCore}=await import('../../extensions/apex-core/index.mjs');
   const {createApexFeatures}=await import('../../extensions/apex-features/index.mjs');
-  factories.push(wrap(context,{'apex-context-flags':PROFILE.context}),wrap(createApexCore(),{'apex-core-flags':PROFILE.core,'headless':true,'apex-time-budget':'240'}),wrap(createApexFeatures(),{'apex-feature-flags':'all','apex-eval':false}));
+  factories.push(claudeIdentity,wrap(context,{'apex-context-flags':PROFILE.context}),wrap(createApexCore(),{'apex-core-flags':PROFILE.core,'headless':true,'apex-time-budget':String(PROFILE.deadlineMs/1000)}),wrap(createApexFeatures(),{'apex-feature-flags':'all','apex-eval':false}));
   factories.push(api=>api.on('tool_call',event=>{
     const args=event.input??event.args??{};
     if(!['read','bash','edit','write','grep','find','ls','codemode','tool_search','contract','todo','apply_patch','remember'].includes(event.toolName))return {block:true,reason:'Live fixture tool scope forbids auxiliary or undeclared execution.'};
@@ -207,7 +222,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
     }
     if(event.toolName==='apply_patch'&&(!/^--- (?:a\/)?sample\.txt\r?\n\+\+\+ (?:b\/)?sample\.txt\r?\n/.test(args.patch??'')))return {block:true,reason:'Live fixture patch may modify only sample.txt.'};
   }));
-  const settings=sdk.SettingsManager.inMemory({defaultProvider:PROFILE.provider,defaultModel:PROFILE.model,defaultThinkingLevel:'xhigh',defaultProjectTrust:'never',enableAnalytics:false,
+  const settings=sdk.SettingsManager.inMemory({defaultProvider:PROFILE.provider,defaultModel:PROFILE.model,defaultThinkingLevel:PROFILE.thinking,defaultProjectTrust:'never',enableAnalytics:false,
     shellPath:shell,cacheWarming:'off',compaction:{enabled:false},retry:{enabled:false,maxRetries:0,provider:{maxRetries:0}},packages:[],extensions:[],skills:[],prompts:[],themes:[],codemode:{mode:'off'}});
   const loader=new sdk.DefaultResourceLoader({cwd:fixture,agentDir,settingsManager:settings,noExtensions:true,noSkills:true,noPromptTemplates:true,noThemes:true,noContextFiles:true,extensionFactories:factories});
   const empty=async()=>({extensions:[],skills:[],prompts:[],themes:[]});loader.packageManager.resolve=empty;loader.packageManager.resolveExtensionSources=empty;
@@ -218,20 +233,22 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
   const offline={};let accounting,resume,undo,fixtureOutcomes;
   try {
     await loader.reload();if(loader.getExtensions().errors.length)fail('extension_load_failed');
-    manager=sdk.SessionManager.create(fixture,sessionsDir);manager.appendModelChange(PROFILE.provider,PROFILE.model);manager.appendThinkingLevelChange('xhigh');
-    const created=await sdk.createAgentSession({cwd:fixture,agentDir,modelRuntime:runtime,model,thinkingLevel:'xhigh',settingsManager:settings,sessionManager:manager,resourceLoader:loader});
-    session=created.session;if(created.modelFallbackMessage||session.thinkingLevel!=='xhigh')fail('model_fallback_forbidden');
+    manager=sdk.SessionManager.create(fixture,sessionsDir);manager.appendModelChange(PROFILE.provider,PROFILE.model);manager.appendThinkingLevelChange(PROFILE.thinking);
+    const created=await sdk.createAgentSession({cwd:fixture,agentDir,modelRuntime:runtime,model,thinkingLevel:PROFILE.thinking,settingsManager:settings,sessionManager:manager,resourceLoader:loader});
+    session=created.session;if(created.modelFallbackMessage||session.thinkingLevel!==PROFILE.thinking)fail('model_fallback_forbidden');
     await session.bindExtensions({onError:error=>{errors.push(redact({event:error.event,error:String(error.error)}));}});
     const fetch=guard.wrapFetch(nativeFetch,controller.signal);
+    // Extension payload hooks (Claude identity, context cache ledger) run first, as in the CLI; the guard sees the final payload.
+    const extensionPayload=value=>session.extensionRunner.hasHandlers('before_provider_request')?session.extensionRunner.emitBeforeProviderRequest(value):value;
     session.agent.streamFunction=(selected,context,options={})=>{
       if(selected.provider!==PROFILE.provider||selected.id!==PROFILE.model||selected.api!==model.api)fail('model_mismatch');
-      return secrets.reduce((stream,secret)=>redactProviderStream(stream,secret),runtime.streamSimple(selected,context,{...options,reasoning:'xhigh',transport:'sse',maxRetries:0,
-        timeoutMs:Math.max(1,PROFILE.deadlineMs-(Date.now()-started)),cacheRetention:'none',env:{},signal:options.signal?AbortSignal.any([options.signal,controller.signal]):controller.signal,fetch,
-        onPayload:value=>guard.payload(value),onProviderStreamEvent:chunk=>{record(rawFile,chunk);guard.observe(chunk);}}));
+      return secrets.reduce((stream,secret)=>redactProviderStream(stream,secret),runtime.streamSimple(selected,context,{...options,reasoning:PROFILE.thinking,maxRetries:0,
+        timeoutMs:Math.max(1,PROFILE.deadlineMs-(Date.now()-started)),env:{},signal:options.signal?AbortSignal.any([options.signal,controller.signal]):controller.signal,fetch,
+        onPayload:async value=>guard.payload(await extensionPayload(value)),onProviderStreamEvent:chunk=>{record(rawFile,chunk);guard.observe(chunk);}}));
     };
     session.subscribe(event=>{if(event.type==='message_update')return;const safe=redact(event);events.push(safe);record(eventsFile,safe);});
     save(join(directory,'configuration.json'),{...PROFILE,run_id:runId,platform:process.platform,pi_version:'0.99.2',auth_type:'oauth',runtimePolicy:'unchanged offline-only auxiliary inference',
-      catalog_rates:model.cost,max_output_tokens:guard.maxOutputTokens,server_output_token_cap:null,output_bound_source:'pinned catalog maxTokens',reserved_catalog_upper_bound_usd:guard.reservedUsd,
+      catalog_rates:model.cost,max_output_tokens:guard.maxOutputTokens,output_bound_source:'guard lowers payload max_tokens',run_cap_usd:PROFILE.runCapUsd,
       discovery_disabled:true,retries:0,auto_compaction:false,cache_warming:'off',isolation:'fixture cwd and tool hooks; not an OS sandbox',benchmark_result:false});
     await session.prompt(prompt(fixture));
     const terminal=events.filter(event=>event.type==='message_end'&&event.message?.role==='assistant').at(-1)?.message;
@@ -274,7 +291,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
     try {
       const resumedManager=sdk.SessionManager.open(session.sessionFile,sessionsDir,fixture);
       await loader.reload();
-      reopened=(await sdk.createAgentSession({cwd:fixture,agentDir,modelRuntime:runtime,model,thinkingLevel:'xhigh',settingsManager:settings,sessionManager:resumedManager,resourceLoader:loader})).session;
+      reopened=(await sdk.createAgentSession({cwd:fixture,agentDir,modelRuntime:runtime,model,thinkingLevel:PROFILE.thinking,settingsManager:settings,sessionManager:resumedManager,resourceLoader:loader})).session;
       reopened.agent.streamFunction=()=>fail('resume_inference_forbidden');
       await reopened.bindExtensions({onError:error=>errors.push(redact({event:error.event,error:String(error.error)}))});
       const report=reopened.extensionRunner.getRegisteredCommands().find(item=>item.invocationName==='report');
@@ -298,25 +315,25 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
   const gate=branch.some(entry=>entry.type==='custom_message'&&entry.customType==='apex-verification-gate');
   const final=assistants.at(-1);
   const liveVerification=completed.some(event=>event.toolName==='bash'&&text(event.result).includes('WINDOWS_LIVE_VERIFIED'));
-  const cost=[...guard.responses.values()].reduce((sum,{usage})=>{if(!usage)return sum;const cached=usage.input_tokens_details?.cached_tokens??0;return sum+((usage.input_tokens-cached)*model.cost.input+cached*model.cost.cacheRead+usage.output_tokens*model.cost.output)/1e6;},0);
-  const checks={native_session_completed:!failure,exact_model_xhigh:guard.sends.length>0&&guard.sends.every(send=>send.model===PROFILE.model&&send.thinking==='xhigh'),
+  const cost=guard.cost();
+  const checks={native_session_completed:!failure,exact_model_thinking:guard.sends.length>0&&guard.sends.every(send=>send.model===PROFILE.model&&send.thinking===PROFILE.thinking),
     read:used('read'),search:used('grep'),edit:used('edit'),write:used('write'),bash:used('bash'),patch:used('apply_patch'),lazy:used('tool_search'),
     contract:used('contract'),todo:used('todo'),verification_gate:gate,fixture_exact:liveVerification&&Object.values(fixtureOutcomes??{missing:false}).every(Boolean),
     shaping:!!shaped,exact_recovery:liveVerification&&!!shaped,
     remember:used('remember')&&resume?.learnings_retained===true,skills:completed.some(event=>event.toolName==='read'&&events.some(start=>start.type==='tool_execution_start'&&start.toolCallId===event.toolCallId&&start.args?.path?.includes('SKILL.md'))),
     checkpoint:undo?.status==='restored'&&undo.recovered_file_removed===true,accounting:accounting?.report?.completeness?.usage===true,
-    resume:resume?.replayPerformed===false&&resume.native_reopened===true&&resume.accounting_preserved===true&&resume.physical_requests===0&&resume.thinking==='xhigh'&&resume.fixture_unchanged===true,
+    resume:resume?.replayPerformed===false&&resume.native_reopened===true&&resume.accounting_preserved===true&&resume.physical_requests===0&&resume.thinking===PROFILE.thinking&&resume.fixture_unchanged===true,
     offline_auxiliary_no_sends:offline.physical_requests===0&&offline.plan?.prompted===false&&offline.review?.blocked===true&&offline.explore?.details?.status==='blocked'&&offline.verify?.details?.status==='blocked'&&offline.compact?.cancel===true,
     network_policy:external.length===0&&guard.blocked.length===0,
     final_completed:final?.stopReason==='stop'&&text(final).includes('WINDOWS_LIVE_COMPLETE'),extensions_no_errors:errors.length===0};
-  const summary={schema_version:1,kind:'windows_live_features_acceptance',run_id:runId,provider:PROFILE.provider,model:PROFILE.model,thinking:'xhigh',platform:process.platform,
+  const summary={schema_version:1,kind:'windows_live_features_acceptance',run_id:runId,provider:PROFILE.provider,model:PROFILE.model,thinking:PROFILE.thinking,platform:process.platform,
     passed:Object.values(checks).every(Boolean),checks,failure,physical_requests:guard.sends.length,sends:guard.sends,blocked_reasons:guard.blocked,external_network_attempts:external,
-    wall_seconds:(Date.now()-started)/1000,catalog_token_cost_usd:cost,billed_cost_usd:null,reserved_catalog_upper_bound_usd:guard.reservedUsd,server_output_token_cap:null,
-    output_bound_source:'pinned catalog maxTokens; a catalog estimate, not an invoice guarantee',responses:[...guard.responses].map(([id,response])=>({id,...response})),
+    wall_seconds:(Date.now()-started)/1000,catalog_token_cost_usd:cost,billed_cost_usd:null,run_cap_usd:PROFILE.runCapUsd,max_output_tokens:guard.maxOutputTokens,
+    output_bound_source:'guard-lowered payload max_tokens; a catalog estimate, not an invoice',responses:[...guard.responses].map(([id,response])=>({id,...response})),
     accounting,offline,undo,resume,fixtureOutcomes,extension_errors:errors,active_tools:session?.getActiveToolNames(),
     boundaries:{cache:'live prefix ledger; provider cache hit not guaranteed',mask:'enabled; short fixture may not reach rewrite threshold',compact:'offline-only refusal; no auxiliary model compaction',
       snapshot:'native before_agent_start snapshot',entrypoints:'fixture entrypoint probing',headless:'native SDK noninteractive mode, not Windows Terminal UI',
-      loops:'enabled; repeated-error escalation not induced',time:'240-second budget configured; threshold warnings not forced',correct:'enabled; safe commands only',diagnostics:'enabled; fixture has no external project checker',
+      loops:'enabled; repeated-error escalation not induced',time:`${PROFILE.deadlineMs/1000}-second budget configured; threshold warnings not forced`,correct:'enabled; safe commands only',diagnostics:'enabled; fixture has no external project checker',
       subagents:'offline-only refusals, not live auxiliary inference',plan:'offline read-only mode without model request',review:'offline-only refusal',safety:'safe fixture calls, no interactive risky action',
       unsupported:['context route/output Muse-only','core bg/max/recovery unsupported on Windows']},raw_provider_events_file:relative(projectRoot,rawFile),raw_events_file:relative(projectRoot,eventsFile),raw_session_file:`runs/model-smoke/${runId}/session.jsonl`,benchmark_result:false};
   Object.assign(summary,reconcile(ledger,runId,guard,summary));
@@ -326,8 +343,8 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
 
 async function main() {
   const {values}=parseArgs({options:{'run-id':{type:'string'},help:{type:'boolean'}}});
-  if(values.help){console.log('Usage: node evals/micro/windows-live.mjs --run-id UNIQUE_ID\nNative Windows, private valid Codex OAuth, whole-run catalog reservation, real pinned Pi SDK.');return;}
-  const summary=await runWindowsLive({runId:values['run-id']});console.log(JSON.stringify({run_id:summary.run_id,passed:summary.passed,checks:summary.checks,failure:summary.failure,physical_requests:summary.physical_requests,catalog_estimate_usd:summary.catalog_token_cost_usd,reservation_remaining_usd:summary.reserved_catalog_token_cost_usd}));
+  if(values.help){console.log('Usage: node evals/micro/windows-live.mjs --run-id UNIQUE_ID\nNative Windows, private valid Claude OAuth, capped catalog reservation in evals/claude-budget.json, real pinned Pi SDK.');return;}
+  const summary=await runWindowsLive({runId:values['run-id']});console.log(JSON.stringify({run_id:summary.run_id,passed:summary.passed,checks:summary.checks,failure:summary.failure,physical_requests:summary.physical_requests,catalog_estimate_usd:summary.catalog_token_cost_usd,ledger_remaining_usd:summary.ledger_remaining_catalog_equivalent_usd}));
   if(!summary.passed)process.exitCode=1;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{const code=String(error?.message??'');console.error(JSON.stringify({error:/^[a-z][a-z_]+$/.test(code)?code:'windows_live_preflight_failed',provider_calls:'inspect reservation and run evidence; no credentials printed'}));process.exitCode=1;});

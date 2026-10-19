@@ -95,15 +95,16 @@ test('Phase 3 gate rejects ambient discovery and cleans fault fixtures', {timeou
   assert.deepEqual(failed.attempted_calls, {network: 0, auth: 0, inference: 0, credentials: 0});
 });
 
-test('Windows Sol native gate composes real context tools, private storage and undo without auth or inference',
+test('Windows default-model native gate composes real context tools, private storage and undo without auth or inference',
   {timeout: 90000, skip: process.platform !== 'win32' && 'Requires native Windows'}, async () => {
   const {runPhase3Micro} = await load();
-  const result = await runPhase3Micro({selection: 'windows-sol'});
+  const result = await runPhase3Micro({selection: 'windows'});
   assert.equal(result.status, 'PASS', JSON.stringify(result));
-  assert.equal(result.kind, 'offline_windows_sol_contract');
-  assert.equal(result.model, 'openai-codex/gpt-6.1-sol');
+  assert.equal(result.kind, 'offline_windows_default_contract');
+  assert.equal(result.model, 'anthropic/claude-opus-5-5');
+  assert.equal(result.thinking_level, 'medium');
   for (const name of ['windows_literal_paths_crlf', 'windows_context_tools', 'windows_shape_checkpoint_composition',
-    'windows_composed_undo', 'windows_sol_launcher']) assert.equal(result.checks[name], true, name);
+    'windows_composed_undo', 'windows_default_launcher']) assert.equal(result.checks[name], true, name);
   assert.deepEqual(result.attempted_calls, {network: 0, auth: 0, inference: 0, credentials: 0});
   assert.equal(result.model_performance_measured, false);
   assert.equal(result.cleanup.fixture_removed, true);
@@ -112,7 +113,7 @@ test('Windows Sol native gate composes real context tools, private storage and u
 test('Phase 3 gate rejects unknown model selections before allocation', async () => {
   const {runPhase3Micro} = await load();
   await assert.rejects(runPhase3Micro({selection: 'any-provider'}), /unknown_model_selection/);
-  if (process.platform !== 'win32') await assert.rejects(runPhase3Micro({selection: 'windows-sol'}), /requires_native_windows/);
+  if (process.platform !== 'win32') await assert.rejects(runPhase3Micro({selection: 'windows'}), /requires_native_windows/);
 });
 
 test('Phase 3 gate rejects unknown faults before allocation', async () => {

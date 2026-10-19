@@ -9,7 +9,7 @@ import {join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildSessionContext, migrateSessionEntries, ModelRuntime, parseSessionEntries} from '@earendil-works/pi-coding-agent';
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
-import {checkpointsUsable, WINDOWS_AUTO, withWindowsDefaults} from '../lib/windows-target.mjs';
+import {checkpointsUsable, WINDOWS_AUTO, WINDOWS_THINKING, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {parseAutocompactTokens} from '../extensions/apex-features/config.mjs';
@@ -212,13 +212,16 @@ function launchArguments(body, file) {
   if (pair) [target, thinking] = ['windows', pair.build.thinking];
   else {
     if ((anyFeature || body.evalMode) && !model.apex) throw new Error('Apex features and eval isolation run only on Muse Spark 1.3 or, on native Windows, signed-in models');
-    if (anyFeature || body.evalMode) target = model.target;
-    // Eval runs and the apex/auto router keep xhigh (Pi clamps it for a model without it); otherwise any level.
-    thinking = body.evalMode || picked.context?.includes('route') ? 'xhigh'
-      : levelFor(model, body.thinking ?? (model.levels.includes('xhigh') ? 'xhigh' : model.levels.at(-1)));
+    // A signed-in model on native Windows always takes the Windows target, even with nothing picked: the bare target adds
+    // only the Claude identity patch, without which a Claude subscription refuses stock Pi's prompt.
+    if (anyFeature || body.evalMode || (model.apex && model.target)) target = model.target;
+    // Eval runs and the apex/auto router keep xhigh (Pi clamps it for a model without it); otherwise any level,
+    // defaulting to medium for Windows-target models and xhigh for Muse.
+    const fallback = model.target && model.levels.includes(WINDOWS_THINKING) ? WINDOWS_THINKING : model.levels.includes('xhigh') ? 'xhigh' : model.levels.at(-1);
+    thinking = body.evalMode || picked.context?.includes('route') ? 'xhigh' : levelFor(model, body.thinking ?? fallback);
   }
   if (target) apexArgs.unshift('--apex-target', target);
-  else if (!anyFeature && !body.evalMode) apexArgs.unshift('--apex-off'); // nothing picked means stock Pi, not bin/apex's Windows defaults
+  else if (!anyFeature && !body.evalMode) apexArgs.unshift('--apex-off'); // Muse with nothing picked means stock Pi, not bin/apex's Windows defaults
   let timeBudget;
   if (picked.core.includes('time')) {
     timeBudget = Number(body.timeBudget);
