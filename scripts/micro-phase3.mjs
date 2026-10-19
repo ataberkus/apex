@@ -12,7 +12,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, whitelistedEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, whitelistedEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate loads only Node builtins. SDK, factories, fixtures and
 // processes exist only inside a bounded, deliberately offline child run.
@@ -104,7 +104,7 @@ function fixtureLoader(pi, spec, settings, factories) {
     noThemes: true, noContextFiles: true, appendSystemPrompt: [], extensionFactories: factories,
     agentsFilesOverride: () => ({agentsFiles: [{path: path.join(spec.fixture, 'AGENTS.md'),
       content: 'PHASE3_NATIVE_CONTEXT: explicitly supplied native project instructions.'}]})});
-  // Pi 0.99.2 resolves packages before applying no* flags. Keep both actual
+  // Pi 1.3.0 resolves packages before applying no* flags. Keep both actual
   // discovery seams local, while allowing selected resources_discover paths.
   if (spec.fixtureMode !== 'ambient-discovery') {
     if (typeof loader.packageManager?.resolve !== 'function' ||
@@ -179,7 +179,17 @@ async function makeSession(pi, spec, shared, {flags = 'all', coreFlags = '', con
   let clock = 0, toolIndex = 0, turnIndex = 0;
   const zeroUsage = {input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
     cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0}};
-  const assistant = (content, stopReason = 'stop', usage = zeroUsage) => ({role: 'assistant', content, api: shared.model.api,
+  // Each script-seeded assistant message stands for one model request. Pi 1.3.0's agent loop
+  // records the active-tool delta as a system message before every request (declareToolChanges);
+  // do the same so the transcript carries the loadout that resume restores.
+  const declareTools = () => {
+    const changes = shared.ai.getToolStateChanges(shared.ai.getCurrentTools(manager.buildSessionContext().messages),
+      session.agent.state.tools.map(shared.ai.toToolDeclaration));
+    if (!changes.toolsAdded.length && !changes.toolsRemoved.length) return;
+    manager.appendMessage({role: 'system', content: '', ...(changes.toolsAdded.length ? {toolsAdded: changes.toolsAdded} : {}),
+      ...(changes.toolsRemoved.length ? {toolsRemoved: changes.toolsRemoved} : {}), timestamp: ++clock});
+  };
+  const assistant = (content, stopReason = 'stop', usage = zeroUsage) => (declareTools(), {role: 'assistant', content, api: shared.model.api,
     provider: shared.model.provider, model: shared.model.id, usage, stopReason, timestamp: ++clock});
   const sync = () => {session.agent.state.messages = manager.buildSessionContext().messages;};
   const command = async (name, args = '') => {
@@ -223,8 +233,14 @@ async function makeSession(pi, spec, shared, {flags = 'all', coreFlags = '', con
     if (result.isError && !allowError) throw Error(`fixture_tool_failed:${name}`);
     return result;
   };
+  // Mirrors Pi 1.3.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
+  // unless a handler edited selectedTools, then record the prompt/tool loadout.
   const start = async task => {
-    const result = await session.extensionRunner.emitBeforeAgentStart(task, undefined, session._baseSystemPromptOptions);
+    const before = session._baseSystemPromptOptions.selectedTools;
+    const result = await session.extensionRunner.emitBeforeAgentStart({messageType: 'user', prompt: task}, session._baseSystemPromptOptions);
+    const selected = result.systemPromptOptions.selectedTools;
+    if (selected.length === before.length && selected.every((name, index) => name === before[index]))
+      result.systemPromptOptions.selectedTools = session.getActiveToolNames();
     const update = session._preparePromptAndToolLoadout(result.systemPromptOptions);
     session._runSystemPromptOptions = result.systemPromptOptions;
     if (update) manager.appendMessage(update);
@@ -399,6 +415,21 @@ async function nativeFixture(pi, spec, shared, observed) {
     const saved = await command('plan', `save ${markdown}`);
     checks.native_plan_saved_exactly = await readFile(path.join(spec.fixture, 'PLAN.md'), 'utf8') === markdown;
     checks.native_plan_loadout_restored = JSON.stringify(session.getActiveToolNames().slice().sort()) === JSON.stringify(originalTools);
+    // Pi 1.3.0 resume restores the last loadout recorded in the transcript. Plan runs record the
+    // read-only loadout and the next run records the restored one, so a session resumed after
+    // /plan save (before any further run) must still come back with the original tools.
+    observed.stage = 'native_plan_resume';
+    const resumedFile = path.join(spec.fixture, 'resumed-sessions', path.basename(manager.getSessionFile()));
+    await mkdir(path.dirname(resumedFile), {recursive: true});
+    await fsPromises.copyFile(manager.getSessionFile(), resumedFile);
+    const resumed = await makeSession(pi, spec, shared, {coreFlags: 'contract,todo,verify,subagents',
+      manager: pi.SessionManager.open(resumedFile, path.dirname(resumedFile), spec.fixture)});
+    try {
+      // Precondition: the copied transcript still declares the plan's read-only loadout.
+      const recorded = shared.ai.getCurrentTools(resumed.manager.buildSessionContext().messages).map(tool => tool.name).sort();
+      checks.native_plan_resume_restores_tools = JSON.stringify(recorded) === JSON.stringify(['find', 'grep', 'ls', 'read']) &&
+        JSON.stringify(resumed.session.getActiveToolNames().slice().sort()) === JSON.stringify(originalTools);
+    } finally {await resumed.dispose();}
 
     observed.stage = 'native_learnings';
     const fact = 'NATIVE_LEARNING_SENTINEL: verify fixture changes before reporting completion.';
@@ -625,9 +656,11 @@ async function childMain(spec) {
     observed.stage = 'sdk';
     const pi = await import('@earendil-works/pi-coding-agent');
     const version = JSON.parse(await readFile(path.join(root, 'node_modules/@earendil-works/pi-coding-agent/package.json'), 'utf8')).version;
-    if (version !== '0.99.2') throw Error('unexpected_pi_version');
+    if (version !== PINNED_PI_VERSION) throw Error('unexpected_pi_version');
     const runtime = await offlineRuntime(pi, calls, observed, spec.selection);
-    const shared = {...runtime, calls, registered_flags: new Map(), session_starts: 0, extension_errors: [], tool_events: [],
+    // Pi's own tool-declaration helpers (pi-ai is Pi's exact-pinned dependency, hoisted by the lock).
+    const ai = await import('@earendil-works/pi-ai');
+    const shared = {...runtime, ai, calls, registered_flags: new Map(), session_starts: 0, extension_errors: [], tool_events: [],
       deferred_executions: 0, structured_results_preserved: true};
     observed.stage = 'native_session';
     const result = await nativeFixture(pi, spec, shared, observed);

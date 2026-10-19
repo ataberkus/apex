@@ -2,6 +2,7 @@ import {appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFi
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseArgs} from 'node:util';
+import {PI_VERSION} from '../../lib/launcher.mjs';
 
 export const SMOKE_MODEL = 'meta/muse-spark-1.3-contributor';
 const PROVIDER = 'openrouter';
@@ -13,7 +14,6 @@ const MAX_PAYLOAD_BYTES = 32768;
 const MAX_OUTPUT_TOKENS = 6144;
 const PROTOCOL_TOKENS_PER_REQUEST = 4096;
 const TOTAL_TIMEOUT_MS = 120000;
-const PI_VERSION = '0.99.2';
 const TOOL_NAMES = ['read', 'edit', 'write', 'bash'];
 export const VERIFICATION_COMMAND = 'node -e \'const fs=require("node:fs"); const assert=require("node:assert/strict"); ' +
   'assert.equal(fs.readFileSync("sample.txt","utf8"),"alpha\\ndelta\\ngamma\\n"); ' +

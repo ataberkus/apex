@@ -5,7 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {fileLink} from './fixtures/filesystem.mjs';
-import {createPlanManager,runReview} from '../extensions/apex-features/workflows.mjs';
+import {createPlanManager,recordedToolNames,runReview} from '../extensions/apex-features/workflows.mjs';
 
 const offline={allowed_model:'openrouter/meta/muse-spark-1.3-contributor',thinking_level:'xhigh',paid_runs_enabled:false,execution_policy:'offline-only'};
 const paid={...offline,paid_runs_enabled:true,execution_policy:'paid-enabled'};
@@ -46,6 +46,24 @@ test('reload active branch and compaction restore prior tool selection',async t=
   const manager=createPlanManager({cwd:f.cwd,pi:f.pi,policy:offline,branch,persist:()=>{}});assert.equal(manager.isActive(),true);assert.equal(manager.gate(call('write')).block,true);await manager.cancel(f.ctx);assert.equal(f.active().includes('write'),true);
  }
  const other=createPlanManager({cwd:f.cwd,pi:f.pi,policy:offline,branch:[]});assert.equal(other.isActive(),false);
+});
+test('resume after a saved plan undoes only a stale read-only loadout Pi restored from the transcript',async t=>{
+ const f=await fixture(t);await f.manager.start('task',f.ctx);
+ const declared=(added,removed=[])=>({type:'message',message:{role:'system',content:'',...(added.length?{toolsAdded:added.map(name=>({name}))}:{}),...(removed.length?{toolsRemoved:removed.map(name=>({name}))}:{})}});
+ // Pi's agent loop declared the plan's read-only loadout as deltas before the planning request.
+ const branch=[declared(['read','bash','edit','write']),f.entries[0],declared(['grep','find','ls'],['bash','edit','write'])];
+ await f.manager.save('# Plan\n',f.ctx);branch.push(f.entries.at(-1));
+ const recorded=recordedToolNames(branch.map(entry=>entry.message).filter(Boolean));
+ assert.deepEqual(recorded.sort(),['find','grep','ls','read']);
+ // Pi restored the declared read loadout; another extension then activated its own tool.
+ const resume=(entries,tools)=>{f.pi.setActiveTools(tools);createPlanManager({cwd:f.cwd,pi:f.pi,policy:offline,branch:entries,recordedTools:recordedToolNames(entries.map(entry=>entry.message).filter(Boolean)),persist:()=>{}});return f.active();};
+ assert.deepEqual(resume(branch,['read','grep','find','ls','todo']),['read','bash','edit','write','grep','find','ls','todo']);
+ // Once a later request declared the restored tools, Pi's own restoration is authoritative.
+ const later=[...branch,declared(['bash','edit','write'],['grep','find','ls'])];
+ assert.deepEqual(resume(later,['read','bash','edit','write']),['read','bash','edit','write']);
+ // A later read-only loadout the user chose is declared after the plan state and is not overridden.
+ const chosen=[...later,declared(['grep','find','ls'],['bash','edit','write'])];
+ assert.deepEqual(resume(chosen,['read','grep','find','ls']),['read','grep','find','ls']);
 });
 test('completed boundary saves final assistant text and preserves existing drafts',async t=>{
  const f=await fixture(t);await f.manager.start('task',f.ctx);f.entries.push({type:'message',message:{role:'assistant',stopReason:'stop',content:[{type:'text',text:'# Native plan\n'},{type:'text',text:'- Check result'}]}});

@@ -4,6 +4,7 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync,
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {runWindowsPreflight, windowsProbeEnvironment} from './preflight-windows.mjs';
+import {PI_VERSION} from '../lib/launcher.mjs';
 import {fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 /** Lock keys reachable from root package names, using node_modules nearest-ancestor resolution. */
@@ -69,13 +70,13 @@ export function smokeWindowsPackage() {
     // the install. No host dependency copy or junction, registry re-resolution, or repacked peer is used.
     const sourceLock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
     const peerPin = sourceLock.packages?.['node_modules/@earendil-works/pi-coding-agent'];
-    if (peerPin?.version !== '0.99.2' ||
-        peerPin.resolved !== 'https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-0.99.2.tgz' ||
+    if (peerPin?.version !== PI_VERSION ||
+        peerPin.resolved !== `https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-${PI_VERSION}.tgz` ||
         !/^sha512-[A-Za-z0-9+/]+=*$/.test(peerPin.integrity ?? '')) throw new Error('Invalid pinned peer artifact');
     mkdirSync(prefix);
     const {dependencies = {}} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
     const bootstrap = {name: 'apex-windows-install-smoke', version: '0.0.0', private: true,
-      dependencies, devDependencies: {'@earendil-works/pi-coding-agent': '0.99.2'}};
+      dependencies, devDependencies: {'@earendil-works/pi-coding-agent': PI_VERSION}};
     writeFileSync(path.join(prefix, 'package.json'), JSON.stringify(bootstrap));
     const packages = {'': bootstrap};
     for (const key of lockSubtree(sourceLock.packages, ['@earendil-works/pi-coding-agent', ...Object.keys(dependencies)])) packages[key] = sourceLock.packages[key];
@@ -92,7 +93,7 @@ export function smokeWindowsPackage() {
     const installedPeerPin = JSON.parse(readFileSync(path.join(prefix, 'package-lock.json'), 'utf8'))
       .packages?.['node_modules/@earendil-works/pi-coding-agent'];
     result.checks.real_pinned_peer = !lstatSync(peerRoot).isSymbolicLink() &&
-      JSON.parse(readFileSync(path.join(peerRoot, 'package.json'), 'utf8')).version === '0.99.2' &&
+      JSON.parse(readFileSync(path.join(peerRoot, 'package.json'), 'utf8')).version === PI_VERSION &&
       installedPeerPin?.integrity === peerPin.integrity;
     if (!result.checks.real_package_install || !result.checks.real_pinned_peer) throw new Error('Installed package/peer verification failed');
     const bin = path.join(prefix, 'node_modules', '.bin');

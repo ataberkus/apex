@@ -17,9 +17,10 @@ function run(args) {
 run(['install', '--save-dev', '--save-exact', '--ignore-scripts', `@earendil-works/pi-coding-agent@${version}`]);
 const pins = {...oldPins, pi: {...oldPins.pi, version, source_commit: sourceCommit}};
 writeFileSync('evals/versions.json', JSON.stringify(pins, null, 2) + '\n');
-// Keep explicit runtime pins in sync; schema/API regression tests deliberately remain unchanged.
-for (const file of ['lib/launcher.mjs', 'evals/harbor/apex.py', 'evals/harbor/plan.py']) {
-  writeFileSync(file, readFileSync(file, 'utf8').replaceAll(oldPins.pi.version, version));
+// Keep explicit runtime pins in sync (JS runtime code imports PI_VERSION from lib/launcher.mjs);
+// schema/API regression tests deliberately remain unchanged and must be re-pinned by review.
+for (const file of ['lib/launcher.mjs', 'scripts/micro-session.mjs', 'scripts/preflight.mjs', 'evals/harbor/apex.py', 'evals/harbor/plan.py']) {
+  writeFileSync(file, readFileSync(file, 'utf8').replaceAll(oldPins.pi.version, version).replaceAll(oldPins.pi.source_commit, sourceCommit));
 }
 for (const script of ['check', 'test', 'micro']) run(['run', script]);
 console.log('Unpaid upgrade checks passed. Re-audit NOTES.md and run budget-approved model micro-evals before adopting the upgrade.');

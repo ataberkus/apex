@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {dirname, join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseArgs} from 'node:util';
-import {resolvePi} from '../../lib/launcher.mjs';
+import {PI_VERSION, resolvePi} from '../../lib/launcher.mjs';
 import {assertWindowsTarget} from '../../lib/windows-target.mjs';
 import {fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from '../../scripts/micro-session.mjs';
 import {windowsProbeEnvironment} from '../../scripts/preflight-windows.mjs';
@@ -247,7 +247,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
         onPayload:async value=>guard.payload(await extensionPayload(value)),onProviderStreamEvent:chunk=>{record(rawFile,chunk);guard.observe(chunk);}}));
     };
     session.subscribe(event=>{if(event.type==='message_update')return;const safe=redact(event);events.push(safe);record(eventsFile,safe);});
-    save(join(directory,'configuration.json'),{...PROFILE,run_id:runId,platform:process.platform,pi_version:'0.99.2',auth_type:'oauth',runtimePolicy:'unchanged offline-only auxiliary inference',
+    save(join(directory,'configuration.json'),{...PROFILE,run_id:runId,platform:process.platform,pi_version:PI_VERSION,auth_type:'oauth',runtimePolicy:'unchanged offline-only auxiliary inference',
       catalog_rates:model.cost,max_output_tokens:guard.maxOutputTokens,output_bound_source:'guard lowers payload max_tokens',run_cap_usd:PROFILE.runCapUsd,
       discovery_disabled:true,retries:0,auto_compaction:false,cache_warming:'off',isolation:'fixture cwd and tool hooks; not an OS sandbox',benchmark_result:false});
     await session.prompt(prompt(fixture));

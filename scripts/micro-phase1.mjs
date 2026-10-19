@@ -11,7 +11,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate imports only Node builtins; fixtures and Pi live in a
 // bounded child process. Every transcript message here is script-seeded.
@@ -78,7 +78,7 @@ async function offlineRuntime(pi, calls, observed) {
       if (typeof owner[name] === 'function') owner[name] = deny('credentials');
     }
   }
-  // Pi 0.99.2 registers virtual catalog entries synchronously, then schedules an
+  // Pi 1.3.0 registers virtual catalog entries synchronously, then schedules an
   // availability refresh even with allowNetwork:false. Suppress only that test
   // discovery boundary; never allow credentials or account availability reads.
   runtime.refresh = async options => {
@@ -116,7 +116,7 @@ async function nativeFixture(spec, calls, observed) {
   observed.stage = 'sdk';
   const pi = await import('@earendil-works/pi-coding-agent');
   const version = JSON.parse(await readFile(path.join(root, 'node_modules/@earendil-works/pi-coding-agent/package.json'), 'utf8')).version;
-  if (version !== '0.99.2') throw new Error('unexpected_pi_version');
+  if (version !== PINNED_PI_VERSION) throw new Error('unexpected_pi_version');
   const {default: contextIndex} = await import('../extensions/apex-context/index.mjs');
   const {default: routerIndex} = await import('../extensions/apex-router/index.mjs');
   const {runtime, model, denyInference} = await offlineRuntime(pi, calls, observed);

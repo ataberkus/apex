@@ -103,7 +103,7 @@ def prepare_plan(config, run_id, estimate_usd, harness_commit, agent='stock-pi',
     if not blockers:
         argv = ['harbor', 'run', '--dataset', dataset, '--agent', 'pi' if agent == 'stock-pi' else 'evals.harbor.apex:ApexAgent',
                 '--model', model, '--n-attempts', str(attempts), '--env', environment,
-                '--job-name', run_id, '--jobs-dir', 'runs/harbor', '--agent-kwarg', 'version=0.99.2']
+                '--job-name', run_id, '--jobs-dir', 'runs/harbor', '--agent-kwarg', 'version=1.3.0']
         if thinking is not None:
             argv.extend(['--agent-kwarg', f'thinking={thinking}'])
         argv.extend(['--registry-path', str(frozen['registry_path'])])

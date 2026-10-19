@@ -6,14 +6,25 @@ Audited 2026-10-01. Phase 0 research and offline measuring tools are prepared; r
 
 | Component | Pin |
 |---|---|
-| Pi npm package | @earendil-works/pi-coding-agent 0.99.2; locked npm integrity in package-lock.json |
-| Audited Pi source | 8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d |
+| Pi npm package | @earendil-works/pi-coding-agent 1.3.0 (was 0.99.2 for the phase records below); package-lock.json pins it and every transitive dependency by integrity |
+| Audited Pi source | v1.3.0 tag 71023aec1546d6d677a65669c5665c0927ce0dd0 (the earlier audit used unreleased 8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d, 17 commits after the v0.99.2 tag 005af57d) |
 | Harbor runtime | git source 99218a4611e3bd76e49ce3b5f977e8c8134ad3ac; version label 0.23.0 |
 | Reference adapter, research only | badlogic/pi-terminal-bench 0074c915dc7d8ceeba5f61b19e7b9aa078564fa3 |
 | Validated environment | Linux x86_64; Node 24.19.0; Python 3.12.14 |
 | User target | Windows local; exact container host remains unset |
 
 Pi requires Node >=22.19.0; Harbor requires Python >=3.12. Upstream code was inspected read-only. No Pi core patch or upstream PR was needed.
+
+### Pi 1.3.0 upgrade (from 0.99.2)
+
+Phase sections below record the 0.99.2 contracts their evidence was gathered against; [the Pi API appendix](research/pi-api-notes.md) is re-audited for 1.3.0 and lists every change. Changes Apex adapts to:
+
+- `before_agent_start` is a union on `messageType`. `"custom"` runs (an idle `pi.sendMessage(..., {triggerTurn:true})`) carry `message` and no `prompt`; apex-core still applies its mode section but starts no task boundary for them.
+- Tool loadouts are transcript state: Pi's agent loop records the active-tool delta as a system message before each model request, and resume and `/tree` restore the branch's declared tools. `/plan` save/cancel restores prior tools after the planning requests were declared, so a session resumed before its next request would come back read-only; the plan manager undoes exactly that stale loadout (`recordedToolNames`, `createPlanManager`), and tree navigation only resets the old plan's loadout when the target branch declares none.
+- `emitBeforeAgentStart(trigger, options)` and `_prepareRun` (live loadout wins unless a handler edits `selectedTools`) changed; the offline micro harnesses mirror the new sequence and record tool declarations like the agent loop.
+- `ToolLoadout.getPromptGuidelines`, `systemPromptOptions.hiddenTools`, `agent_settled.aborted`, `tool_execution_end.durationMs` and `ToolInfo.reachesTools` are additive.
+- Eval-visible behaviour shifts that invalidate 0.99.2 baselines rather than break Apex: compaction serialization and cross-model switches drop thinking, codemode's prompt is shorter, the TUI defaults to fullscreen.
+- Pi no longer ships npm-shrinkwrap.json; only this repository's lockfile pins its third-party dependencies. Harbor's in-container `npm install -g` of Pi is not lock-pinned.
 
 Full exact event/result declarations, 41 pi.on signatures, requested document/source/example reviews, prompt contracts, and source lines are in [the Pi API appendix](research/pi-api-notes.md). These include re-exported cache-warming declarations and upstream MIT attribution. [Harbor notes](research/harbor-notes.md) preserve exact installed-agent contracts, CLI/dataset evidence and source/release differences. [Pricing notes](research/pricing-notes.md) cite official rates and exact API IDs.
 

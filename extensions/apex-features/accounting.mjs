@@ -240,7 +240,7 @@ export function summarizeSession(entries, {branch, activeLeaf, context, model, p
     if (entry.type === 'model_change' && id(entry.provider) && id(entry.modelId)) lastModel = {provider: entry.provider, id: entry.modelId};
     if (entry.message?.role === 'assistant' && id(entry.message.provider) && id(entry.message.model)) lastModel = {provider: entry.message.provider, id: entry.message.model};
     const record = usageRecord(entry);
-    // Pi 0.99.2 writes native compaction and branch-summary usage without the model; it runs them on the session model.
+    // Pi 1.3.0 writes native compaction and branch-summary usage without the model; it runs them on the session model.
     if (record && ['compaction', 'branch_summary'].includes(record.kind) && entry.fromHook !== true &&
       !id(record.provider) && !id(record.model) && lastModel) Object.assign(record, {provider: lastModel.provider, model: lastModel.id});
     if (record) {

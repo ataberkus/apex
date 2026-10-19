@@ -38,7 +38,7 @@ test('missing Windows prerequisites, workspace-only tools and wrong Pi cannot re
     const result = runWindowsPreflight({projectRoot: root, platform: 'win32', sourceEnv: env, run: nativeProbe});
     assert.equal(result.readiness, 'blocked', missing);
   }
-  for (const found of ['0.99.1', '0.99.2-beta', '0.99.2+local']) {
+  for (const found of ['0.99.2', '1.3.0-beta', '1.3.0+local']) {
     const {root, file, env} = windowsFixture(t);
     file('node_modules/@earendil-works/pi-coding-agent/package.json', JSON.stringify({version: found}));
     assert.equal(runWindowsPreflight({projectRoot: root, platform: 'win32', sourceEnv: env, run: nativeProbe}).readiness, 'blocked');

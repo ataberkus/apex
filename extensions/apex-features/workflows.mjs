@@ -43,24 +43,52 @@ async function writePlan(cwd,markdown,signal){
   await rename(temporary,target);return path.join(cwd,'PLAN.md');
  }finally{await handle?.close();await unlink(temporary).catch(error=>{if(error.code!=='ENOENT')throw error;});}
 }
-function restoredState(branch){
- let found;
- for(const entry of branch??[]){
-  const candidate=entry?.type==='custom'&&entry.customType===TYPE?entry.data:entry?.type==='compaction'?entry.details?.apexState?.[TYPE]:undefined;
-  if(candidate!==undefined)found=candidate;
+const planStateOf=entry=>entry?.type==='custom'&&entry.customType===TYPE?entry.data:entry?.type==='compaction'?entry.details?.apexState?.[TYPE]:undefined;
+const sameSet=(left,right)=>left.length===right.length&&left.every(name=>right.includes(name));
+/**
+ * Tool names the transcript declares, folded like Pi's getCurrentTools(): Pi's agent loop records the
+ * active-tool delta as a system message before each model request, and resume or /tree restores it.
+ * Undefined when the projection declares no tools, in which case Pi leaves the loadout alone.
+ */
+export function recordedToolNames(messages){
+ let tools;
+ for(const message of messages??[]){
+  if(message?.role!=='system'||(!message.toolsAdded&&!message.toolsRemoved))continue;
+  tools??=new Set();
+  for(const tool of message.toolsRemoved??[])tools.delete(tool.name);
+  for(const tool of message.toolsAdded??[])tools.add(tool.name);
  }
- if(found?.version===1&&typeof found.active==='boolean'&&typeof found.task==='string'&&found.task.length<=20000&&toolsValid(found.tools)&&toolsValid(found.readTools??READ_TOOLS))return structuredClone(found);
- return {version:1,active:false,task:'',tools:[],readTools:[...READ_TOOLS]};
+ return tools&&[...tools];
+}
+function restoredState(branch){
+ let found;let index=-1;let loadout=-1;
+ (branch??[]).forEach((entry,position)=>{
+  const candidate=planStateOf(entry);
+  if(candidate!==undefined){found=candidate;index=position;}
+  // Pi records each tool-loadout change as a system message before the next model request.
+  if(entry?.type==='message'&&entry.message?.role==='system'&&(entry.message.toolsAdded||entry.message.toolsRemoved))loadout=position;
+ });
+ if(found?.version===1&&typeof found.active==='boolean'&&typeof found.task==='string'&&found.task.length<=20000&&toolsValid(found.tools)&&toolsValid(found.readTools??READ_TOOLS))
+  return {state:{...structuredClone(found),readTools:structuredClone(found.readTools??READ_TOOLS)},loadoutStale:loadout<index};
+ return {state:{version:1,active:false,task:'',tools:[],readTools:[...READ_TOOLS]},loadoutStale:false};
 }
 
-/** persist accepts a detached {customType,data} entry; callers adapt it to pi.appendEntry(). */
-export function createPlanManager({cwd,pi,persist=()=>{},branch=[],policy}={}){
- let state=restoredState(branch);let queue=Promise.resolve();
+/**
+ * persist accepts a detached {customType,data} entry; callers adapt it to pi.appendEntry().
+ * recordedTools: recordedToolNames() of the branch projection Pi restored the loadout from.
+ */
+export function createPlanManager({cwd,pi,persist=()=>{},branch=[],recordedTools,policy}={}){
+ const restored=restoredState(branch);let state=restored.state;let queue=Promise.resolve();
  const serial=operation=>{const next=queue.then(operation);queue=next.catch(()=>{});return next;};
  const record=()=>persist({customType:TYPE,data:structuredClone(state)});
  const result=(ok,extra={})=>({ok,active:state.active,...extra});
  // Reconstruct the model loadout as well as the gate when resuming an active branch.
  if(state.active)pi.setActiveTools([...state.readTools]);
+ // A saved/cancelled plan restores its prior tools, but Pi records that only before the next model
+ // request. Resuming before then, Pi restores the plan's read-only declarations: reinstate the prior
+ // tools, keeping tools other extensions activated since, but not the plan's extra read tools.
+ else if(state.tools.length&&restored.loadoutStale&&recordedTools&&sameSet(recordedTools,state.readTools))
+  pi.setActiveTools([...new Set([...state.tools,...pi.getActiveTools().filter(name=>!state.readTools.includes(name))])]);
  const restore=async()=>{
   const previous=[...state.tools];state.active=false;state.restorationPending=true;let failure;
   try{pi.setActiveTools(previous);state.restorationPending=false;}catch(error){failure=error;}
