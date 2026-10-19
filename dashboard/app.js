@@ -458,7 +458,7 @@ function select(s) {
   if (sel) sessionDraft(sel.id).message = $('box').value;
   sel = s; source?.close(); current = null; activity = null; tools.clear(); toolArgs.clear(); view = newView(); asksSig = '';
   clearTimeout(markdownTimer); markdownTimer = 0; pendingRender.clear();
-  $('box').value = sessionDraft(s.id).message; $('slash').hidden = true; renderAttachments();
+  $('box').value = sessionDraft(s.id).message; $('slash').hidden = true; $('toast').hidden = true; renderAttachments(); // a toast's Undo acts on the previous draft
   if (!s.viewOnly) { seen[s.id] = s.settled ?? 0; localStorage.seen = JSON.stringify(seen); }
   $('log').replaceChildren(); renderQueued(); header(); renderSide(); renderAsks(); renderInfo();
   renderAuth();
@@ -1016,7 +1016,7 @@ async function toggleEnhance() {
   const job = {id: null, original: $('box').value, model: modelLabel(sel.model), step: ''};
   enhance.set(id, job); sessionDraft(id).error = ''; syncComposer();
   let r;
-  try { r = await post('/api/enhance', {id, text: job.original}); }
+  try { r = await post('/api/enhance', {id, text: job.original, images: sessionDraft(id).images.length}); } // the count only: images aren't sent
   catch (error) { return enhanceFailed(id, job, error.message); }
   if (enhance.get(id) !== job) { post('/api/enhance/stop', {id: r.id}).catch(() => {}); return; } // cancelled while starting
   Object.assign(job, {id: r.id, model: r.model}); if (sel?.id === id) syncComposer();
