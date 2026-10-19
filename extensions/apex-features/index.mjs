@@ -75,7 +75,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      if(args==='cancel')r=await plan.cancel(ctx);
      else if(args.startsWith('save '))r=await checkpointed(()=>plan.save(args.slice(5),ctx),ctx);
      else r=await plan.start(args.trim()||'Inspect the current project and write a concrete implementation plan.',ctx);
-     notify(ctx,r.reason??(r.path?'Plan saved to PLAN.md; prior tools restored.':'Plan mode updated.'));return r;
+     notify(ctx,r.reason??(r.path?'Plan saved to PLAN.md; prior tools restored.':r.canceled?'Plan canceled; prior tools restored.':r.canceled===false?'Plan mode is not active.':'Plan mode updated.'));return r;
     });
    }
    if(flags.has('review'))command('review','Independently verify the current diff',async(args,ctx)=>{
@@ -115,9 +115,12 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   pi.on('turn_end',async(_event,ctx)=>{await closeTurn();updateCost(ctx);});
   pi.on('agent_before_settle',async(event,ctx)=>{
    if(!plan?.isActive())return;
-   if(event.outcome==='completed'&&event.continue!==true&&!event.context?.pendingMessages?.length)
-    return checkpointed(()=>plan.finish(event,ctx),ctx);
-   return plan.finish(event,ctx);
+   const r=event.outcome==='completed'&&event.continue!==true&&!event.context?.pendingMessages?.length?
+    await checkpointed(()=>plan.finish(event,ctx),ctx):await plan.finish(event,ctx);
+   // The outcome entry stays out of the model context; the user still needs to see where the plan went.
+   const outcome=r?.entries?.find(entry=>entry.customType==='apex-plan-complete'||entry.customType==='apex-plan-error');
+   if(outcome)notify(ctx,outcome.content);
+   return r;
   });
   pi.on('agent_settled',async(_event,ctx)=>{
    await closeTurn();updateCost(ctx);

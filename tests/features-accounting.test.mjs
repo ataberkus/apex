@@ -66,10 +66,10 @@ test('unknown context and absent or partial pricing never become free cost or in
   assert.equal(summarizeSession([assistant('a', null)], {model: {provider: 'fixture', id: 'model', contextWindow: 1000}, context: {tokens: 250}}).context.percent, 25);
 });
 
-test('native compaction, branch summary, usage and attributed tool totals are included without guessed model', async () => {
+test('native compaction and branch summaries bill the session model; hook-made ones and unattributed usage stay unknown', async () => {
   const {summarizeSession} = await load(); assert.equal(typeof summarizeSession, 'function');
   const entries = [assistant('a', null), {type: 'compaction', id: 'c', parentId: 'a', summary: 'secret', usage: usage(3, 1)},
-    {type: 'branch_summary', id: 'b', parentId: 'c', summary: 'secret', usage: usage(2, 1)},
+    {type: 'branch_summary', id: 'b', parentId: 'c', summary: 'secret', fromHook: true, usage: usage(2, 1)},
     {type: 'usage', id: 'u', parentId: 'b', kind: 'cache_warm', provider: 'fixture', model: 'model', usage: usage(1, 1)},
     {type: 'message', id: 't', parentId: 'u', message: {role: 'toolResult', content: [], usage: usage(4, 1),
       details: {apexAux: {version: 1, attempted: true, complete: true, provider: 'fixture', model: 'model'}}}}];
@@ -77,6 +77,13 @@ test('native compaction, branch summary, usage and attributed tool totals are in
   assert.equal(value.totals.input, 20); assert.equal(value.counts.usageRecords, 5);
   assert.equal(value.cost.nativeEstimateUsd, 0.185); assert.equal(value.cost.pricingEstimateUsd, null);
   assert.ok(value.completeness.issues.includes('unattributed_model'));
+  const native = summarizeSession(entries.slice(0, 2), {pricing: rates});
+  assert.ok(Math.abs(native.cost.pricingEstimateUsd - 0.0000244) < 1e-12, 'Pi compacts on the session model, so its usage is priced');
+  const switched = summarizeSession([entries[0], {type: 'model_change', id: 'm', parentId: 'a', provider: 'other', modelId: 'm2'},
+    {...entries[1], parentId: 'm'}], {pricing: rates});
+  assert.equal(switched.cost.pricingEstimateUsd, null, 'a compaction after a model switch is billed on the new model, not the old one');
+  assert.ok(!switched.completeness.issues.includes('unattributed_model'));
+  assert.equal(summarizeSession([entries[1]], {pricing: rates}).cost.pricingEstimateUsd, null, 'no known session model, no price');
 });
 
 test('category byte estimates count UTF8 content once and top consumers never echo payloads', async () => {

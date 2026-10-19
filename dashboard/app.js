@@ -1173,7 +1173,7 @@ $('route-form').onsubmit = async e => {
 const launch = $('launch');
 let launchFor = null, choice = (() => {
   const saved = stored('launch', {});
-  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'sol', thinking: saved.thinking ?? 'xhigh'}, timeBudget: saved.timeBudget ?? 600, autocompactTokens: saved.autocompactTokens ?? 300000, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'default'};
+  return {route: saved.route ?? {mode: 'single', model: saved.model ?? 'anthropic/claude-opus-5-5', thinking: saved.thinking ?? 'medium'}, timeBudget: saved.timeBudget ?? 600, autocompactTokens: saved.autocompactTokens ?? 300000, evalMode: Boolean(saved.evalMode), preset: saved.preset ?? 'default'};
 })();
 // `set` is the picks, a function resolved when the preset applies, or null for every feature the model can run.
 // An unknown remembered preset (such as the earlier default `all`) falls back to the first one.
@@ -1226,7 +1226,7 @@ function buildLaunch() {
   // A remembered route stays only while its models are listed in the picker; otherwise start on the first usable model.
   const usable = id => { const m = modelById(id); return Boolean(m) && modelReady(m); };
   const known = r => r.mode === 'pair' ? pairable(modelById(r.plan.model)) && pairable(modelById(r.build.model)) && usable(r.plan.model) && usable(r.build.model) : usable(r.model);
-  launchEditor.set(known(choice.route) ? choice.route : {mode: 'single', model: (state.models.find(modelReady) ?? state.models[0])?.id, thinking: 'xhigh'});
+  launchEditor.set(known(choice.route) ? choice.route : {mode: 'single', model: (state.models.find(modelReady) ?? state.models[0])?.id, thinking: 'medium'});
   const ps = $('presets'); ps.replaceChildren(el('legend', 'sr', 'Start from'));
   const pw = el('div', 'presets'), preset = PRESETS.find(p => p.id === choice.preset) ?? PRESETS[0];
   for (const p of PRESETS) {

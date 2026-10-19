@@ -93,11 +93,11 @@ export function createPlanManager({cwd,pi,persist=()=>{},branch=[],policy}={}){
      await pi.sendUserMessage(fill(prompt,{task}),{expandPromptTemplates:false});
      return result(true,{prompted:true});
     }
-    return result(true,{prompted:false,reason:'Offline plan mode is active. Save explicit Markdown with /plan save, or cancel; no model request was started.'});
+    return result(true,{prompted:false,reason:'Plan mode is active with read-only tools; /plan itself started no model request. Your next message is planned without changes and its final answer is saved to PLAN.md. /plan save MARKDOWN saves your own text instead; /plan cancel exits.'});
    }catch(error){let reason=reasonOf(error);if(state.active)try{await restore();}catch(cleanup){reason+=`; restoration failed: ${reasonOf(cleanup)}`;}return result(false,{reason});}
   });},
   save:(markdown,ctx)=>serial(()=>save(markdown,ctx)),
-  cancel:ctx=>serial(async()=>{if(!state.active&&!state.restorationPending)return result(true);try{await restore();return result(true);}catch(error){return result(false,{reason:reasonOf(error)});}}),
+  cancel:ctx=>serial(async()=>{if(!state.active&&!state.restorationPending)return result(true,{canceled:false});try{await restore();return result(true,{canceled:true});}catch(error){return result(false,{reason:reasonOf(error)});}}),
   shutdown:ctx=>serial(async()=>{if(!state.active&&!state.restorationPending)return result(true);try{await restore();return result(true);}catch(error){return result(false,{reason:reasonOf(error)});}}),
   finish(event,ctx){return serial(async()=>{
    const response={entries:[...(event?.entries??[])]};if(!state.active)return response;

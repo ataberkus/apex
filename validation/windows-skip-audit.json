@@ -248,5 +248,24 @@
   "remaining": [
     "File-symlink boundaries remain unexercised with this account; junction/hard-link coverage does not replace them.",
     "A full optional TypeScript checker is unavailable; no TypeScript diagnostic completion is claimed."
+  ],
+  "revalidated": [
+    {
+      "date": "2026-10-19",
+      "command": "npm run test:windows",
+      "log": "validation/windows-native-unit-2026-10-19.log",
+      "log_sha256": "8439cf2dd38c449e35b87e53ca304cd4c03d450406106bb569c14b45cb152e41",
+      "tests": 574,
+      "passed": 531,
+      "failed": 0,
+      "node_skips": 43,
+      "same_skipped_tests_as_node_list": true,
+      "category_counts": {
+        "windows-file-symlink-privilege": 13,
+        "outside-native-windows-scope": 29,
+        "optional-checker-unavailable": 1
+      },
+      "python_rerun": false
+    }
   ]
 }

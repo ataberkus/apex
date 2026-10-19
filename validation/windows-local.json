@@ -2,66 +2,181 @@
   "schema_version": 1,
   "kind": "windows_local_acceptance",
   "target": "native-windows",
+  "date": "2026-10-19",
+  "default_model": "anthropic/claude-opus-5-5",
+  "default_thinking": "medium",
   "offline_engineering": "PASS",
   "clean_package_installation": "PASS",
-  "live_feature_acceptance": "PENDING",
-  "interactive_terminal_acceptance": "UNVERIFIED",
+  "live_feature_acceptance": "PASS",
+  "interactive_terminal_acceptance": "PASS",
+  "dashboard_acceptance": "PASS",
   "full_project_definition_of_done": false,
-  "provider_calls": 0,
-  "new_spend_usd": 0,
-  "node_passed": 453,
-  "python_passed": 193,
-  "total_passed": 646,
-  "capability_skips": 45,
-  "skip_categories": {
-    "windows-file-symlink-privilege": 15,
+  "node_tests": 574,
+  "node_passed": 531,
+  "node_failed": 0,
+  "node_skips": 43,
+  "node_skip_categories": {
     "outside-native-windows-scope": 29,
+    "windows-file-symlink-privilege": 13,
     "optional-checker-unavailable": 1
   },
+  "python_rerun": false,
   "native_contracts": 6,
   "native_checks": 123,
   "package_checks": 7,
-  "package_sha256": "db91c8a5b9a820ada088bf96576bec49c691d8c9a4ee6db5c0702785d37f501e",
-  "source_revision": null,
+  "package_sha256": "055a936dc1dfb9243597f8392be1476aac133d4fa08a02e092320ed682815e44",
+  "live_runs": {
+    "windows-claude-live-001": {
+      "checks": "24/24",
+      "requests": 10,
+      "catalog_usd": 0.7214326
+    },
+    "terminal": {
+      "requests": 14,
+      "catalog_usd": 0.388272
+    },
+    "dashboard": {
+      "requests": 12,
+      "catalog_usd": 0.037443
+    },
+    "pair_smoke": {
+      "requests": 2,
+      "catalog_usd": 0.021117
+    },
+    "oauth_refresh_probe": {
+      "requests": 1,
+      "catalog_usd": 0.004181
+    }
+  },
+  "claude_acceptance_cap_usd": 10,
+  "claude_acceptance_observed_usd": 1.1724456,
+  "openrouter_requests": 0,
+  "source_revision": "5f8c2d00e5a8646019f58bf793e655f19fb1c739 plus uncommitted working tree",
   "benchmark_policy": "unchanged/offline-only",
   "full_micro_scope": "still requires Unix proofs; separate native artifact",
   "evidence": [
     {
       "path": "validation/windows-preflight.json",
-      "sha256": "a385a9f43aea6be79b53eb3c313962d8ed2bd9222e720dffe27d59385543ed6b"
+      "sha256": "9121b9ecb260971cf617e7dd92334ff4cdb7b8e721a08facc1bea1474de5ac80"
     },
     {
-      "path": "validation/windows-check-verified.log",
+      "path": "validation/windows-check-2026-10-19.log",
       "sha256": "6c2d78089c7fd6ccec866f38c90265d955fb996cbe05f1baf4ca18949047de1b"
     },
     {
-      "path": "validation/windows-full-check-verified.log",
-      "sha256": "f8cabbbcc01ac8fdb201db4b9f634ada97bdb8a4258dc4c39d8bf2deee5d486d"
+      "path": "validation/windows-native-unit-2026-10-19.log",
+      "sha256": "8439cf2dd38c449e35b87e53ca304cd4c03d450406106bb569c14b45cb152e41"
     },
     {
-      "path": "validation/windows-unit-verified.log",
-      "sha256": "2859b4dc52e6c1131682bd16c9b8dcc490f33fc956bda83396eab58e03aa7030"
-    },
-    {
-      "path": "validation/windows-native-unit-verified.log",
-      "sha256": "95539714aae4c73ce9cb088de862b342df3b0937704905e5d2da2b14d124a17d"
+      "path": "validation/windows-native-micro-2026-10-19.log",
+      "sha256": "dd4fe6490646d992b7dc813ced774f0bc74a491558fa30d07e45c5f55d0278b0"
     },
     {
       "path": "validation/windows-native-micro.json",
-      "sha256": "6cf54c40e60ac562af30b623017679b96563d2c24d1ee9d2ac6cf6ad58f4f38a"
+      "sha256": "3565d7db988905e1f70688ffee259b6edb1677c9cadefa947f0e9289c68ce54c"
+    },
+    {
+      "path": "validation/windows-package-2026-10-19.log",
+      "sha256": "34b6ca69dfbc3930114295fb9a312791cca6771fd606f77e5d34787891f336bb"
     },
     {
       "path": "validation/windows-package-smoke.json",
-      "sha256": "fa1848f926738ed3f714debd290a8613dca5c55f53635439e8e8af5733cf4616"
+      "sha256": "48924016676967ff117434bd819ed2b14853ecc3fff2e54e31033112078d6ade"
     },
     {
       "path": "validation/windows-skip-audit.json",
-      "sha256": "3f2467bbea25cdf5bd918753c4bf72a5e9a9eea305bea4c33f774624202d25ec"
+      "sha256": "0160635b026baa8c7bd8f146d3cad92fe24cedd9fd14dcebb52fb0ee467a8e60"
+    },
+    {
+      "path": "validation/windows-live-windows-claude-live-001.json",
+      "sha256": "76298f0ed2602fb73fbbf89e1f446d7652bf0ffcdbce8fe2b09121f6b3ed4fad"
+    },
+    {
+      "path": "validation/windows-terminal-acceptance.json",
+      "sha256": "2b3d8ee1641b0288f4383df1be33d860c70c7c2debc8a365a4176f7d86d2a7e0"
+    },
+    {
+      "path": "validation/windows-dashboard-acceptance.json",
+      "sha256": "66513061b72bb3f099dc05bbd781feb49f26eb2744f4bdcf74eec4a34c867da5"
+    },
+    {
+      "path": "validation/windows-optin-audit.json",
+      "sha256": "ff21850f777379f69f81fb71c4b2fcaf6ebe55fd5fad285b0311f4af15c622e1"
+    },
+    {
+      "path": "evals/claude-budget.json",
+      "sha256": "d42d5692972a64a727cca4f0a41d4ec4d1f7122442fab9dda7fbc4798af4c915"
     }
   ],
-  "next": [
-    "Implement a reserved/bounded Codex-only live feature test; do not use the launcher target as a budget guard.",
-    "Verify interactive Windows Terminal input, confirmations and cancellation.",
-    "Retain privilege-based file-symlink gaps; do not request elevation or relabel skips as passes."
-  ]
+  "remaining": [
+    "File-symlink boundaries need a Windows privilege this account lacks; no elevation requested.",
+    "No complete TypeScript checker is installed.",
+    "Core bg needs Unix process groups; max/recovery stay refused by the offline policy; route/output are Muse-specific.",
+    "Harbor/Terminal-Bench and the two-model definition of done remain deferred."
+  ],
+  "history": {
+    "note": "Previous summary, written before the live and interactive acceptance runs; kept unchanged.",
+    "offline_engineering": "PASS",
+    "clean_package_installation": "PASS",
+    "live_feature_acceptance": "PENDING",
+    "interactive_terminal_acceptance": "UNVERIFIED",
+    "full_project_definition_of_done": false,
+    "provider_calls": 0,
+    "new_spend_usd": 0,
+    "node_passed": 453,
+    "python_passed": 193,
+    "total_passed": 646,
+    "capability_skips": 45,
+    "skip_categories": {
+      "windows-file-symlink-privilege": 15,
+      "outside-native-windows-scope": 29,
+      "optional-checker-unavailable": 1
+    },
+    "native_contracts": 6,
+    "native_checks": 123,
+    "package_checks": 7,
+    "package_sha256": "db91c8a5b9a820ada088bf96576bec49c691d8c9a4ee6db5c0702785d37f501e",
+    "source_revision": null,
+    "benchmark_policy": "unchanged/offline-only",
+    "full_micro_scope": "still requires Unix proofs; separate native artifact",
+    "evidence": [
+      {
+        "path": "validation/windows-preflight.json",
+        "sha256": "a385a9f43aea6be79b53eb3c313962d8ed2bd9222e720dffe27d59385543ed6b"
+      },
+      {
+        "path": "validation/windows-check-verified.log",
+        "sha256": "6c2d78089c7fd6ccec866f38c90265d955fb996cbe05f1baf4ca18949047de1b"
+      },
+      {
+        "path": "validation/windows-full-check-verified.log",
+        "sha256": "f8cabbbcc01ac8fdb201db4b9f634ada97bdb8a4258dc4c39d8bf2deee5d486d"
+      },
+      {
+        "path": "validation/windows-unit-verified.log",
+        "sha256": "2859b4dc52e6c1131682bd16c9b8dcc490f33fc956bda83396eab58e03aa7030"
+      },
+      {
+        "path": "validation/windows-native-unit-verified.log",
+        "sha256": "95539714aae4c73ce9cb088de862b342df3b0937704905e5d2da2b14d124a17d"
+      },
+      {
+        "path": "validation/windows-native-micro.json",
+        "sha256": "6cf54c40e60ac562af30b623017679b96563d2c24d1ee9d2ac6cf6ad58f4f38a"
+      },
+      {
+        "path": "validation/windows-package-smoke.json",
+        "sha256": "fa1848f926738ed3f714debd290a8613dca5c55f53635439e8e8af5733cf4616"
+      },
+      {
+        "path": "validation/windows-skip-audit.json",
+        "sha256": "3f2467bbea25cdf5bd918753c4bf72a5e9a9eea305bea4c33f774624202d25ec"
+      }
+    ],
+    "next": [
+      "Implement a reserved/bounded Codex-only live feature test; do not use the launcher target as a budget guard.",
+      "Verify interactive Windows Terminal input, confirmations and cancellation.",
+      "Retain privilege-based file-symlink gaps; do not request elevation or relabel skips as passes."
+    ]
+  }
 }

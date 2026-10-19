@@ -127,7 +127,7 @@ test('RPC prompts preserve image content for text+image, image-only and steering
   assert.throws(() => promptCommand({message: 'x'}, {...session, status: 'done'}), /ended/);
 });
 
-test('dashboard models come from each login provider catalog, Sol first, and unknown capabilities fail closed', () => {
+test('dashboard models come from each login provider catalog, the Windows default first, and unknown capabilities fail closed', () => {
   const catalogs = {
     'openai-codex': [{id: 'gpt-6-luna', name: 'GPT-6 Luna', input: ['text', 'image']}, {id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', input: ['text', 'image']}],
     anthropic: [{id: 'claude-opus-5-5', name: 'Claude Opus 5.5', input: ['text', 'image']}],
@@ -135,7 +135,7 @@ test('dashboard models come from each login provider catalog, Sol first, and unk
   };
   const runtime = {getModels: provider => catalogs[provider] ?? [], getModel: () => undefined};
   const models = modelCatalog(runtime);
-  assert.deepEqual(models.map(m => m.id), ['sol', 'openai-codex/gpt-6-luna', 'anthropic/claude-opus-5-5', 'opencode-go/kimi-k3', 'muse']);
+  assert.deepEqual(models.map(m => m.id), ['anthropic/claude-opus-5-5', 'openai-codex/gpt-6-luna', 'sol', 'opencode-go/kimi-k3', 'muse']);
   assert.deepEqual(models.map(m => m.input), [['text', 'image'], ['text', 'image'], ['text', 'image'], ['text'], ['text']]);
   const claude = models.find(m => m.provider === 'anthropic');
   assert.deepEqual([claude.model, claude.label, claude.group, claude.target], ['claude-opus-5-5', 'Claude Opus 5.5', 'Claude', 'windows']);
