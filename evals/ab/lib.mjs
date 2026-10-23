@@ -47,6 +47,18 @@ export const sha = text => createHash('sha256').update(text).digest('hex');
 export const read = (root, name) => readFileSync(path.join(root, name), 'utf8');
 export const exists = (root, name) => existsSync(path.join(root, name));
 
+/** Bun's transpiler writes a literal non-ASCII character inside a tagged template (String.raw) as an escape in the
+ * raw text (`é` → `\u00E9`, `😀` → `\u{1f600}`); Node keeps the character. Restoring the escapes of the listed
+ * characters makes such fixtures land byte-identical on both runtimes. A template passed here must not spell those
+ * exact escapes itself. */
+export function literalChars(text, chars) {
+  for (const char of chars) {
+    const code = char.codePointAt(0);
+    text = text.replaceAll(code > 0xffff ? `\\u{${code.toString(16)}}` : `\\u${code.toString(16).toUpperCase().padStart(4, '0')}`, char);
+  }
+  return text;
+}
+
 /** Hash every file under `dir` (relative to root), for "do not modify" checks. */
 export function hashTree(root, dir) {
   const out = {};
@@ -87,13 +99,23 @@ export function unchanged(before, root, prefix, {allowAdded = false} = {}) {
   return pick(before) === pick(now, allowAdded ? name => Object.hasOwn(before, name) : undefined);
 }
 
+/** `bun test` with the workspace as cwd. The empty config (beside the hidden tests, outside the workspace) and
+ * --no-env-file stop a workspace bunfig.toml (preloads) or .env from reaching the run, as `node --test` ignored them. */
+export function bunTest(root, files, {timeout = 120000} = {}) {
+  const dir = path.join(root, '..', path.basename(root) + '-hidden');
+  mkdirSync(dir, {recursive: true});
+  const config = path.join(dir, 'bunfig.toml');
+  writeFileSync(config, '');
+  return run(process.execPath, [`--config=${config}`, '--no-env-file', 'test', `--timeout=${timeout}`, ...files], {cwd: root, timeout});
+}
+
 /** Run a hidden node:test file (written outside the workspace) against the workspace. */
 export function hiddenTests(root, source, name = 'hidden.test.mjs') {
   const dir = path.join(root, '..', path.basename(root) + '-hidden');
   mkdirSync(dir, {recursive: true});
   const file = path.join(dir, name);
   writeFileSync(file, source.replaceAll('@ROOT@', pathURL(root)));
-  const result = run(process.execPath, ['--test', file], {cwd: root, timeout: 120000});
+  const result = bunTest(root, [file]);
   return {pass: result.status === 0, output: (result.stdout + result.stderr).slice(-4000)};
 }
 

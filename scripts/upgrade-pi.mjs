@@ -3,18 +3,19 @@ import { spawnSync } from 'node:child_process';
 
 const [version, sourceCommit] = process.argv.slice(2);
 if (!/^\d+\.\d+\.\d+$/.test(version ?? '') || !/^[0-9a-f]{40}$/.test(sourceCommit ?? '')) {
-  console.error('Usage: node scripts/upgrade-pi.mjs VERSION FULL_SOURCE_COMMIT\nInspect the new source before upgrading. Checks must pass before any paid eval.');
+  console.error('Usage: bun scripts/upgrade-pi.mjs VERSION FULL_SOURCE_COMMIT\nInspect the new source before upgrading. Checks must pass before any paid eval.');
   process.exit(2);
 }
 const oldPins = JSON.parse(readFileSync('evals/versions.json', 'utf8'));
 if (version === oldPins.pi.version) throw new Error('New version must differ from the current pin');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+if (!process.versions.bun) throw new Error('Run the upgrade with Bun: bun scripts/upgrade-pi.mjs');
 function run(args) {
-  // npm.cmd is launched via cmd on Windows; argv here contains validated versions and fixed script names only.
-  const result = spawnSync(npm, args, {stdio: 'inherit', shell: process.platform === 'win32'});
+  // Bun itself is the package manager and script runner; argv holds validated versions and fixed script names only.
+  const result = spawnSync(process.execPath, args, {stdio: 'inherit', shell: false});
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
-run(['install', '--save-dev', '--save-exact', '--ignore-scripts', `@earendil-works/pi-coding-agent@${version}`]);
+// Re-pins package.json and bun.lock (the only dependency lock) to the exact new Pi and its integrity.
+run(['add', '--dev', '--exact', '--ignore-scripts', `@earendil-works/pi-coding-agent@${version}`]);
 const pins = {...oldPins, pi: {...oldPins.pi, version, source_commit: sourceCommit}};
 writeFileSync('evals/versions.json', JSON.stringify(pins, null, 2) + '\n');
 // Keep explicit runtime pins in sync (JS runtime code imports PI_VERSION from lib/launcher.mjs);

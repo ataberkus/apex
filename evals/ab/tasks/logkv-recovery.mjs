@@ -1,3 +1,6 @@
+// @bun
+// The pragma makes Bun run this file untranspiled, so functions embedded as source text keep their exact text (the
+// transpiler would reprint them). Bun then reads the file as Latin-1: keep it ASCII-only (evals/ab/run.mjs checks).
 import {gitRepo, hiddenTests, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
 const SPEC = `# lkv: an append-only key/value store
@@ -46,7 +49,7 @@ The store object has these methods:
 - \`set(key, value, {ttl} = {})\` stores \`value\` under \`key\`. Without \`ttl\` (that is, \`ttl\` is \`undefined\`) the entry never expires, even if the key had an expiry before. With \`ttl\`, its expiry time is \`now() + ttl\`.
 - \`delete(key)\` removes \`key\` and returns \`true\` if \`key\` was live just before the call, else \`false\`.
 - \`batch(ops)\` applies an array of operations as one batch, in array order. Each operation is an object, either \`{type: 'set', key, value, ttl}\` (\`ttl\` optional, as for \`set()\`) or \`{type: 'delete', key}\`. It returns the number of records written.
-- \`keys()\` returns an array of all live keys, sorted by comparing their UTF-8 encodings byte by byte (a key that is a prefix of another comes first). This is not JavaScript's default string order: \`'\\uFF61'\` sorts before \`'😀'\` here.
+- \`keys()\` returns an array of all live keys, sorted by comparing their UTF-8 encodings byte by byte (a key that is a prefix of another comes first). This is not JavaScript's default string order: \`'\\uFF61'\` sorts before \`'\u{1F600}'\` here.
 - \`compact()\` compacts the store (see Compaction).
 - \`segments()\` returns the names of the segment files of the store, in ascending order of their numbers.
 - \`close()\` closes the store. After \`close()\`, every method except \`close()\` throws an \`Error\` with the message \`store is closed\`, before looking at its arguments. Calling \`close()\` again does nothing.
@@ -1042,6 +1045,20 @@ test('20,000 writes take under 3 seconds', () => {
   let size = 8;
   for (let i = 0; i < 20000; i++) size += 19 + ('key' + i).length + ('value' + i).length;
   assert.equal(fs.statSync(path.join(dir, name(1))).size, size);
+});
+
+// Write time must not grow with the store (Performance): twice the writes take at most twice the 3-second budget.
+// Under Bun a store rewriting its segment on every write stays just under 3 seconds at 20,000 writes.
+test('40,000 writes take under 6 seconds', () => {
+  const db = openStore(tmp());
+  const start = performance.now();
+  for (let i = 0; i < 40000; i++) {
+    db.set('key' + i, 'value' + i);
+    if ((i & 1023) === 0 && performance.now() - start > 6000) assert.fail('over 6 seconds after ' + i + ' writes');
+  }
+  assert.ok(performance.now() - start < 6000, 'took ' + Math.round(performance.now() - start) + ' ms');
+  assert.equal(db.get('key39999'), 'value39999');
+  db.close();
 });
 
 test('opening 200,000 records takes under 2 seconds', () => {

@@ -1,7 +1,8 @@
-import {gitRepo, hiddenTests, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
+import {gitRepo, hiddenTests, literalChars, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
-// Fixture sources are String.raw (no backticks or dollar-brace inside). md() turns \` into a backtick.
-const md = text => text.replaceAll('\\`', '`');
+// Fixture sources are String.raw (no backticks or dollar-brace inside). md() turns \` into a backtick and keeps the
+// SPEC's non-ASCII characters literal under Bun.
+const md = text => literalChars(text, 'é').replaceAll('\\`', '`');
 
 /** Replace each anchor, which must occur exactly once, so a drifting anchor fails loudly at import time. */
 function patch(text, pairs) {

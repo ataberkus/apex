@@ -1,20 +1,20 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Live A/B: stock Pi (--apex-off) vs Apex's native Windows defaults, same model and thinking level, on the
  * task suite in evals/ab/tasks. Each attempt runs the real bin/apex CLI in a fresh Git workspace under the OS
  * temp folder; hidden verifiers run afterwards from outside that workspace. Raw JSON event streams, stderr,
  * the workspace diff and the verdict are kept under runs/ab/<run-id>/ (gitignored).
  *
- *   node evals/ab/run.mjs --self-test                 # no model calls: fixtures fail, reference fixes pass
- *   node evals/ab/run.mjs --run-id ab-001 [--tasks a,b] [--arms stock,apex] [--attempts 3] [--concurrency 4]
+ *   bun evals/ab/run.mjs --self-test                  # no model calls: fixtures fail, reference fixes pass
+ *   bun evals/ab/run.mjs --run-id ab-001 [--tasks a,b] [--arms stock,apex] [--attempts 3] [--concurrency 4]
  *                         [--model openai-codex/gpt-6.1-sol] [--thinking max] [--timeout-min 20] [--apex-root DIR] [--max-usd N]
- *   node evals/ab/run.mjs --run-id ab-001 --resume    # rerun only attempts missing from results.jsonl
+ *   bun evals/ab/run.mjs --run-id ab-001 --resume     # rerun only attempts missing from results.jsonl
  *
  * Arms: `stock` (--apex-off), `apex` (the Windows defaults), `apex-no-FLAG` (the defaults minus one flag, e.g.
  * `--arms apex,apex-no-checkpoints`) and `apex+FLAG[+FLAG…]` (the defaults plus flags, e.g. `apex+todo+verify`).
  * The report pairs every later arm with every earlier one.
  *
- * --apex-root runs a frozen copy made by `node evals/ab/snapshot.mjs DIR`, so editing Apex mid-run changes nothing;
+ * --apex-root runs a frozen copy made by `bun evals/ab/snapshot.mjs DIR`, so editing Apex mid-run changes nothing;
  * its apex-snapshot.json and patch are recorded with the results. --resume reuses the run's stored settings.
  *
  * Model calls use the saved OAuth logins through PI_CODING_AGENT_DIR (default %LOCALAPPDATA%\Apex\sol-oauth), exactly
@@ -41,7 +41,11 @@ export async function loadTasks(names) {
   if (unknown.length) throw Error('Unknown task(s): ' + unknown.join(', '));
   const tasks = [];
   for (const id of ids) {
-    const task = (await import(pathToFileURL(path.join(dir, id + '.mjs')).href)).default;
+    const file = path.join(dir, id + '.mjs');
+    // Bun reads a `// @bun` (untranspiled) module as Latin-1, so a non-ASCII byte there would change fixture text.
+    const source = readFileSync(file);
+    if (source.toString('latin1').startsWith('// @bun') && source.some(byte => byte > 0x7f)) throw Error(`tasks/${id}.mjs starts with // @bun and must be ASCII-only`);
+    const task = (await import(pathToFileURL(file).href)).default;
     if (task.id !== id) throw Error(`tasks/${id}.mjs declares id ${task.id}`);
     tasks.push(task);
   }

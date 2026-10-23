@@ -775,7 +775,8 @@ const files = {
   'test/lru.test.js': VISIBLE_LRU,
 };
 
-const PERF_BUDGET_MS = 3000;
+// The spec asks for "well under a second". Under Bun an LRU kept as an array of keys needs about 2.5 seconds here.
+const PERF_BUDGET_MS = 1000;
 
 const HIDDEN = js`import nodeTest from 'node:test';
 import assert from 'node:assert/strict';

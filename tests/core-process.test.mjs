@@ -3,15 +3,17 @@ import {spawn, spawnSync} from 'node:child_process';
 import {createHmac} from 'node:crypto';
 import {accessSync, constants, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import test from 'node:test';
 import {directoryLink, unixOnly} from './fixtures/filesystem.mjs';
 
 const modulePath = path.resolve('extensions/apex-core/process.mjs');
-const node = path.isAbsolute(process.execPath) ? process.execPath : process.env.PATH.split(path.delimiter).map(folder => path.join(folder, process.execPath)).find(file => {
+const bun = path.isAbsolute(process.execPath) ? process.execPath : process.env.PATH.split(path.delimiter).map(folder => path.join(folder, process.execPath)).find(file => {
   try { accessSync(file, constants.X_OK); return true; } catch { return false; }
 });
-const safeEnv = {PATH: `${path.dirname(node)}:/usr/bin:/bin`, LANG: 'C'};
+// Host children that patch builtin module objects preload it so process.mjs's named imports see the patch.
+const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+const safeEnv = {PATH: `${path.dirname(bun)}:/usr/bin:/bin`, LANG: 'C'};
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function load() {
   assert.ok(existsSync(modulePath), 'background process management must be implemented');
@@ -26,7 +28,7 @@ function data(result) {
   assert.ok(Buffer.byteLength(result.content[0].text) <= 10000);
   return result.structuredContent;
 }
-const nodeCommand = source => `${JSON.stringify(node)} -e ${JSON.stringify(source)}`;
+const bunCommand = source => `${JSON.stringify(bun)} -e ${JSON.stringify(source)}`;
 async function until(fn, timeout = 3000) {
   const end = Date.now() + timeout;
   do { if (await fn()) return; await pause(20); } while (Date.now() < end);
@@ -84,9 +86,9 @@ test('real service survives host exit and reload explicitly kills its owned grou
   const tool = createBackgroundTool({cwd, env: safeEnv});
   let id;
   try {
-    const command = nodeCommand(`const fs=require('fs');fs.writeFileSync('ready.json',JSON.stringify({pid:process.pid,secret:process.env.PROVIDER_SECRET??null}));setInterval(()=>fs.appendFileSync('heartbeat','x'),40);`);
+    const command = bunCommand(`const fs=require('fs');fs.writeFileSync('ready.json',JSON.stringify({pid:process.pid,secret:process.env.PROVIDER_SECRET??null}));setInterval(()=>fs.appendFileSync('heartbeat','x'),40);`);
     const source = `import {createBackgroundTool} from ${JSON.stringify(pathToFileURL(modulePath).href)};const t=createBackgroundTool({cwd:${JSON.stringify(cwd)},env:process.env});const r=await t.execute('host',{action:'start',command:${JSON.stringify(command)}});console.log(JSON.stringify({...r.structuredContent,hostPid:process.pid}));`;
-    const host = spawnSync(node, ['--input-type=module', '-e', source], {
+    const host = spawnSync(bun, ['--input-type=module', '-e', source], {
       cwd, env: {...safeEnv, PROVIDER_SECRET: 'must-not-inherit'}, encoding: 'utf8', timeout: 6000,
     });
     assert.equal(host.status, 0, host.stderr);
@@ -123,7 +125,7 @@ test('real noisy child logs and tails are capped with restrictive permissions', 
   let id;
   const previousUmask = process.umask(0);
   try {
-    id = data(await call(tool, {action: 'start', command: nodeCommand(`process.stdout.write('a'.repeat(200000),()=>process.stdout.write('END_MARKER'));process.stderr.write('stderr captured');setInterval(()=>{},1000);`)})).id;
+    id = data(await call(tool, {action: 'start', command: bunCommand(`process.stdout.write('a'.repeat(200000),()=>process.stdout.write('END_MARKER'));process.stderr.write('stderr captured');setInterval(()=>{},1000);`)})).id;
     await until(async () => data(await call(tool, {action: 'tail', id, maxBytes: 128})).output.includes('END_MARKER'));
     const tail = data(await call(tool, {action: 'tail', id, maxBytes: 128}));
     assert.ok(Buffer.byteLength(tail.output) <= 128);
@@ -140,11 +142,11 @@ test('forged metadata, stale identity, traversal and symlinks cannot kill an unr
   const {createBackgroundTool} = await load();
   const cwd = fixture();
   const tool = createBackgroundTool({cwd, env: safeEnv});
-  const innocent = spawn(node, ['-e', 'setInterval(()=>{},1000)'], {env: safeEnv, stdio: 'ignore'});
+  const innocent = spawn(bun, ['-e', 'setInterval(()=>{},1000)'], {env: safeEnv, stdio: 'ignore'});
   let id;
   let original;
   try {
-    id = data(await call(tool, {action: 'start', command: nodeCommand('setInterval(()=>{},1000)')})).id;
+    id = data(await call(tool, {action: 'start', command: bunCommand('setInterval(()=>{},1000)')})).id;
     const metadataPath = path.join(cwd, '.apex', 'bg', `${id}.json`);
     original = readFileSync(metadataPath);
     const forged = JSON.parse(original);
@@ -213,12 +215,12 @@ test('failed supervisor spawn rejects instead of reporting a running process', {
 test('signed metadata cannot redirect an explicit owned kill to a different PID', {timeout: 10000, skip: unixOnly}, async () => {
   const {createBackgroundTool} = await load();
   const cwd = fixture();
-  const innocent = spawn(node, ['-e', 'setInterval(()=>{},1000)'], {env: safeEnv, stdio: 'ignore'});
+  const innocent = spawn(bun, ['-e', 'setInterval(()=>{},1000)'], {env: safeEnv, stdio: 'ignore'});
   let leader;
   const tool = createBackgroundTool({cwd, env: safeEnv, spawn: (...args) => { leader = spawn(...args); return leader; }});
   let id;
   try {
-    id = data(await call(tool, {action: 'start', command: nodeCommand('setInterval(()=>{},1000)')})).id;
+    id = data(await call(tool, {action: 'start', command: bunCommand('setInterval(()=>{},1000)')})).id;
     leader.kill('SIGSTOP'); // Captured actual ChildProcess handle owned by this fixture.
     const bg = path.join(cwd, '.apex', 'bg');
     const record = JSON.parse(readFileSync(path.join(bg, `${id}.json`)));
@@ -261,7 +263,7 @@ test('readiness timeout and in-flight abort retain an explicitly manageable real
     }});
     let id;
     try {
-      const started = data(await call(tool, {action: 'start', command: nodeCommand('setInterval(()=>{},1000)'), startTimeoutSeconds: 0.01}, controller.signal));
+      const started = data(await call(tool, {action: 'start', command: bunCommand('setInterval(()=>{},1000)'), startTimeoutSeconds: 0.01}, controller.signal));
       id = started.id;
       assert.equal(started.status, 'starting');
       assert.equal(started.aborted, canceled);
@@ -282,7 +284,7 @@ test('TERM-resistant command remains owned and can receive a later explicit SIGK
   let id;
   let explicitlyKilled = false;
   try {
-    id = data(await call(tool, {action: 'start', command: nodeCommand("const fs=require('fs');process.on('SIGTERM',()=>{});fs.writeFileSync('ready','ready');setInterval(()=>{if(fs.existsSync('fixture-stop')){fs.writeFileSync('fixture-finished','done');process.exit(0)}},40)")})).id;
+    id = data(await call(tool, {action: 'start', command: bunCommand("const fs=require('fs');process.on('SIGTERM',()=>{});fs.writeFileSync('ready','ready');setInterval(()=>{if(fs.existsSync('fixture-stop')){fs.writeFileSync('fixture-finished','done');process.exit(0)}},40)")})).id;
     await until(() => existsSync(path.join(cwd, 'ready')));
     assert.equal(data(await call(tool, {action: 'kill', id, signal: 'SIGTERM'})).signal, 'SIGTERM');
     await pause(250);
@@ -309,7 +311,7 @@ test('concurrent KILL and TERM requests from fresh managers cannot lose the owne
   let killed = false;
   let pending = [];
   try {
-    id = data(await call(starter, {action: 'start', command: nodeCommand("const fs=require('fs');process.on('SIGTERM',()=>{});fs.writeFileSync('ready','ready');setInterval(()=>{if(fs.existsSync('fixture-stop')){fs.writeFileSync('fixture-finished','done');process.exit(0)}fs.appendFileSync('heartbeat','x')},30)")})).id;
+    id = data(await call(starter, {action: 'start', command: bunCommand("const fs=require('fs');process.on('SIGTERM',()=>{});fs.writeFileSync('ready','ready');setInterval(()=>{if(fs.existsSync('fixture-stop')){fs.writeFileSync('fixture-finished','done');process.exit(0)}fs.appendFileSync('heartbeat','x')},30)")})).id;
     await until(() => existsSync(path.join(cwd, 'heartbeat')));
     leader.kill('SIGSTOP'); // Pause only the actual supervisor handle created above.
     const first = createBackgroundTool({cwd, env: safeEnv});
@@ -345,7 +347,6 @@ test('concurrent first starts publish only complete ownership state', {timeout: 
   const source = `
     import fs from 'node:fs';
     import promises from 'node:fs/promises';
-    import {syncBuiltinESMExports} from 'node:module';
     const originalOpen=promises.open;
     promises.open=async(...args)=>{
       const handle=await originalOpen(...args);
@@ -359,13 +360,12 @@ test('concurrent first starts publish only complete ownership state', {timeout: 
       };
       return handle;
     };
-    syncBuiltinESMExports();
     const {createBackgroundTool}=await import(${JSON.stringify(pathToFileURL(modulePath).href)});
     const tool=createBackgroundTool({cwd:${JSON.stringify(cwd)},env:process.env});
-    const result=await tool.execute('first',{action:'start',command:${JSON.stringify(nodeCommand('setInterval(()=>{},1000);setTimeout(()=>process.exit(0),4000)'))}});
+    const result=await tool.execute('first',{action:'start',command:${JSON.stringify(bunCommand('setInterval(()=>{},1000);setTimeout(()=>process.exit(0),4000)'))}});
     console.log(JSON.stringify(result.structuredContent));
   `;
-  const host = spawn(node, ['--input-type=module', '-e', source], {cwd, env: safeEnv, stdio: ['ignore', 'pipe', 'pipe']});
+  const host = spawn(bun, ['--preload', liveBuiltins, '--input-type=module', '-e', source], {cwd, env: safeEnv, stdio: ['ignore', 'pipe', 'pipe']});
   let stdout = '';
   let stderr = '';
   host.stdout.on('data', bytes => { stdout += bytes; });
@@ -375,7 +375,7 @@ test('concurrent first starts publish only complete ownership state', {timeout: 
   let secondId;
   try {
     await until(() => existsSync(path.join(cwd, 'ownership-writer-paused')));
-    secondId = data(await call(tool, {action: 'start', command: nodeCommand('setInterval(()=>{},1000);setTimeout(()=>process.exit(0),4000)')})).id;
+    secondId = data(await call(tool, {action: 'start', command: bunCommand('setInterval(()=>{},1000);setTimeout(()=>process.exit(0),4000)')})).id;
     assert.equal(await closed, 0, stderr);
     firstId = JSON.parse(stdout).id;
     assert.notEqual(firstId, secondId);

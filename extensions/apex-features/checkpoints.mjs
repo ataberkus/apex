@@ -71,7 +71,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   const captures = new Map();
   let closed = false;
 
-  const cleanEnv = () => ({ ...Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'CODEX_PRIMARY_RUNTIME_NODE'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]])), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
+  const cleanEnv = () => ({ ...Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]])), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
   async function git(args, workdir, signal, encoding = 'utf8', input) {
     cancelled(signal);
     // ponytail: Git for Windows cannot run from a cwd of 247+ chars and Node crashes spawning past MAX_PATH;

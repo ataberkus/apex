@@ -7,10 +7,10 @@ Current policy is `offline-only`: paid evals are disabled. No API key or cloud a
 After installing the dependencies in README.md, run inside the Apex folder:
 
 ```bash
-npm run check
-npm test
-npm run micro
-npm run preflight
+bun run check
+bun run test
+bun run micro
+bun run preflight
 ```
 
 The micro gate exercises Pi's actual tools, accounting and a temporary local service, without a model. The service check proves survival after the native tool host exits; model-directed service management remains unmeasured. It cleans up its own fixture and reports unsupported platforms as SKIP.
@@ -46,7 +46,7 @@ The engine must report `linux`. Harbor needs engine access without an interactiv
 
 ## Install Apex tooling inside Ubuntu
 
-Keep Apex in the Linux filesystem, for example `~/apex`, and work from that folder. Install Node >=22.19.0 with npm from [Node.js](https://nodejs.org/en/download), Python >=3.12, and [uv](https://docs.astral.sh/uv/getting-started/installation/). Install Git, Bash, ripgrep and fd/fdfind through the distribution packages. README.md gives the exact Pi and Harbor installation commands, including the source commit pin.
+Keep Apex in the Linux filesystem, for example `~/apex`, and work from that folder. Install [Bun](https://bun.sh/docs/installation) >=1.4.3 (`curl -fsSL https://bun.sh/install | bash`), Python >=3.12, and [uv](https://docs.astral.sh/uv/getting-started/installation/); Node is not needed. Install Git, Bash, ripgrep and fd/fdfind through the distribution packages. README.md gives the exact Pi and Harbor installation commands, including the source commit pin.
 
 Repeat the four free checks above. Components checked by preflight must pass; additional Git/Bash/uv/rg/fd dependencies are checked during installation and the other gates. Preflight makes no hardware capacity or benchmark readiness guarantee.
 

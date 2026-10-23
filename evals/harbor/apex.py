@@ -25,6 +25,11 @@ PINNED_PI_VERSION = "1.3.0"
 _PI_RUN_FRAGMENT = "pi --print --mode json "
 _APEX_RUN_FRAGMENT = "apex --profile headless --print --mode json "
 _REMOTE_PACKAGE = "/installed-agent/apex.tgz"
+# Apex runs on Bun. The official installer takes the exact release tag and selects the
+# glibc/musl/baseline build; /usr/local/bin is on the agent's default PATH.
+_BUN_RELEASE = "bun-v1.4.3"
+_BUN_PREFIX = "/usr/local"
+_APEX_GLOBAL_DIR = "/opt/apex-bun-global"
 _PROVIDER_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/+-]*")
 
@@ -138,14 +143,18 @@ class ApexAgent(Pi):
         await super().install(environment)
         await environment.upload_file(Path(self.options.apex_package), _REMOTE_PACKAGE)
         await self.exec_as_root(environment, command=f"chmod a+r {_REMOTE_PACKAGE}")
-        await self.exec_as_agent(
+        await self.exec_as_root(
             environment,
             command=(
-                ". ~/.nvm/nvm.sh; "
-                "npm install -g --ignore-scripts --legacy-peer-deps "
-                f"{_REMOTE_PACKAGE} && apex --version"
+                "if ! command -v curl >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1; then "
+                "apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip; fi && "
+                f"curl -fsSL https://bun.sh/install | BUN_INSTALL={_BUN_PREFIX} bash -s {_BUN_RELEASE} && "
+                f"BUN_INSTALL_GLOBAL_DIR={_APEX_GLOBAL_DIR} BUN_INSTALL_BIN={_BUN_PREFIX}/bin "
+                f"{_BUN_PREFIX}/bin/bun add --global --exact --ignore-scripts "
+                f"@earendil-works/pi-coding-agent@{PINNED_PI_VERSION} {_REMOTE_PACKAGE}"
             ),
         )
+        await self.exec_as_agent(environment, command="apex --version")
 
     async def run(
         self,

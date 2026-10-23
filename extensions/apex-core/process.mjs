@@ -172,7 +172,7 @@ async function executable() {
     const candidate = path.resolve(folder, process.execPath);
     try { await access(candidate, constants.X_OK); return candidate; } catch {}
   }
-  throw new Error('Cannot resolve current Node executable');
+  throw new Error('Cannot resolve the current Bun executable');
 }
 
 function result(action, data, extra = {}) {

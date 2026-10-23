@@ -11,8 +11,9 @@ const helperUrl = new URL('../scripts/python-runtime.mjs', import.meta.url).href
 const harborCommit = '99218a4611e3bd76e49ce3b5f977e8c8134ad3ac';
 const piCommit = '71023aec1546d6d677a65669c5665c0927ce0dd0';
 const baseEnv = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
-const nodeExecutable = path.isAbsolute(process.execPath) ? process.execPath
-  : (baseEnv.PATH ?? baseEnv.Path ?? '').split(path.delimiter).map(directory => path.resolve(directory, process.platform === 'win32' ? 'node.exe' : 'node')).find(candidate => existsSync(candidate));
+const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+const bunExecutable = path.isAbsolute(process.execPath) ? process.execPath
+  : (baseEnv.PATH ?? baseEnv.Path ?? '').split(path.delimiter).map(directory => path.resolve(directory, process.platform === 'win32' ? 'bun.exe' : 'bun')).find(candidate => existsSync(candidate));
 
 function temporaryRoot(t) {
   const root = mkdtempSync(path.join(projectRoot, '.preflight-test-'));
@@ -20,8 +21,8 @@ function temporaryRoot(t) {
   return root;
 }
 
-function runNode(source, options = {}) {
-  return spawnSync(process.execPath, ['--input-type=module', '--eval', source], {
+function runBun(source, options = {}) {
+  return spawnSync(bunExecutable, ['--preload', liveBuiltins, '--input-type=module', '--eval', source], {
     cwd: projectRoot, env: baseEnv, encoding: 'utf8', timeout: 5000, maxBuffer: 32768, shell: false, ...options,
   });
 }
@@ -45,11 +46,10 @@ function fixture(t, changes = {}) {
 }
 
 function simulatedPreflight(root, responses = {}, env = {}) {
-  return runNode(`
+  return runBun(`
     import cp from 'node:child_process';
     import fs from 'node:fs';
     import path from 'node:path';
-    import { syncBuiltinESMExports } from 'node:module';
     const overrides = ${JSON.stringify(responses)};
     const calls = [];
     cp.spawnSync = (command, args, options) => {
@@ -70,7 +70,6 @@ function simulatedPreflight(root, responses = {}, env = {}) {
       };
       return { status: 0, stdout: overrides[kind] ?? defaults[kind], stderr: '' };
     };
-    syncBuiltinESMExports();
     const { runPreflight } = await import(${JSON.stringify(moduleUrl)});
     const result = await runPreflight({ projectRoot: ${JSON.stringify(root)} });
     process.stdout.write(JSON.stringify({ result, calls }));
@@ -84,15 +83,13 @@ function simulationResult(result) {
 
 test('fallback Python version probes obey the caller subprocess limits and environment', t => {
   const root = temporaryRoot(t);
-  const result = runNode(`
+  const result = runBun(`
     import cp from 'node:child_process';
-    import { syncBuiltinESMExports } from 'node:module';
     let probe;
     cp.spawnSync = (command, args, options) => {
       probe = { command, args, options };
       return { status: 0, stdout: 'Python 3.12.14', stderr: '' };
     };
-    syncBuiltinESMExports();
     const { pythonRuntime } = await import(${JSON.stringify(helperUrl)});
     pythonRuntime(${JSON.stringify(root)}, { env: { PATH: '/safe/path' }, timeout: 5000, maxBuffer: 32768, shell: false });
     process.stdout.write(JSON.stringify(probe));
@@ -117,15 +114,13 @@ test('readiness requires every required check to pass', async () => {
 test('importing preflight performs no probes or filesystem writes', t => {
   const root = temporaryRoot(t);
   const before = readdirSync(root);
-  const result = runNode(`
+  const result = runBun(`
     import cp from 'node:child_process';
     import fs from 'node:fs';
-    import { syncBuiltinESMExports } from 'node:module';
     const forbidden = () => { throw new Error('Import performed work'); };
     cp.spawnSync = forbidden;
     fs.mkdtempSync = forbidden;
     fs.writeFileSync = forbidden;
-    syncBuiltinESMExports();
     const module = await import(${JSON.stringify(moduleUrl)});
     process.stdout.write(typeof module.runPreflight);
   `, { cwd: root });
@@ -225,7 +220,7 @@ test('missing Docker, Windows daemon, or missing Compose wait support blocks loc
 
 test('CLI reports blocked as JSON with exit 2 without printing command errors or environment secrets', t => {
   const root = fixture(t);
-  const result = spawnSync(nodeExecutable, [fileURLToPath(new URL(moduleUrl)), '--json'], {
+  const result = spawnSync(bunExecutable, [fileURLToPath(new URL(moduleUrl)), '--json'], {
     cwd: root, env: { ...baseEnv, PATH: '', Path: '', APEX_PYTHON: 'DO_NOT_PRINT_SECRET', OPENROUTER_API_KEY: 'DO_NOT_PRINT_SECRET', DOCKER_HOST: 'tcp://secret.invalid:2376' },
     encoding: 'utf8', timeout: 5000, maxBuffer: 32768, shell: false,
   });

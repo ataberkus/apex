@@ -411,7 +411,7 @@ test('new files have an empty pre-edit baseline and introduced errors are checke
     ['new.py:1:1: F821 undefined name']);
 });
 
-test('real Node syntax diagnostics detect introduced syntax errors without executing project code', async t => {
+test('real Bun syntax diagnostics detect introduced syntax errors without executing project code', async t => {
   const cwd = await fixture(t);
   const file = path.join(cwd, 'file.mjs');
   const executed = path.join(cwd, 'executed.txt');
@@ -420,7 +420,7 @@ test('real Node syntax diagnostics detect introduced syntax errors without execu
   const diagnostics = createDiagnostics({cwd});
   const baseline = await diagnostics.before(call('write', {path: 'file.mjs'}, 'node'));
   assert.equal(baseline.status, 'baseline');
-  assert.equal(baseline.checker, 'node');
+  assert.equal(baseline.checker, 'bun');
   assert.deepEqual(baseline.errors, []);
   await assert.rejects(readFile(executed), /ENOENT/);
   await writeFile(file, 'export const = ;\n');
@@ -457,10 +457,10 @@ test('default diagnostic timeouts terminate inherited-output checker descendants
   const checker = path.join(cwd, 'ruff');
   const pidFile = path.join(cwd, 'child.pid');
   const survivedFile = path.join(cwd, 'child-survived.txt');
-  const nodeBinary = process.env.CODEX_PRIMARY_RUNTIME_NODE ?? process.execPath;
+  const runtime = process.execPath;
   await writeFile(path.join(cwd, 'file.py'), 'x');
   const childSource = `setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(survivedFile)},'survived'),6000);setTimeout(()=>process.exit(0),6500)`;
-  await writeFile(checker, `#!${nodeBinary}\nimport {spawn} from 'node:child_process';\nimport {writeFileSync} from 'node:fs';\nif(process.argv.includes('--version')) { console.log('fixture checker'); }\nelse { const child=spawn(${JSON.stringify(nodeBinary)},['-e',${JSON.stringify(childSource)}],{stdio:'inherit'}); writeFileSync(${JSON.stringify(pidFile)},String(child.pid)); setInterval(()=>{},1000); }\n`);
+  await writeFile(checker, `#!${runtime}\nimport {spawn} from 'node:child_process';\nimport {writeFileSync} from 'node:fs';\nif(process.argv.includes('--version')) { console.log('fixture checker'); }\nelse { const child=spawn(${JSON.stringify(runtime)},['-e',${JSON.stringify(childSource)}],{stdio:'inherit'}); writeFileSync(${JSON.stringify(pidFile)},String(child.pid)); setInterval(()=>{},1000); }\n`);
   await chmod(checker, 0o700);
   const originalPath = process.env.PATH;
   process.env.PATH = cwd;

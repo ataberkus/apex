@@ -8,11 +8,11 @@ import net from 'node:net';
 import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
-import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, whitelistedEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {fileURLToPath, pathToFileURL} from 'node:url';
+import {denyBunNetwork, environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, LIVE_BUILTINS, liveBuiltinsLoaded, PINNED_PI_VERSION,
+  whitelistedEnvironment, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate loads only Node builtins. SDK, factories, fixtures and
 // processes exist only inside a bounded, deliberately offline child run.
@@ -20,7 +20,10 @@ const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
-const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE', 'PI_CODING_AGENT_DIR', 'CODEX_PRIMARY_RUNTIME_NODE',
+// Bun keeps its transpiler cache under HOME, which is the fixture on Windows; the children disable it
+// (BUN_RUNTIME_TRANSPILER_CACHE_PATH=0) so it never pollutes the fixture worktree, Git index or checkpoints.
+const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE', 'PI_CODING_AGENT_DIR',
+  'BUN_RUNTIME_TRANSPILER_CACHE_PATH',
   ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
 const counters = () => ({network: 0, auth: 0, inference: 0, credentials: 0});
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -36,7 +39,7 @@ function denyExternal(calls) {
   net.connect = net.createConnection = net.Socket.prototype.connect = tls.connect = deny;
   dns.lookup = dns.resolve = dns.resolve4 = dns.resolve6 = dns.reverse = deny;
   dgram.createSocket = deny;
-  syncBuiltinESMExports();
+  denyBunNetwork(deny);
 }
 
 function denyAmbientDiscovery(fixture, discovery) {
@@ -59,7 +62,6 @@ function denyAmbientDiscovery(fixture, discovery) {
       owner[name] = (file, ...args) => {guard(file); return original(file, ...args);};
     }
   }
-  syncBuiltinESMExports();
 }
 
 async function offlineRuntime(pi, calls, observed, selection = 'muse') {
@@ -299,13 +301,17 @@ async function gitFixture(spec) {
 async function guardedCli(spec, args) {
   const cli = path.join(root, 'bin', 'apex');
   const env = whitelistedEnvironment(permittedEnv);
+  // Bun skips onResolve for bare package specifiers and the first matching onLoad wins, so the SDK trap is
+  // registered before live-builtins (which then makes bin/apex and lib/ see the patched module objects below).
   const source = `import fs from 'node:fs'; import http from 'node:http'; import https from 'node:https';
     import net from 'node:net'; import tls from 'node:tls'; import dns from 'node:dns'; import dgram from 'node:dgram';
-    import {registerHooks,syncBuiltinESMExports} from 'node:module';
     const calls={network:0,auth:0,inference:0,credentials:0}; let sdkLoads=0;
+    Bun.plugin({name:'phase3-cli-sdk-guard',setup(build){build.onLoad({filter:/[\\\\/]@earendil-works[\\\\/]/},()=>{sdkLoads++;throw Error('offline_cli_sdk_load_denied');});}});
+    await import(${JSON.stringify(pathToFileURL(LIVE_BUILTINS).href)});
+    if(!(${liveBuiltinsLoaded.toString()})())throw Error('live_builtins_unavailable');
+    ${denyBunNetwork.toString()}
     (${denyExternal.toString()})(calls);
-    registerHooks({load(url,context,nextLoad){if(url.includes('/@earendil-works/')){sdkLoads++;throw Error('offline_cli_sdk_load_denied');}return nextLoad(url,context);}});
-    const read=fs.readFileSync; fs.readFileSync=(file,...rest)=>{if(String(file).endsWith('/auth.json')){calls.credentials++;throw Error('offline_cli_credentials_denied');}return read(file,...rest);};syncBuiltinESMExports();
+    const read=fs.readFileSync; fs.readFileSync=(file,...rest)=>{if(/[\\\\/]auth\\.json$/.test(String(file))){calls.credentials++;throw Error('offline_cli_credentials_denied');}return read(file,...rest);};
     process.once('exit',()=>process.stdout.write('PHASE3_CLI_GUARD:'+JSON.stringify({calls,sdkLoads})+'\\n'));
     process.argv=[process.execPath,${JSON.stringify(cli)},...${JSON.stringify(args)}];
     await import(${JSON.stringify(new URL('../bin/apex', import.meta.url).href)});`;
@@ -456,7 +462,7 @@ async function nativeFixture(pi, spec, shared, observed) {
         owner[name] = (file, ...args) => {guardLearning(file); return original.call(owner, file, ...args);};
       }
     }
-    syncBuiltinESMExports();
+    // live-builtins (preloaded in this child) carries these patches into Apex and Pi named imports.
     let evalFixture;
     try {
       evalFixture = await makeSession(pi, spec, shared, {flags: 'remember', evalMode: true});
@@ -467,7 +473,6 @@ async function nativeFixture(pi, spec, shared, observed) {
     } finally {
       await evalFixture?.dispose();
       for (const [owner, name, original] of originals) owner[name] = original;
-      syncBuiltinESMExports();
     }
 
     observed.stage = 'native_skills';
@@ -642,12 +647,15 @@ async function nativeFixture(pi, spec, shared, observed) {
 async function childMain(spec) {
   const calls = counters(), discovery = {attempts: 0};
   const observed = {stage: 'guards', suppressed_local_refreshes: 0};
+  // Without live builtins (LIVE_BUILTINS preload) the fs/network guards would miss Pi's and Apex's named imports
+  // and the gate could pass vacuously.
+  if (!liveBuiltinsLoaded()) return {failure: 'live_builtins_unavailable', failure_stage: observed.stage,
+    attempted_calls: calls, resource_discovery_attempts: 0};
   denyExternal(calls);
   denyAmbientDiscovery(spec.fixture, discovery);
   const environmentSanitized = process.env.PI_OFFLINE === '1' &&
     process.env.PI_CODING_AGENT_DIR === path.join(spec.fixture, 'agent') &&
-    environmentNamesAllowed(permittedEnv, process.env, process.platform, spec.fixture) &&
-    (!process.env.CODEX_PRIMARY_RUNTIME_NODE || path.isAbsolute(process.env.CODEX_PRIMARY_RUNTIME_NODE));
+    environmentNamesAllowed(permittedEnv, process.env, process.platform, spec.fixture);
   try {
     if (spec.fixtureMode === 'interrupted-fixture') {
       await mkdir(path.join(spec.fixture, 'owned-interrupted'));
@@ -679,10 +687,11 @@ async function childMain(spec) {
 }
 
 async function runChild(spec) {
-  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent')};
+  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent'),
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH: '0'};
   env.PATH = [path.dirname(process.execPath), path.join(root, '.tools/bin'), env.PATH].filter(Boolean).join(path.delimiter);
   return new Promise(resolve => {
-    const child = spawn(process.execPath, [script, '--phase3-micro-child', JSON.stringify(spec)],
+    const child = spawn(process.execPath, ['--preload', LIVE_BUILTINS, script, '--phase3-micro-child', JSON.stringify(spec)],
       {cwd: spec.fixture, env, shell: false, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe']});
     let stdout = '', bytes = 0, exceeded = false;
     const terminate = () => {

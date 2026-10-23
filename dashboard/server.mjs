@@ -11,6 +11,7 @@ import {buildSessionContext, migrateSessionEntries, ModelRuntime, parseSessionEn
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {checkpointsUsable, WINDOWS_AUTO, WINDOWS_THINKING, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
+import {isDirectory, runtimeExecutable, spawnFailure} from '../lib/runtime.mjs';
 import {runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {parseAutocompactTokens} from '../extensions/apex-features/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
@@ -243,14 +244,15 @@ function launchArguments(body, file) {
 
 function startSession(cwd, file, launch) {
   const id = randomBytes(4).toString('hex');
-  const child = spawn(process.execPath, [join(root, 'bin', 'apex'), ...launch.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
+  const command = runtimeExecutable();
+  const child = spawn(command, [join(root, 'bin', 'apex'), ...launch.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
   const session = {id, cwd, child, file, resumed: Boolean(file), title: file ? titleOf(file) : '', status: 'idle', log: [], clients: new Set(), stderr: '',
     pending: new Map(), requests: new Map(), provider: launch.model?.provider ?? 'apex', pair: launch.pair, model: launch.model?.id ?? PAIR, input: launch.model?.input ?? ['text'],
     thinking: launch.thinking, levels: THINKING, flags: launch.flags, request: launch.request, target: launch.target, autoApprove: false, counted: 0, base: undefined, settled: 0};
   live.set(id, session);
   eachLine(child.stdout, line => record(session, line));
   child.stderr.on('data', chunk => { session.stderr = (session.stderr + chunk).slice(-2000); });
-  child.on('error', error => { session.stderr = error.message; });
+  child.on('error', error => { session.stderr = spawnFailure(error, {command, cwd}); });
   child.stdin.on('error', error => { for (const finish of session.requests.values()) finish(error); });
   child.on('close', code => {
     session.status = code === 0 ? 'done' : 'error';
@@ -352,7 +354,8 @@ function startEnhance(session, draft, images = 0) {
   const pi = buildPiInvocation(withWindowsDefaults(enhanceArgs(model.apex && model.target, model)), resolvePi().cli);
   const input = enhanceInput(draft, session, images); // before spawning: a throw here must not strand a child or a running job
   const id = randomBytes(8).toString('hex'), job = {id, status: 'running', step: '', model: model.label, text: '', error: ''};
-  const child = spawn(process.execPath, [pi.cli, ...pi.args], {cwd: session.cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
+  const command = runtimeExecutable();
+  const child = spawn(command, [pi.cli, ...pi.args], {cwd: session.cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
   job.child = child; enhanceJobs.set(id, job);
   let stderr = '', answer = '', failure = '';
   child.stdin.on('error', () => {}); child.stdin.end(input, 'utf8');
@@ -381,7 +384,7 @@ function startEnhance(session, draft, images = 0) {
       : stderr.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '').split(/\r?\n/).map(line => line.trim()).find(line => line && !/^warning:/i.test(line)) || `The agent exited (${code}).`)});
     setTimeout(() => { if (enhanceJobs.get(id) === job) enhanceJobs.delete(id); }, 300000).unref();
   };
-  child.on('error', error => finish(null, error));
+  child.on('error', error => finish(null, new Error(spawnFailure(error, {command, cwd: session.cwd}))));
   child.on('close', code => finish(code));
   return {id, model: job.model};
 }
@@ -577,6 +580,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/start') {
       if (!workspaces.includes(body.cwd)) return fail(res, 400, 'Add the folder as a workspace first');
+      if (!isDirectory(body.cwd)) return fail(res, 400, `The folder ${body.cwd} does not exist (moved or deleted). Restore it, or remove the workspace and add the new location.`);
       let file;
       if (body.file !== undefined) {
         file = resolve(String(body.file));

@@ -5,25 +5,26 @@ import test from 'node:test';
 import {PI_VERSION} from '../lib/launcher.mjs';
 
 const gateUrl = new URL('../scripts/micro-phase3.mjs', import.meta.url);
+const liveBuiltinsUrl = new URL('../scripts/live-builtins.mjs', import.meta.url);
 const load = () => import(gateUrl).catch(error => {
   if (error.code === 'ERR_MODULE_NOT_FOUND') return {};
   throw error;
 });
-const safeEnv = Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'CODEX_PRIMARY_RUNTIME_NODE'].filter(name =>
+const safeEnv = Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(name =>
   process.env[name] !== undefined).map(name => [name, process.env[name]]));
 
 test('Phase 3 gate import leaves SDK, extensions and fixtures inert', async () => {
   const module = await load();
   assert.equal(typeof module.runPhase3Micro, 'function', 'offline Phase 3 gate is missing');
+  // Bun has no module hooks: onResolve skips bare packages and the first matching onLoad wins, so this load trap
+  // precedes live-builtins, which in turn lets the gate's named fs imports see the mkdtemp traps.
   const child = spawnSync(process.execPath, ['--input-type=module', '-e',
     `import fs from 'node:fs'; import promises from 'node:fs/promises';
-     import {registerHooks, syncBuiltinESMExports} from 'node:module';
-     registerHooks({resolve(specifier, context, nextResolve) {
-       if (specifier.startsWith('@earendil-works/') || specifier.includes('/extensions/')) throw Error('SDK loaded during import');
-       return nextResolve(specifier, context);
+     Bun.plugin({name: 'phase3-inert-guard', setup(build) {
+       build.onLoad({filter: /[\\\\/](?:@earendil-works|extensions)[\\\\/]/}, () => {throw Error('SDK loaded during import');});
      }});
+     await import(${JSON.stringify(liveBuiltinsUrl.href)});
      fs.mkdtempSync = promises.mkdtemp = () => {throw Error('fixture allocated during import');};
-     syncBuiltinESMExports();
      await import(${JSON.stringify(gateUrl.href)}); console.log('inert');`],
   {encoding: 'utf8', timeout: 3000, env: safeEnv});
   assert.equal(child.status, 0, child.stderr);

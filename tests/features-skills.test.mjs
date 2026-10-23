@@ -10,7 +10,9 @@ import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const skills = join(root, 'skills');
 const domains = ['debugging', 'test-writing', 'profiling', 'build-systems', 'python-packaging', 'numerics', 'http', 'databases', 'git-surgery', 'security-hardening'];
-const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'CODEX_PRIMARY_RUNTIME_NODE'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
+const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
+// Child fixtures patch builtin module objects; live-builtins makes the probes' named imports see them.
+const liveBuiltins = join(root, 'scripts', 'live-builtins.mjs');
 env.PI_OFFLINE = '1';
 env.npm_config_offline = 'true';
 env.npm_config_registry = 'http://127.0.0.1:9';
@@ -54,7 +56,7 @@ async function snapshot(cwd) {
 const cases = [
   ['debugging', { 'src/crash.mjs': 'try { throw new Error("bad"); } catch (error) { console.error(error); }\n' }, facts => { assert.ok(facts.diagnosticSites >= 1); assert.ok(facts.errorHandlingSites >= 1); }],
   ['test-writing', { 'test/sample.test.mjs': 'import test from "node:test"; import assert from "node:assert/strict"; test("x", () => assert.equal(1, 1));\n' }, facts => { assert.equal(facts.testFiles, 1); assert.ok(facts.frameworks.includes('node:test')); assert.ok(facts.assertionSites >= 1); }],
-  ['profiling', { 'bench/timer.mjs': 'const start = performance.now(); console.log(process.hrtime.bigint());\n' }, facts => { assert.ok(facts.timingSites >= 2); assert.equal(facts.benchmarkFiles, 1); assert.match(facts.runtime.node, /^\d+\./); }],
+  ['profiling', { 'bench/timer.mjs': 'const start = performance.now(); console.log(process.hrtime.bigint());\n' }, facts => { assert.ok(facts.timingSites >= 2); assert.equal(facts.benchmarkFiles, 1); assert.deepEqual([facts.runtime.name, facts.runtime.version], ['bun', process.versions.bun]); }],
   ['build-systems', { 'package.json': '{"scripts":{"build":"node build.mjs"}}', Makefile: 'all:\n\t@true\n', 'package-lock.json': '{"lockfileVersion":3}' }, facts => { assert.deepEqual(facts.manifests, ['Makefile', 'package.json']); assert.ok(facts.packageManagers.includes('npm')); assert.equal(facts.buildScriptDeclared, true); }],
   ['python-packaging', { 'pyproject.toml': '[build-system]\nrequires = ["setuptools"]\n[project]\nname = "fixture"\n', 'requirements.txt': 'numpy==1.0\n' }, facts => { assert.equal(facts.pyproject, true); assert.equal(facts.buildSystemTable, true); assert.equal(facts.projectTable, true); assert.equal(facts.requirementsFiles, 1); }],
   ['numerics', { 'fit.py': 'import numpy as np\nsolution = np.linalg.lstsq(a, b, rcond=None)\nrng = np.random.default_rng(7)\n' }, facts => { assert.ok(facts.libraries.includes('numpy')); assert.ok(facts.fittingSites >= 1); assert.ok(facts.randomSites >= 1); }],
@@ -251,12 +253,10 @@ test('a regular-file-to-FIFO replacement before the actual open cannot block or 
   const cwd = await fixture({ 'source.mjs': 'console.error("SECRET_CANARY");' });
   // A child-only preload makes the otherwise nondeterministic stat/open race
   // reproducible. The production reader still executes the real filesystem open.
-  const preload = `
+  const preload = await fixture({ 'fifo-preload.mjs': `
     import fs from 'node:fs/promises';
     import { spawnSync } from 'node:child_process';
-    import { syncBuiltinESMExports } from 'node:module';
-    import { join } from 'node:path';
-    const target = join(process.argv[3], 'source.mjs');
+    const target = ${JSON.stringify(join(cwd, 'source.mjs'))};
     const original = fs.open;
     fs.open = async function(file, flags, ...rest) {
       if (file === target) {
@@ -266,10 +266,9 @@ test('a regular-file-to-FIFO replacement before the actual open cannot block or 
       }
       return original.call(this, file, flags, ...rest);
     };
-    syncBuiltinESMExports();
-  `;
+  ` });
   try {
-    const result = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, join(skills, 'debugging/scripts/probe.mjs'), '--cwd', cwd], { env, encoding: 'utf8', timeout: 2000, maxBuffer: 32 * 1024 });
+    const result = spawnSync(process.execPath, ['--preload', liveBuiltins, '--preload', join(preload, 'fifo-preload.mjs'), join(skills, 'debugging/scripts/probe.mjs'), '--cwd', cwd], { env, encoding: 'utf8', timeout: 2000, maxBuffer: 32 * 1024 });
     assert.equal(result.error, undefined, 'the real reader must refuse a FIFO replacement without blocking');
     assert.equal(result.stderr, '');
     assert.equal(result.status, 0);
@@ -279,5 +278,5 @@ test('a regular-file-to-FIFO replacement before the actual open cannot block or 
     assert.equal(json.facts.diagnosticSites, 0);
     assert.equal(result.stdout.includes('SECRET_CANARY'), false);
     assert.equal((await lstat(join(cwd, 'source.mjs'))).isFIFO(), true);
-  } finally { await rm(cwd, { recursive: true, force: true }); }
+  } finally { await Promise.all([cwd, preload].map(dir => rm(dir, { recursive: true, force: true }))); }
 });

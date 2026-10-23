@@ -5,7 +5,7 @@ import { extname, join, relative, resolve, sep } from 'node:path';
 const LIMITS = Object.freeze({ entries: 1024, directories: 32, depth: 4, files: 128, fileBytes: 65536, totalBytes: 524288, gitHeadBytes: 1024, outputBytes: 16384 });
 const SOURCE = new Set(['.mjs', '.cjs', '.js', '.jsx', '.ts', '.tsx', '.py', '.sql', '.rs', '.c', '.cc', '.cpp', '.h', '.hpp', '.go', '.java', '.kt', '.rb']);
 const MANIFESTS = new Set(['package.json', 'tsconfig.json', 'Makefile', 'CMakeLists.txt', 'meson.build', 'build.gradle', 'pom.xml', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py', 'setup.cfg', 'tox.ini', 'pytest.ini']);
-const LOCKS = new Map([['package-lock.json', 'npm'], ['npm-shrinkwrap.json', 'npm'], ['yarn.lock', 'yarn'], ['pnpm-lock.yaml', 'pnpm'], ['uv.lock', 'uv'], ['poetry.lock', 'poetry'], ['Cargo.lock', 'cargo']]);
+const LOCKS = new Map([['package-lock.json', 'npm'], ['npm-shrinkwrap.json', 'npm'], ['yarn.lock', 'yarn'], ['pnpm-lock.yaml', 'pnpm'], ['bun.lock', 'bun'], ['bun.lockb', 'bun'], ['uv.lock', 'uv'], ['poetry.lock', 'poetry'], ['Cargo.lock', 'cargo']]);
 const EXCLUDED = new Set(['node_modules', 'vendor', 'dist', 'build', 'coverage', '__pycache__', 'target', 'venv', 'env', 'private', 'secrets', 'credentials']);
 const PRIVATE = /(?:^|[-_.])(?:secret|secrets|credential|credentials|auth|token|tokens|password|passwd|private|id_rsa|id_ed25519)(?:[-_.]|$)|\.(?:pem|key|p12|pfx|sqlite|sqlite3|db)$/i;
 
@@ -139,7 +139,7 @@ async function factsFor(domain, cwd, files) {
       timingSites: count(source, /\b(?:performance\.(?:now|mark|measure)|process\.hrtime(?:\.bigint)?|time\.(?:perf_counter|monotonic)|console\.time)\s*\(/g),
       benchmarkFiles: source.filter(file => /(?:^|\/)(?:bench|benchmark|benchmarks)(?:\/|$)|[._-]bench\./.test(file.path)).length,
       profilingLibraries: knownLibraries(files, ['benchmark', 'tinybench', 'cProfile', 'tracemalloc', 'pyinstrument']),
-      runtime: { node: process.versions.node, v8: process.versions.v8, architecture: process.arch },
+      runtime: { name: process.versions.bun ? 'bun' : 'node', version: process.versions.bun ?? process.versions.node, architecture: process.arch },
     };
     case 'build-systems': {
       let buildScriptDeclared = false;

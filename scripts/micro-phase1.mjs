@@ -7,11 +7,10 @@ import net from 'node:net';
 import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
-import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {denyBunNetwork, environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, LIVE_BUILTINS, liveBuiltinsLoaded, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate imports only Node builtins; fixtures and Pi live in a
 // bounded child process. Every transcript message here is script-seeded.
@@ -19,8 +18,10 @@ const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
+// Bun keeps its transpiler cache under HOME, the fixture on Windows; children disable it so the runtime never fills
+// the fixture (BUN_RUNTIME_TRANSPILER_CACHE_PATH=0).
 const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE', 'PI_CODING_AGENT_DIR',
-  ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
+  'BUN_RUNTIME_TRANSPILER_CACHE_PATH', ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
 const counters = () => ({network: 0, auth: 0, inference: 0, credentials: 0});
 const textOf = result => (result.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n');
 const allZero = value => Object.values(value).every(count => count === 0);
@@ -34,7 +35,7 @@ function denyExternal(calls) {
   net.connect = net.createConnection = net.Socket.prototype.connect = tls.connect = deny;
   dns.lookup = dns.resolve = dns.resolve4 = dns.resolve6 = dns.reverse = deny;
   dgram.createSocket = deny;
-  syncBuiltinESMExports();
+  denyBunNetwork(deny);
 }
 
 function denyAmbientDiscovery(fixture, discovery) {
@@ -57,7 +58,6 @@ function denyAmbientDiscovery(fixture, discovery) {
       owner[name] = (file, ...args) => {guard(file); return original(file, ...args);};
     }
   }
-  syncBuiltinESMExports();
 }
 
 async function offlineRuntime(pi, calls, observed) {
@@ -344,6 +344,9 @@ async function childMain(spec) {
   const calls = counters();
   const discovery = {attempts: 0};
   const observed = {stage: 'guards', session_start: 0, compact_hook: 0, suppressed_local_refreshes: 0};
+  // Without live builtins the fs guard would miss Pi's own reads and the gate could pass vacuously.
+  if (!liveBuiltinsLoaded()) return {failure: 'live_builtins_unavailable', failure_stage: observed.stage,
+    attempted_calls: calls, resource_discovery_attempts: 0};
   denyExternal(calls);
   denyAmbientDiscovery(spec.fixture, discovery);
   const environment_sanitized = process.env.PI_OFFLINE === '1' &&
@@ -362,10 +365,11 @@ async function childMain(spec) {
 }
 
 async function runChild(spec) {
-  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent')};
+  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent'),
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH: '0'};
   env.PATH = [path.dirname(process.execPath), path.join(root, '.tools/bin'), env.PATH].filter(Boolean).join(path.delimiter);
   return new Promise(resolve => {
-    const child = spawn(process.execPath, [script, '--phase1-micro-child', JSON.stringify(spec)],
+    const child = spawn(process.execPath, ['--preload', LIVE_BUILTINS, script, '--phase1-micro-child', JSON.stringify(spec)],
       {cwd: spec.fixture, env, shell: false, stdio: ['ignore', 'pipe', 'pipe']});
     let stdout = '', totalBytes = 0, exceeded = false;
     const timer = setTimeout(() => child.kill('SIGKILL'), 20000);

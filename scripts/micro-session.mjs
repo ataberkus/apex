@@ -7,13 +7,18 @@ import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 import tls from 'node:tls';
-import { syncBuiltinESMExports } from 'node:module';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // This fixture checks native transcript mechanics, never model performance.
 // Importing it allocates nothing and imports no Pi/provider implementation.
 const script = fileURLToPath(import.meta.url);
+const require = createRequire(import.meta.url);
+// Every gate child preloads this module so the fs/network guards, which patch builtin module objects, also reach
+// the named builtin imports of Pi and Apex; Bun otherwise binds those to the original functions.
+export const LIVE_BUILTINS = fileURLToPath(new URL('./live-builtins.mjs', import.meta.url));
+export const liveBuiltinsLoaded = () => globalThis.__apexLiveBuiltins === true;
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
 // Mirrors lib/launcher.mjs PI_VERSION; the micro gates stay builtin-only at import.
@@ -22,7 +27,9 @@ export const WINDOWS_FIXTURE_ENV = Object.freeze([
   'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
   'SYSTEMDRIVE', 'USERNAME', 'USERDOMAIN', 'LOGONSERVER', 'PATHEXT',
 ]);
-const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE',
+// Bun keeps its transpiler cache under HOME, the fixture on Windows; children disable it so the runtime never fills
+// the fixture (BUN_RUNTIME_TRANSPILER_CACHE_PATH=0).
+const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE', 'BUN_RUNTIME_TRANSPILER_CACHE_PATH',
   ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
 const counters = () => ({network: 0, auth: 0, inference: 0, credentials: 0});
 const text = message => typeof message.content === 'string' ? message.content :
@@ -80,7 +87,16 @@ function denyExternal(calls) {
   http.request = http.get = https.request = https.get = deny;
   http.Agent.prototype.createConnection = https.Agent.prototype.createConnection = deny;
   net.connect = net.createConnection = net.Socket.prototype.connect = tls.connect = deny;
-  syncBuiltinESMExports();
+  denyBunNetwork(deny);
+}
+
+// Bun-only egress that bypasses the node:net/http patches: Bun's own client sockets and its native `undici` builtin.
+// Bun.fetch is read-only and unused by Pi, which calls the global fetch; Bun's undici Client/Pool are inert stubs.
+export function denyBunNetwork(deny) {
+  if (!globalThis.Bun) return;
+  Bun.connect = Bun.udpSocket = deny;
+  const undici = require('undici');
+  for (const name of ['fetch', 'request', 'stream', 'pipeline', 'connect', 'upgrade']) undici[name] = deny;
 }
 
 function denyAmbientDiscovery(fixture, discovery) {
@@ -104,7 +120,6 @@ function denyAmbientDiscovery(fixture, discovery) {
       owner[name] = (file, ...args) => { guard(file); return original(file, ...args); };
     }
   }
-  syncBuiltinESMExports();
 }
 
 function denyRuntime(runtime, calls) {
@@ -316,6 +331,8 @@ async function childReopen(spec, calls) {
 async function childMain(spec) {
   const calls = counters();
   const discovery = {attempts: 0};
+  // Without live builtins the fs guard would miss Pi's own reads and the gate could pass vacuously.
+  if (!liveBuiltinsLoaded()) return {failure: 'live_builtins_unavailable', attempted_calls: calls, resource_discovery_attempts: 0};
   denyExternal(calls);
   denyAmbientDiscovery(spec.fixture, discovery);
   const environment_sanitized = environmentNamesAllowed(permittedEnv, process.env, process.platform, spec.fixture);
@@ -334,9 +351,9 @@ async function childMain(spec) {
 }
 
 async function runChild(spec) {
-  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1'};
+  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', BUN_RUNTIME_TRANSPILER_CACHE_PATH: '0'};
   return new Promise(resolve => {
-    const child = spawn(process.execPath, [script, '--session-micro-child', JSON.stringify(spec)],
+    const child = spawn(process.execPath, ['--preload', LIVE_BUILTINS, script, '--session-micro-child', JSON.stringify(spec)],
       {cwd: spec.fixture, env, shell: false, stdio: ['ignore', 'pipe', 'pipe']});
     let stdout = '', outputExceeded = false;
     const timer = setTimeout(() => child.kill('SIGKILL'), 5000);

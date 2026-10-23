@@ -88,16 +88,18 @@ test('Windows preflight CLI rejects unknown flags without any dependency probes'
 
 test('Windows preflight import never starts processes, allocates files or imports the SDK', () => {
   const url = new URL('../scripts/preflight-windows.mjs', import.meta.url).href;
+  const liveBuiltins = new URL('../scripts/live-builtins.mjs', import.meta.url).href;
+  // Bun has no module hooks: onResolve skips bare packages and the first matching onLoad wins, so this load trap
+  // precedes live-builtins, which in turn lets the module's named imports see the spawn/fs traps.
   const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import fs from 'node:fs'; import cp from 'node:child_process';
-    import {registerHooks, syncBuiltinESMExports} from 'node:module';
+    Bun.plugin({name: 'windows-preflight-inert-guard', setup(build) {
+      build.onLoad({filter: /[\\\\/]@earendil-works[\\\\/]/}, () => {throw Error('SDK during import');});
+    }});
+    await import(${JSON.stringify(liveBuiltins)});
+    if (!globalThis.__apexLiveBuiltins) throw Error('live builtins not installed');
     const deny = () => {throw Error('Work during import');};
     fs.mkdtempSync = fs.mkdirSync = fs.writeFileSync = cp.spawnSync = deny;
-    syncBuiltinESMExports();
-    registerHooks({resolve(specifier, context, next) {
-      if(specifier.startsWith('@earendil-works/')) throw Error('SDK during import');
-      return next(specifier, context);
-    }});
     await import(${JSON.stringify(url)}); console.log('inert');`], {encoding: 'utf8', timeout: 5000});
   assert.equal(child.status, 0, child.stderr);
   assert.equal(child.stdout.trim(), 'inert');

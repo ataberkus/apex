@@ -3,10 +3,12 @@ import test from 'node:test';
 import {mkdtemp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
 
 const moduleUrl = new URL('../extensions/apex-core/environment.mjs', import.meta.url);
-const nodeExecutable = process.env.CODEX_PRIMARY_RUNTIME_NODE || process.execPath;
+const bunExecutable = process.execPath;
+const liveBuiltins = new URL('../scripts/live-builtins.mjs', import.meta.url);
 const load = () => import(moduleUrl).catch(error => {
   if (error.code === 'ERR_MODULE_NOT_FOUND') return {};
   throw error;
@@ -39,7 +41,7 @@ const withRg = async command => {
 
 function child(script, cwd, env = safeEnv()) {
   return new Promise((resolve, reject) => {
-    const process = spawn(nodeExecutable, ['--input-type=module', '-e', script],
+    const process = spawn(bunExecutable, ['--preload', fileURLToPath(liveBuiltins), '--input-type=module', '-e', script],
       {cwd, env, stdio: ['ignore', 'pipe', 'pipe'], timeout: 4000, killSignal: 'SIGKILL'});
     let stdout = '', stderr = '';
     process.stdout.on('data', value => { stdout += value; });
@@ -143,7 +145,6 @@ test('snapshot explicitly reports distro, shell and current user through safe lo
 test('an unavailable OS user lookup is labeled without failing environment capture', async t => {
   const cwd = await fixture(t);
   const script = `const os = await import('node:os'); os.default.userInfo = () => { throw new Error('unavailable'); };\n` +
-    `const {syncBuiltinESMExports} = await import('node:module'); syncBuiltinESMExports();\n` +
     `const {captureEnvironment} = await import(${JSON.stringify(moduleUrl.href)});\n` +
     `console.log(JSON.stringify(await captureEnvironment({cwd: ${JSON.stringify(cwd)}, runCommand: async () => ({code: 1})})));`;
   const result = await child(script, cwd);
@@ -347,9 +348,9 @@ test('native probes terminate hanging binaries, cap flood output and inherit no 
   const {captureEnvironment} = await api();
   const cwd = await fixture(t);
   const bin = await fixture(t);
-  await writeFile(join(bin, 'git'), `#!${nodeExecutable}\nprocess.stdout.write('é'.repeat(20000)); setInterval(() => {}, 1000);\n`, {mode: 0o700});
-  await writeFile(join(bin, 'python3'), `#!${nodeExecutable}\nsetInterval(() => {}, 1000);\n`, {mode: 0o700});
-  await writeFile(join(bin, 'node'), `#!${nodeExecutable}\nprocess.stdout.write(process.env.TEST_SECRET ? 'LEAKED' : 'safe-node');\n`, {mode: 0o700});
+  await writeFile(join(bin, 'git'), `#!${bunExecutable}\nprocess.stdout.write('é'.repeat(20000)); setInterval(() => {}, 1000);\n`, {mode: 0o700});
+  await writeFile(join(bin, 'python3'), `#!${bunExecutable}\nsetInterval(() => {}, 1000);\n`, {mode: 0o700});
+  await writeFile(join(bin, 'node'), `#!${bunExecutable}\nprocess.stdout.write(process.env.TEST_SECRET ? 'LEAKED' : 'safe-node');\n`, {mode: 0o700});
   const script = `const {captureEnvironment} = await import(${JSON.stringify(moduleUrl.href)});\n` +
     `console.log(JSON.stringify(await captureEnvironment({cwd: ${JSON.stringify(cwd)}})));`;
   const start = performance.now();
@@ -368,7 +369,7 @@ test('native probes terminate hanging binaries, cap flood output and inherit no 
 test('native probes preserve UTF-8 characters split across output chunks', {skip: unixOnly}, async t => {
   const cwd = await fixture(t);
   const bin = await fixture(t);
-  await writeFile(join(bin, 'python3'), `#!${nodeExecutable}\nconst b = Buffer.from('🙂'); process.stdout.write(b.subarray(0, 2)); setTimeout(() => process.stdout.write(b.subarray(2)), 15);\n`, {mode: 0o700});
+  await writeFile(join(bin, 'python3'), `#!${bunExecutable}\nconst b = Buffer.from('🙂'); process.stdout.write(b.subarray(0, 2)); setTimeout(() => process.stdout.write(b.subarray(2)), 15);\n`, {mode: 0o700});
   const script = `const {captureEnvironment} = await import(${JSON.stringify(moduleUrl.href)});\n` +
     `console.log(JSON.stringify((await captureEnvironment({cwd: ${JSON.stringify(cwd)}})).details.tools.python3));`;
   const result = await child(script, cwd, safeEnv({PATH: bin}));
@@ -380,7 +381,7 @@ test('native tool lookup excludes PATH directories inside the project', async t 
   const cwd = await fixture(t);
   const bin = join(cwd, 'bin');
   await mkdir(bin);
-  await writeFile(join(bin, 'git'), `#!${nodeExecutable}\nimport('node:fs').then(fs => fs.writeFileSync('PROJECT_SCRIPT_EXECUTED', 'bad'));\n`, {mode: 0o700});
+  await writeFile(join(bin, 'git'), `#!${bunExecutable}\nimport('node:fs').then(fs => fs.writeFileSync('PROJECT_SCRIPT_EXECUTED', 'bad'));\n`, {mode: 0o700});
   const script = `const {captureEnvironment} = await import(${JSON.stringify(moduleUrl.href)});\n` +
     `console.log(JSON.stringify((await captureEnvironment({cwd: ${JSON.stringify(cwd)}})).details.tools.git));`;
   const result = await child(script, cwd, safeEnv({PATH: bin}));
@@ -403,7 +404,7 @@ test('import creates no processes or files and returns promptly', async t => {
   const cwd = await fixture(t);
   const bin = join(cwd, 'fixture-bin');
   await mkdir(bin);
-  await writeFile(join(bin, 'git'), `#!${nodeExecutable}\nawait import('node:fs/promises').then(fs => fs.writeFile('IMPORT_SIDE_EFFECT', 'bad'));\n`, {mode: 0o700});
+  await writeFile(join(bin, 'git'), `#!${bunExecutable}\nawait import('node:fs/promises').then(fs => fs.writeFile('IMPORT_SIDE_EFFECT', 'bad'));\n`, {mode: 0o700});
   const result = await child(`await import(${JSON.stringify(moduleUrl.href)}); console.log('imported');`, cwd,
     safeEnv({PATH: bin}));
   assert.equal(result.code, 0, result.stderr);

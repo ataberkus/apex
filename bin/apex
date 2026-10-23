@@ -1,13 +1,15 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { spawn } from 'node:child_process';
 import { buildPiInvocation, resolvePi } from '../lib/launcher.mjs';
+import {runtimeExecutable, spawnFailure} from '../lib/runtime.mjs';
 import {withWindowsDefaults} from '../lib/windows-target.mjs';
 import {runtimePolicy,parseCoreFlags} from '../extensions/apex-core/config.mjs';
 
 import {parseLocalCommand,formatSessionReport} from '../lib/commands.mjs';
 import {createStyle,formatError} from '../lib/cli-style.mjs';
 
-const reportError = error => console.error(formatError(createStyle(process.stderr), error.message));
+// process.stderr.write, not console.error: Bun's console paints strings red whenever colors are forced, even on a pipe.
+const reportError = error => process.stderr.write(formatError(createStyle(process.stderr), error.message) + '\n');
 
 async function printReport(local) {
   const {readSessionReport} = await import('../lib/session-report.mjs');
@@ -33,8 +35,9 @@ async function launch(invocation) {
     profile = await createRecoveryProfile({policy: runtimePolicy(), cwd: process.cwd(), env: process.env});
   }
   const cleanup = async () => { try { await profile?.cleanup(); } catch (error) { reportError(error); return false; } return true; };
-  const child = spawn(process.execPath, [invocation.cli, ...invocation.args], {stdio: 'inherit', shell: false, ...(profile ? {env: profile.env} : {})});
-  child.once('error', async error => { reportError(error); process.exitCode = 1; await cleanup(); });
+  const command = runtimeExecutable();
+  const child = spawn(command, [invocation.cli, ...invocation.args], {stdio: 'inherit', shell: false, ...(profile ? {env: profile.env} : {})});
+  child.once('error', async error => { reportError(Error(spawnFailure(error, {command}))); process.exitCode = 1; await cleanup(); });
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
   child.once('exit', async (code, signal) => {
     process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1);

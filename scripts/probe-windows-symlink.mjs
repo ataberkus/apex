@@ -50,7 +50,7 @@ async function verifyFileLink(filename) {
 /** Actual native calls in a fresh owned fixture, with separate junction/hard-link evidence. */
 export async function probeWindowsSymlinks() {
   const report = {schema_version: 1, kind: 'windows_file_symlink_capability', status: 'BLOCKED',
-    native_windows: process.platform === 'win32', node: process.versions.node, libuv: process.versions.uv,
+    native_windows: process.platform === 'win32', bun: process.versions.bun, libuv: process.versions.uv,
     provider_calls: 0, elevation_requested: false, security_policy_changed: false,
     file_symlink_boundaries_passed: false, prerequisite, reachable_boundaries: []};
   if (!report.native_windows) {report.reason = 'native-windows-required'; return report;}

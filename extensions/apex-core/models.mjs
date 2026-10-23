@@ -73,12 +73,13 @@ function checkCommand(command) {
   const argv=command.trim().split(/\s+/);
   const [program,...args]=argv;
   const allowed=(program==='node'&&args[0]==='--test') ||
+    (program==='bun'&&(args[0]==='test'||args.join(' ')==='run check')) ||
     (program==='npm'&&(args.join(' ')==='test'||args.join(' ')==='run check')) ||
     ((program==='python3'||program==='python')&&args[0]==='-m'&&args[1]==='unittest') ||
     (program==='pytest');
-  const safeNode=program!=='node'||args.slice(1).every(arg=>!arg.startsWith('-'));
+  const safeRunner=!['node','bun'].includes(program)||args.slice(1).every(arg=>!arg.startsWith('-'));
   const safePytest=program!=='pytest'||args.every(arg=>!arg.startsWith('-')||['-q','-v','-x','--disable-warnings'].includes(arg)||/^--maxfail=[1-9]$/.test(arg));
-  if(!allowed||!safeNode||!safePytest||args.some(arg=>arg.includes('..')||arg.startsWith('/')))throw new Error('Verification commands must be bounded noninteractive test/check invocations.');
+  if(!allowed||!safeRunner||!safePytest||args.some(arg=>arg.includes('..')||arg.startsWith('/')))throw new Error('Verification commands must be bounded noninteractive test/check invocations.');
   return {program,args};
 }
 function checkCommands(commands) {
@@ -289,7 +290,8 @@ async function localChecks({policy,cwd,commands,signal}) {
   assertPolicy(policy);abort(signal);const checked=checkCommands(commands);const isolation=await copyIsolation({policy,cwd,signal});
   try {
     const records=[];
-    for(const command of checked){assertPolicy(policy);abort(signal);const {program,args}=checkCommand(command);records.push({command,...await runCommand(program,args,{cwd:isolation.cwd,signal})});}
+    // Like runCommand's npm_config_offline: Bun would otherwise auto-install missing packages from the network.
+    for(const command of checked){assertPolicy(policy);abort(signal);const {program,args}=checkCommand(command);records.push({command,...await runCommand(program,program==='bun'?['--no-install',...args]:args,{cwd:isolation.cwd,signal})});}
     return records;
   }finally{await isolation.cleanup();}
 }

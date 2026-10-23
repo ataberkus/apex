@@ -3,15 +3,17 @@ import { spawn, spawnSync } from 'node:child_process';
 import { accessSync, constants, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 const script = path.resolve('scripts/micro-process.mjs');
-const node = path.isAbsolute(process.execPath) ? process.execPath : (process.env.PATH ?? '')
+// Children preload live-builtins so patched builtins reach micro-process.mjs's named imports, like syncBuiltinESMExports did.
+const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+const runtime = path.isAbsolute(process.execPath) ? process.execPath : (process.env.PATH ?? '')
   .split(path.delimiter).map(directory => path.join(directory, process.execPath)).find(candidate => {
     try { accessSync(candidate, constants.X_OK); return true; } catch { return false; }
   });
-const childEnv = {PATH: `${path.dirname(node)}:/usr/bin:/bin`, LANG: 'C'};
+const childEnv = {PATH: `${path.dirname(runtime)}:/usr/bin:/bin`, LANG: 'C'};
 
 // Catches accidental import-time execution or fixture allocation.
 test('importing the process microcheck does not spawn processes or create fixtures', () => {
@@ -19,15 +21,14 @@ test('importing the process microcheck does not spawn processes or create fixtur
   try {
     const source = `
       import childProcess from 'node:child_process';
-      import {syncBuiltinESMExports} from 'node:module';
+      if (globalThis.__apexLiveBuiltins !== true) throw new Error('live builtins not loaded');
       for (const name of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']) {
         childProcess[name] = () => { throw new Error('unexpected import-time process'); };
       }
-      syncBuiltinESMExports();
       await import(${JSON.stringify(pathToFileURL(script).href)});
       console.log('import complete');
     `;
-    const result = spawnSync(node, ['--input-type=module', '-e', source], {
+    const result = spawnSync(runtime, ['--preload', liveBuiltins, '--input-type=module', '-e', source], {
       cwd, env: childEnv, encoding: 'utf8', timeout: 3000,
     });
     assert.equal(result.status, 0, result.stderr);
@@ -42,7 +43,7 @@ test('importing the process microcheck does not spawn processes or create fixtur
 // or credentials/ambient environment reaching the native tool host or service.
 test('native Pi bash service survives tool-host exit and the owned process is cleaned up', {timeout: 10000}, t => {
   const started = Date.now();
-  const result = spawnSync(node, [script], {
+  const result = spawnSync(runtime, [script], {
     env: {...childEnv, APEX_PROCESS_MICRO_UNSAFE_ENV: 'test-only-sentinel'},
     encoding: 'utf8', timeout: 9000,
   });
@@ -109,7 +110,6 @@ async function runWithBoundaryFault(cwd, fault) {
     import cp from 'node:child_process';
     import http from 'node:http';
     import path from 'node:path';
-    import {syncBuiltinESMExports} from 'node:module';
     const rawSpawn = cp.spawn;
     cp.spawn = (command,args,options) => {
       if (args[1] === '--tool-host') fs.writeFileSync('owned-spec.json',args[2]);
@@ -131,14 +131,14 @@ async function runWithBoundaryFault(cwd, fault) {
       return value;
     };
     ${fault.http ?? ''}
-    syncBuiltinESMExports();
+    if (globalThis.__apexLiveBuiltins !== true) throw new Error('live builtins not loaded');
     const {runProcessMicro} = await import(${JSON.stringify(pathToFileURL(script).href)});
     const artifact = await runProcessMicro();
     console.log(JSON.stringify(artifact));
     if (artifact.status === 'FAIL') process.exitCode = 1;
   `;
   return new Promise(resolve => {
-    const child = spawn(node, ['--input-type=module', '-e', source], {cwd, env: childEnv});
+    const child = spawn(runtime, ['--preload', liveBuiltins, '--input-type=module', '-e', source], {cwd, env: childEnv});
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', value => { stdout += value; });

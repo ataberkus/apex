@@ -18,13 +18,13 @@ Why this is realistic: on Terminal-Bench 2.0 the harness moves scores a lot. For
 
 ## 1. Rules
 
-1. **Build on Pi; don't fork it.** Deliver Apex as a Pi package (extensions, skills, prompt templates, system prompt) plus a thin `apex` launcher. Pi moves fast, and staying a package means upstream fixes arrive for free. Patch Pi core only when no extension point exists; keep such patches as a small, documented patch series and draft an upstream PR for each. Pin the Pi version and write `scripts/upgrade-pi.sh` (bump → `npm run check` → tests → micro-evals).
+1. **Build on Pi; don't fork it.** Deliver Apex as a Pi package (extensions, skills, prompt templates, system prompt) plus a thin `apex` launcher. Pi moves fast, and staying a package means upstream fixes arrive for free. Patch Pi core only when no extension point exists; keep such patches as a small, documented patch series and draft an upstream PR for each. Pin the Pi version and write `scripts/upgrade-pi.sh` (bump → `bun run check` → tests → micro-evals).
 2. **The source beats this document.** This brief reflects Pi's docs as of October 2026. Read the real code before designing (Phase 0). Where they disagree, follow the source and record the difference in `NOTES.md`.
 3. **Every feature is a flag with an ablation.** Nothing becomes default unless evals show it raises pass rate, or holds pass rate while cutting cost. Log evidence in `DECISIONS.md`: change → Δpass rate (± CI), Δtokens, Δ$, Δwall time, runs used.
 4. **Zero-token features first.** Logic in harness code (hooks, commands, routers, UI) costs no tokens. Anything the model sees on every request (system prompt, tool schemas, injected notes) must earn its tokens in an eval.
 5. **Benchmark integrity.** No task-ID or dataset detection, no hardcoded answers, no reading verifier or test files, no changes to task timeouts or resources, no memory carried between eval tasks. Tune on a dev split; report held-out and full runs. Results that use N parallel attempts are reported as a separate configuration. Top leaderboard entries get re-run by the maintainers — an unreproducible score is worse than no score.
 6. **Spend guard.** Ask me for a budget cap before any benchmark run. Estimate the cost before each run and ask before exceeding it. Iterate on small subsets; full runs only at milestones.
-7. **Small verified steps.** After each change: `npm run check`, unit tests, micro-evals. Commit messages state the measured effect.
+7. **Small verified steps.** After each change: `bun run check`, unit tests, micro-evals. Commit messages state the measured effect.
 8. **Consistent names.** Tool names used in the prompts (§6) must match the tools you actually implement; update both together.
 
 ## 2. Phase 0 — Learn Pi and build the measuring stick (no features yet)

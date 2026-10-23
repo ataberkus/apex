@@ -8,7 +8,9 @@ import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
-const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
+const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url);
+// The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
+const preload = ['--preload', fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url)), '--preload', fileURLToPath(fixture)];
 
 function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
   return new Promise((resolve, reject) => {
@@ -26,7 +28,7 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 test('✨ enhance passes the end of long replies and the image count, unwraps the rewrite, and never returns a cut-off one', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-enhance-'));
   const port = 46000 + Math.floor(Math.random() * 1000), inputs = join(home, 'enhance.jsonl');
-  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ENHANCE: inputs}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const child = spawn(process.execPath, [...preload, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ENHANCE: inputs}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);

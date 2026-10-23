@@ -6,44 +6,44 @@ Benchmark/API policy remains **offline-only**: MAIN=FAST is **openrouter/meta/mu
 
 ## Native Windows (current scope)
 
-No WSL, Docker, Python or Harbor is required for the native launcher and Windows-specific gates. Install native Node >=22.19.0, Git for Windows, pinned Pi, and `rg.exe`/`fd.exe` on the PATH the launcher inherits (for example `%LOCALAPPDATA%\Apex\bin` added to the user PATH; a workspace `.tools/bin` does not count). Secure storage additionally requires Windows PowerShell/.NET Framework with permission to run the bundled helper. In this source folder:
+No WSL, Docker, Python or Harbor is required for the native launcher and Windows-specific gates. Install [Bun](https://bun.sh) >=1.4.3 (`powershell -c "irm bun.sh/install.ps1 | iex"`), Git for Windows, pinned Pi, and `rg.exe`/`fd.exe` on the PATH the launcher inherits (for example `%LOCALAPPDATA%\Apex\bin` added to the user PATH; a workspace `.tools/bin` does not count). Node is not needed: `bin/apex`, the dashboard and every Pi child run on Bun. Secure storage additionally requires Windows PowerShell/.NET Framework with permission to run the bundled helper. In this source folder:
 
 ```powershell
-npm ci --ignore-scripts
-npm run preflight:windows
-npm run check:windows
-npm run test:windows
-npm run micro:windows
-npm run smoke:windows-package
+bun install --frozen-lockfile --ignore-scripts
+bun run preflight:windows
+bun run check:windows
+bun run test:windows
+bun run micro:windows
+bun run smoke:windows-package
 ```
 
-The Windows micro report is separate from the original full gate. It tests native tools and **offline** feature composition on the Windows default model. Live model compliance is covered separately by `node evals/micro/windows-live.mjs --run-id ID` (Claude OAuth, Opus 5.5 at medium, guarded by `evals/claude-budget.json`; latest run `windows-claude-live-001` passed all 24 checks) and interactive acceptances in the PowerShell console and the dashboard (`validation/windows-terminal-acceptance.json`, `validation/windows-dashboard-acceptance.json`). The package smoke performs a fresh, locked offline npm installation of the Pi peer and Apex runtime dependency trees, tests actual PowerShell/Git Bash shims and packaged output recovery, and removes its temporary prefix. No dependency junction or online fallback is used.
+The Windows micro report is separate from the original full gate. It tests native tools and **offline** feature composition on the Windows default model. Live model compliance is covered separately by `bun evals/micro/windows-live.mjs --run-id ID` (Claude OAuth, Opus 5.5 at medium, guarded by `evals/claude-budget.json`; latest run `windows-claude-live-001` passed all 24 checks, before the switch to Bun) and interactive acceptances in the PowerShell console and the dashboard (`validation/windows-terminal-acceptance.json`, `validation/windows-dashboard-acceptance.json`). The package smoke performs a fresh, locked offline Bun installation of the Pi peer and Apex runtime dependency trees from Bun's package cache, tests Bun's actual `apex.exe` shim from PowerShell, cmd and Git Bash and packaged output recovery, and removes its temporary prefix. No dependency junction or online fallback is used.
 
 On native Windows, plain `apex` (no Apex selection options) runs Claude Opus 5.5 (`anthropic/claude-opus-5-5`, Claude Pro/Max login) at medium thinking with only features that add no prompt sections, tools or continuations: context `cache`; core `correct` (cwd-confined paths, edit pre-checks and the TUI confirmation before catastrophic shell commands); features `cost,plan,report,resume,autocompact` (compaction past 300k context tokens; `--autocompact-tokens N` sets another threshold), plus `checkpoints` when the folder is a Git repository root. They still reach the model in three ways: `correct` changes the result of a refused or repaired tool call, checkpoints leave an `.apex/` folder in the workspace, and autocompact summarizes the context. On Windows `.apex/` carries its own `.gitignore` (`*`), so `git status` and `git add -A` skip it; `ls` still shows it. Every other supported feature (context `shape`, `mask`, `compact`, `read`, `search`, `edit`, `patch`, `lazy`; core `snapshot`, `entrypoints`, `headless`, `contract`, `todo`, `verify`, `loops`, `time`, `diagnostics`, `subagents`; features `review`, `remember`, `skills`, `safety`) and `--apex-pair` are opt-in. The earlier everything-supported default cost ×2.1 and took ×2.3 the wall time of stock Pi with no pass-rate gain (ab-002 in `DECISIONS.md`). Under `--profile headless` the ab-006 default also added core `headless`, and cost ×1.12 (CI ×1.01–×1.23) at ×1.15 the wall time, both arms at 36/36. That flag's prompt section was the gap and changed no measured behavior (ab-008–ab-010), so `--profile headless` no longer adds it. Any explicit `--apex-target/--apex-context/--apex-core/--apex-features/--apex-eval` replaces the defaults; an explicit context/core/features selection stays on the Windows target unless it names a Muse model. `apex --apex-off ...` runs stock Pi, which a Claude subscription refuses; `apex --apex-target windows` is the plain agent there. Other platforms are unchanged.
 
 Inspect an explicit selection without starting inference:
 
 ```powershell
-node bin/apex --apex-dry-run --apex-target windows --profile headless --apex-context "read,search,edit,shape" --apex-features "cost,checkpoints,plan,report" "Task"
+bun bin/apex --apex-dry-run --apex-target windows --profile headless --apex-context "read,search,edit,shape" --apex-features "cost,checkpoints,plan,report" "Task"
 ```
 
 This native-only target selects exact Claude Opus 5.5 at medium by default without changing the frozen benchmark policy. With an explicit `--provider openai-codex|anthropic|opencode-go` and a plain catalog `--model` id it runs that signed-in model instead. Thinking defaults to medium and `--thinking` can pick any level, except that eval isolation and the auto route stay at xhigh; fallback lists, `:thinking` suffixes and `--api-key` are refused. It rejects bg/max/recovery and Muse-specific route/output; choose explicit flags instead of all. `--apex-pair PLAN,BUILD` instead plans each request on one model and builds on another, each at its own thinking level, for example `--apex-pair anthropic/claude-opus-5-5:high,anthropic/claude-sonnet-5-5:medium` (see `WINDOWS_LOCAL.md`). Auxiliary model work and automatic resume remain denied. The target is not a credential validator. Daily use has no Apex dollar cap; scripted live acceptance on Claude is capped and recorded in `evals/claude-budget.json`, and every automated live test needs bounded scope and operational limits. See `WINDOWS_LOCAL.md` for support limits, private storage and the remaining gaps.
 
 ## Full evaluation/development toolchain
 
-Requirements: Node >=22.19.0, Python >=3.12, uv, Git, Bash, ripgrep and fd/fdfind. Pi on native Windows uses Git Bash. The pinned local Pi/Harbor installation, native launcher help, SDK tool execution and Windows private output spills are verified. Windows shaping requires Windows PowerShell/.NET Framework with permission to run `extensions/apex-context/private-spill.ps1`; failures preserve raw output and report the missing prerequisite. Existing public `.apex`/`out` directories are rejected, not silently permission-modified. SETUP_FREE.md describes the still-unverified WSL2/Linux-container setup, requiring no paid sandbox subscription.
+Requirements: Bun >=1.4.3, Python >=3.12, uv, Git, Bash, ripgrep and fd/fdfind. Pi on native Windows uses Git Bash. The pinned local Pi/Harbor installation, native launcher help, SDK tool execution and Windows private output spills are verified. Windows shaping requires Windows PowerShell/.NET Framework with permission to run `extensions/apex-context/private-spill.ps1`; failures preserve raw output and report the missing prerequisite. Existing public `.apex`/`out` directories are rejected, not silently permission-modified. SETUP_FREE.md describes the still-unverified WSL2/Linux-container setup, requiring no paid sandbox subscription.
 
 In Bash/WSL, inside this folder:
 
 ```bash
-npm ci --ignore-scripts
+bun install --frozen-lockfile --ignore-scripts
 UV_TOOL_DIR="$PWD/.tools/uv" UV_TOOL_BIN_DIR="$PWD/.tools/bin" UV_CACHE_DIR="$PWD/.cache/uv" \
   uv tool install --with socksio==1.0.0 \
   git+https://github.com/harbor-framework/harbor@99218a4611e3bd76e49ce3b5f977e8c8134ad3ac
-npm run check
-npm test
-npm run micro
-npm run preflight
+bun run check
+bun run test
+bun run micro
+bun run preflight
 ```
 
 Install fd/fdfind and ripgrep through their official distribution instructions before micro-evals. These tools are test dependencies, not bundled into Apex. On the build workspace, fd 10.3.0 was installed under workspace tooling after Pi's automatic extraction failed on ownership changes.
@@ -55,16 +55,16 @@ $env:UV_TOOL_DIR = Join-Path $PWD ".tools/uv"
 $env:UV_TOOL_BIN_DIR = Join-Path $PWD ".tools/bin"
 $env:UV_CACHE_DIR = Join-Path $PWD ".cache/uv"
 uv tool install --with socksio==1.0.0 git+https://github.com/harbor-framework/harbor@99218a4611e3bd76e49ce3b5f977e8c8134ad3ac
-npm ci --ignore-scripts
-npm run check
-npm test
-npm run micro
-npm run preflight
+bun install --frozen-lockfile --ignore-scripts
+bun run check
+bun run test
+bun run micro
+bun run preflight
 ```
 
-The Node scripts select the workspace Harbor Python when available. Otherwise set APEX_PYTHON to the absolute Python executable containing this exact Harbor commit. The published PyPI 0.23.0 wheel is different despite the same version number; npm run check validates direct_url commit metadata. Do not substitute a plain global Harbor installation. Preflight is a read-only tooling check: JSON, exit 2 when blocked, no installs, image pulls, containers or model calls. It uses only the explicit local Docker endpoint with an empty temporary config, ignoring inherited remote contexts and credentials. No engine is available in this build workspace.
+The Bun scripts select the workspace Harbor Python when available. Otherwise set APEX_PYTHON to the absolute Python executable containing this exact Harbor commit. The published PyPI 0.23.0 wheel is different despite the same version number; `bun run check` validates direct_url commit metadata. Do not substitute a plain global Harbor installation. Preflight is a read-only tooling check: JSON, exit 2 when blocked, no installs, image pulls, containers or model calls. It uses only the explicit local Docker endpoint with an empty temporary config, ignoring inherited remote contexts and credentials. No engine is available in this build workspace.
 
-npm run micro also checks forced native compaction and fresh SDK transcript restoration with a deterministic fixture summary and blocked transport, then a synthetic ingest→normalize→report CLI pipeline. These are free mechanics/accounting checks, not model solve-rate evidence. JSON evidence is saved under validation/. Torn-tail recovery skips corrupt fragments; it does not reconstruct them or prove power-loss durability.
+`bun run micro` also checks forced native compaction and fresh SDK transcript restoration with a deterministic fixture summary and blocked transport, then a synthetic ingest→normalize→report CLI pipeline. These are free mechanics/accounting checks, not model solve-rate evidence. JSON evidence is saved under validation/. Torn-tail recovery skips corrupt fragments; it does not reconstruct them or prove power-loss durability.
 
 ## Final validation
 
@@ -76,15 +76,15 @@ python -m evals.harbor.final_validation --apex-package /absolute/path/to/apex.tg
 
 The CLI exits 2 while blocked and emits no executable Harbor argv. Required: reviewed complete benchmark scope/budget, a real harness source revision, trusted Linux containers and resolved image digests, real baseline data, and private container credential provisioning. Host Sol OAuth login is not Harbor provisioning; the pinned stock Pi adapter does not forward Codex OAuth, and Apex's current configuration directory is inside logs. Credentials stay outside this repository and all packages.
 
-On Windows, `npm run micro` exercises every reachable native contract, retains the unsupported Unix background proof as `FAIL`/`SKIP`, records overall `BLOCKED`, and exits 2. It does not claim a complete micro pass. `validation/offline-micro.json`, `validation/final-unit-verified.log` and `runs/model-smoke/sol-oauth-001/summary.json` distinguish offline/synthetic evidence from the real local OAuth access smoke.
+On Windows, `bun run micro` exercises every reachable native contract, retains the unsupported Unix background proof as `FAIL`/`SKIP`, records overall `BLOCKED`, and exits 2. It does not claim a complete micro pass. `validation/offline-micro.json`, `validation/final-unit-verified.log` and `runs/model-smoke/sol-oauth-001/summary.json` distinguish offline/synthetic evidence from the real local OAuth access smoke.
 
 
 ## Launcher
 
 ```bash
-node bin/apex --apex-help
-node bin/apex --apex-dry-run --profile headless --model provider/model "Task"
-node bin/apex --version
+bun bin/apex --apex-help
+bun bin/apex --apex-dry-run --profile headless --model provider/model "Task"
+bun bin/apex --version
 ```
 
 These commands perform no model inference. A normal task invocation will use Pi's configured credentials and can incur provider charges; benchmark tasks remain blocked pending a container host; see RESULTS.md for the live synthetic smoke.
@@ -93,15 +93,15 @@ Apex's own output (`--apex-help`, `apex report SESSION` and its error messages) 
 
 Apex options occupy the prefix, before all Pi arguments. default forwards Pi arguments unchanged; headless ensures --print --mode json. Pi option values and literal task text are preserved. Use -- to end option parsing for tasks beginning with a dash. Equals-mode arguments are unsupported by pinned Pi; use --mode json. With no --apex-context prefix, no extra prompt, tools, environment snapshot or thinking policy is injected.
 
-The package declares host Pi as a peer and pins local development Pi 1.3.0 (exact devDependency; package-lock.json pins every transitive dependency by integrity, so install with `npm ci`). Pi 1.3.0 no longer ships an npm-shrinkwrap, so a host or global Pi install outside this lock resolves Pi's third-party dependencies at install time. The package declares three inert-by-default context, core and daily-driver extensions. Installing it registers selection flags but adds no model-visible resource until enabled. Virtual apex/auto is a separate explicit extension loaded by the route option before model selection.
+The package declares host Pi as a peer and pins local development Pi 1.3.0 (exact devDependency; bun.lock pins every transitive dependency by integrity, so install with `bun install --frozen-lockfile`). Pi 1.3.0 no longer ships an npm-shrinkwrap, so a host or global Pi install outside this lock resolves Pi's third-party dependencies at install time. The package declares three inert-by-default context, core and daily-driver extensions. Installing it registers selection flags but adds no model-visible resource until enabled. Virtual apex/auto is a separate explicit extension loaded by the route option before model selection.
 
 ## Dashboard
 
 ```bash
-npm run dashboard
+bun run dashboard
 ```
 
-`npm run dashboard` opens the dashboard in your default browser automatically once the server is listening, using the authenticated startup-token URL. The URL is also printed as a fallback (the token changes on every start; set `APEX_DASH_PORT` to move the port). To start without opening a browser, use `node dashboard/server.mjs`. Add project folders with Add workspace (type a path or browse), then start or resume sessions under each one. Every session is its own `apex --mode rpc` process streamed live to the browser. Clicking a saved or archived session shows its transcript read-only, straight from the session file, without starting an agent; **Resume** in that view opens the resume dialog. The left column groups sessions by workspace and lists any that need you (an approval, a finished turn, an error) at the top. The right column shows the agent's todos, acceptance criteria and changed files, token and context usage, and the slash commands it exposes (type `/` in the message box). Edits render as unified or split diff cards, and the safety feature's approval questions appear above the message box.
+`bun run dashboard` opens the dashboard in your default browser automatically once the server is listening, using the authenticated startup-token URL. The URL is also printed as a fallback (the token changes on every start; set `APEX_DASH_PORT` to move the port). To start without opening a browser, use `bun dashboard/server.mjs`. Add project folders with Add workspace (type a path or browse), then start or resume sessions under each one. Every session is its own `apex --mode rpc` process (run by the same Bun as the dashboard) streamed live to the browser. A workspace whose folder was moved or deleted cannot start a session: the dashboard says the folder does not exist instead. Clicking a saved or archived session shows its transcript read-only, straight from the session file, without starting an agent; **Resume** in that view opens the resume dialog. The left column groups sessions by workspace and lists any that need you (an approval, a finished turn, an error) at the top. The right column shows the agent's todos, acceptance criteria and changed files, token and context usage, and the slash commands it exposes (type `/` in the message box). Edits render as unified or split diff cards, and the safety feature's approval questions appear above the message box.
 
 Chat messages support Markdown: headings, emphasis, lists, task lists, tables, quotes, links and fenced code blocks with a Copy button. Formatting updates during streaming and works in resumed history. Raw HTML is displayed as text; external Markdown images load only when you click **Load image**.
 
@@ -120,8 +120,8 @@ With **Autocompact** checked, the dialog shows a context-token threshold field, 
 Features: cache, shape, mask, compact, read, search, edit, patch, lazy, route, output. Each defaults off and has add/remove ablations in evals/phase1-ablations.json. PHASE1_DESIGN.md and PHASE1_LOCAL.md describe behavior, evidence and limitations.
 
 ```bash
-node bin/apex --apex-dry-run --apex-context read,search,edit,shape --profile headless "Task"
-node bin/apex --apex-dry-run --apex-context all --profile headless "Task"
+bun bin/apex --apex-dry-run --apex-context read,search,edit,shape --profile headless "Task"
+bun bin/apex --apex-dry-run --apex-context all --profile headless "Task"
 ```
 
 Dry-run resolves flags without starting Pi or inference. Actual task execution can incur provider charges and is not authorized by the free-only build work. Original feature invocations without `--apex-target windows` select only the allowed Muse physical model, at xhigh unless `--thinking` picks another level. route resolves apex/auto back to that same model; continuation/retry pairs stay fixed. The route and eval isolation stay at xhigh, and cross-model routing is unavailable under this selection.
@@ -146,9 +146,9 @@ python -m evals.harbor.plan --run-id pilot --estimate-usd WHOLE_RUN_ESTIMATE \
 
 Replace the amount placeholders with numbers from the actual forecast and ledger, and FULL_GIT_COMMIT with the full local harness commit. The command only writes a reviewable plan and exits 2 when blocked. It has no execute flag and makes no spend reservation. It is an estimate preflight, not a provider-side billing cap. Recheck actual spend and concurrent reservations before any authorized launch.
 
-For stock Pi, the plan uses Harbor's built-in pi agent with version=1.3.0. Both stock and Apex receive --agent-kwarg thinking=xhigh from the configured level. For Apex, create a local tarball with npm pack --ignore-scripts and add --agent apex --apex-package ABSOLUTE_TARBALL.tgz. The adapter's import path is evals.harbor.apex:ApexAgent; run Harbor from this project so the module is importable. The adapter reuses native JSON sessions and parent provider/accounting behavior, installs the Apex tarball, and uses the headless launcher. MCP is unsupported in this Phase 0 adapter because the parent bridge targets a different Pi version range (Harbor accepts MCP only for Pi >=0.84.1,<0.86.0). Harbor installs Pi in the container with `npm install -g @earendil-works/pi-coding-agent@1.3.0`, which this repository's lockfile does not govern.
+For stock Pi, the plan uses Harbor's built-in pi agent with version=1.3.0. Both stock and Apex receive --agent-kwarg thinking=xhigh from the configured level. For Apex, create a local tarball with `bun pm pack --ignore-scripts` and add --agent apex --apex-package ABSOLUTE_TARBALL.tgz. The adapter's import path is evals.harbor.apex:ApexAgent; run Harbor from this project so the module is importable. The adapter reuses native JSON sessions and parent provider/accounting behavior, installs Bun 1.4.3 (official installer pinned to `bun-v1.4.3`) and then the exact Pi 1.3.0 peer plus the Apex tarball with `bun add --global --exact --ignore-scripts`, and uses the headless launcher. MCP is unsupported in this Phase 0 adapter because the parent bridge targets a different Pi version range (Harbor accepts MCP only for Pi >=0.84.1,<0.86.0). Harbor's stock Pi still installs in the container with `npm install -g @earendil-works/pi-coding-agent@1.3.0`; neither container install is governed by this repository's lockfile.
 
-Run generated argv using the **source-pinned workspace Harbor executable**, or explicitly put its bin directory first on PATH after npm run check. Plans name harbor for portability, so a different PATH entry would defeat the source pin. No task timeout, resources, verifier, retries, upload or cloud launch options are changed by the plan. Model/provider IDs are restricted to safe identifiers because the parent Pi adapter interpolates them into a shell command.
+Run generated argv using the **source-pinned workspace Harbor executable**, or explicitly put its bin directory first on PATH after `bun run check`. Plans name harbor for portability, so a different PATH entry would defeat the source pin. No task timeout, resources, verifier, retries, upload or cloud launch options are changed by the plan. Model/provider IDs are restricted to safe identifiers because the parent Pi adapter interpolates them into a shell command.
 
 The supplied evals/datasets/terminal-bench-2.0/ snapshot contains all 89 tasks from the pinned Harbor registry, each at an immutable Git revision. Its manifest freezes 18 prospective dev tasks and 20 held-out tasks; 51 remain outside those subsets. Task contents, verifier code, tests and trajectories were not fetched. Container image digests are unresolved. The dev sample remains prospective until stock Pi outcomes identify discriminating tasks; keep held-out membership fixed while tuning.
 
@@ -193,7 +193,7 @@ Failure analysis is dev-only. Suggestions are provisional; confirm with --label 
 ```bash
 scripts/upgrade-pi.sh NEW_VERSION FULL_UPSTREAM_SOURCE_COMMIT
 # PowerShell/native equivalent:
-node scripts/upgrade-pi.mjs NEW_VERSION FULL_UPSTREAM_SOURCE_COMMIT
+bun scripts/upgrade-pi.mjs NEW_VERSION FULL_UPSTREAM_SOURCE_COMMIT
 ```
 
 Read the new Pi source first. The script pins the dependency, refreshes runtime pin references, then runs check → tests → offline micro-evals. API/schema tests remain intentional adoption gates; a compatible upgrade may still need reviewed test expectations and source notes. No paid micro-eval or core patch is attempted automatically.
@@ -202,7 +202,7 @@ Phase 0 ends only after real dev/held-out baselines, failed-trace priorities and
 
 ## Explicit live micro-test
 
-The provider smoke is never part of npm test or npm run micro. Under the current offline-only policy it refuses execution before key lookup, SDK initialization or run-directory creation. Earlier paid runs required an explicit run ID, full harness commit and active unique reservation; model, xhigh, output/payload size, physical sends and time were bounded. --dry-run initializes the pinned SDK without inference. A future paid run needs renewed authorization and a consistent ledger before its gate can pass. Credentials must remain transient; the runner removes them before tools start and redacts credential echoes before native session persistence.
+The provider smoke is never part of `bun run test` or `bun run micro`. Under the current offline-only policy it refuses execution before key lookup, SDK initialization or run-directory creation. Earlier paid runs required an explicit run ID, full harness commit and active unique reservation; model, xhigh, output/payload size, physical sends and time were bounded. --dry-run initializes the pinned SDK without inference. A future paid run needs renewed authorization and a consistent ledger before its gate can pass. Credentials must remain transient; the runner removes them before tools start and redacts credential echoes before native session persistence.
 
 ## Phase 2 opt-in success-rate harness
 
@@ -211,7 +211,7 @@ Fourteen flags are available through `--apex-core`: snapshot, entrypoints, headl
 Resolve a configuration without starting Pi:
 
 ```bash
-node bin/apex --apex-dry-run --profile headless \
+bun bin/apex --apex-dry-run --profile headless \
   --apex-context read,route --apex-core snapshot,entrypoints,headless,todo,verify,bg,time \
   --time-budget 600 --provider openrouter --model meta/muse-spark-1.3-contributor --thinking xhigh
 ```
@@ -227,9 +227,9 @@ All model-backed paths require the selected physical Muse model and xhigh; MAIN 
 Flags: cost,checkpoints,review,plan,remember,skills,safety,report,resume. Select with an Apex prefix; all default off. Each has add/remove variants with unmeasured effects in evals/phase3-ablations.json. Examples below only inspect or construct local commands:
 
 ```bash
-node bin/apex --apex-dry-run --apex-features cost,checkpoints,plan,skills --profile headless "Task"
-node bin/apex report /absolute/session.jsonl --json
-node bin/apex resume /absolute/completed-session.jsonl --apex-dry-run
+bun bin/apex --apex-dry-run --apex-features cost,checkpoints,plan,skills --profile headless "Task"
+bun bin/apex report /absolute/session.jsonl --json
+bun bin/apex resume /absolute/completed-session.jsonl --apex-dry-run
 ```
 
 Selected native commands are `/cost`, `/undo [turn-ID]`, `/plan TASK`, `/plan save LITERAL-MARKDOWN`, `/plan cancel`, `/review [requirements]`, `/report`, and `/resume-info [session-file]`. `/cost` uses native usage, explicit task/session totals, cache-hit/context percentages and current model; estimates are not invoices. Unknown or partial costs stay unknown. Standalone report labels token categories as UTF-8 bytes/4 proxies and never prints raw task/tool content.
@@ -245,9 +245,9 @@ Ten selected skills advertise short metadata and load full bodies only on demand
 ## Phase 4 self-improvement
 
 ```bash
-npm run micro:evolve
-npm run evolve -- --help
-npm run evolve -- plan --campaign evolve/campaigns/search --estimate-usd 0.10
+bun run micro:evolve
+bun run evolve -- --help
+bun run evolve -- plan --campaign evolve/campaigns/search --estimate-usd 0.10
 ```
 
 The offline CLI exports every prior runtime version and exact dev raw traces, guards one proposed patch in private Git, compares complete dev/held-out measurements beyond noise and persists an aggregate variant leaderboard. `run` implements authorized OCI proposer → offline verification → pinned Harbor dev/held-out evaluation, but current policy denies it before credentials or allocation. Iteration/spend guards retain unknown bills; synthetic decisions never promote a variant.

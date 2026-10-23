@@ -12,7 +12,7 @@
     "apex": "bin/apex"
   },
   "engines": {
-    "node": ">=22.19.0"
+    "bun": ">=1.4.3"
   },
   "pi": {
     "extensions": [
@@ -32,19 +32,19 @@
     "jsdom": "21.1.2"
   },
   "scripts": {
-    "check": "node scripts/check.mjs",
-    "check:windows": "node scripts/check.mjs --windows",
-    "test": "node scripts/test.mjs",
-    "test:windows": "node scripts/test.mjs --windows",
-    "micro": "node scripts/micro.mjs",
-    "micro:windows": "node scripts/micro-windows.mjs",
-    "preflight": "node scripts/preflight.mjs --json",
-    "preflight:windows": "node scripts/preflight-windows.mjs --json",
-    "smoke:windows-package": "node scripts/smoke-windows-package.mjs",
-    "apex": "node bin/apex",
-    "dashboard": "node dashboard/server.mjs --open",
-    "evolve": "node scripts/evolve.mjs",
-    "micro:evolve": "node scripts/evolve.mjs --micro"
+    "check": "bun scripts/check.mjs",
+    "check:windows": "bun scripts/check.mjs --windows",
+    "test": "bun scripts/test.mjs",
+    "test:windows": "bun scripts/test.mjs --windows",
+    "micro": "bun scripts/micro.mjs",
+    "micro:windows": "bun scripts/micro-windows.mjs",
+    "preflight": "bun scripts/preflight.mjs --json",
+    "preflight:windows": "bun scripts/preflight-windows.mjs --json",
+    "smoke:windows-package": "bun scripts/smoke-windows-package.mjs",
+    "apex": "bun bin/apex",
+    "dashboard": "bun dashboard/server.mjs --open",
+    "evolve": "bun scripts/evolve.mjs",
+    "micro:evolve": "bun scripts/evolve.mjs --micro"
   },
   "files": [
     ".gitattributes",

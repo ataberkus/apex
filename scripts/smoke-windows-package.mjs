@@ -7,18 +7,23 @@ import {runWindowsPreflight, windowsProbeEnvironment} from './preflight-windows.
 import {PI_VERSION} from '../lib/launcher.mjs';
 import {fixtureEnvironment, fixtureShellPath, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
-/** Lock keys reachable from root package names, using node_modules nearest-ancestor resolution. */
+/** bun.lock keys reachable from root package names. A nested key `parent/child` is `child` as resolved from `parent`;
+ * like node_modules, Bun resolves a dependency of key K nearest-first: `K/dep`, then each ancestor key, then `dep`. */
 export function lockSubtree(packages, roots) {
   const keep = new Set();
+  const parent = key => {
+    const parts = key.split('/');
+    return parts.slice(0, parts.length - (parts.at(-2)?.startsWith('@') ? 2 : 1)).join('/');
+  };
   const visit = (from, name, required) => {
-    for (let base = from; ; base = base.includes('/node_modules/') ? base.slice(0, base.lastIndexOf('/node_modules/')) : '') {
-      const key = `${base ? `${base}/` : ''}node_modules/${name}`;
+    for (let base = from; ; base = parent(base)) {
+      const key = base ? `${base}/${name}` : name;
       if (packages[key]) {
         if (keep.has(key)) return;
         keep.add(key);
-        const entry = packages[key];
-        for (const dependency of Object.keys(entry.dependencies ?? {})) visit(key, dependency, true);
-        for (const dependency of Object.keys({...entry.optionalDependencies, ...entry.peerDependencies})) visit(key, dependency, false);
+        const {dependencies = {}, optionalDependencies = {}, peerDependencies = {}} = packages[key][2] ?? {};
+        for (const dependency of Object.keys(dependencies)) visit(key, dependency, true);
+        for (const dependency of Object.keys({...optionalDependencies, ...peerDependencies})) visit(key, dependency, false);
         return;
       }
       if (!base) { if (required) throw new Error(`Lock is missing ${name} required by ${from || 'root'}`); return; }
@@ -36,74 +41,89 @@ export function smokeWindowsPackage() {
     provider_calls: 0, benchmark_runs: 0, dependency_junction_used: false, offline_install: true, checks: {}};
   result.preflight = runWindowsPreflight({projectRoot: root});
   if (result.preflight.readiness !== 'tooling-ready') return result;
-  const npmCli = process.env.npm_execpath ?? path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
-  const workspaceCache = path.join(root, '.cache', 'npm');
-  const cache = existsSync(workspaceCache) ? workspaceCache :
-    process.env.npm_config_cache ?? (process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'npm-cache'));
-  if (!existsSync(npmCli) || !cache || !path.isAbsolute(cache)) {result.reason = 'npm-cli-or-local-cache-unavailable'; return result;}
+  // The user's Bun cache (bunfig/BUN_INSTALL_CACHE_DIR respected). The install itself runs in a confined
+  // profile, so the cache is passed explicitly; `--offline` makes Bun refuse the network instead of falling back.
+  const cacheQuery = spawnSync(process.execPath, ['pm', 'cache'], {cwd: root, encoding: 'utf8', shell: false, windowsHide: true, timeout: 30000});
+  const cache = cacheQuery.status === 0 ? cacheQuery.stdout.trim() : '';
+  if (!cache || !path.isAbsolute(cache) || !existsSync(cache)) {result.reason = 'bun-local-cache-unavailable'; return result;}
   mkdirSync(evidence, {recursive: true});
   const scratch = mkdtempSync(path.join(root, '.windows-package-'));
   const env = fixtureEnvironment(['PATH','SystemRoot','WINDIR','PI_OFFLINE','PI_CODING_AGENT_DIR', ...WINDOWS_FIXTURE_ENV],
     scratch, windowsProbeEnvironment(root), 'win32');
-  const userConfig = path.join(scratch, 'user.npmrc'), globalConfig = path.join(scratch, 'global.npmrc');
-  writeFileSync(userConfig, ''); writeFileSync(globalConfig, '');
-  Object.assign(env, {PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(scratch, 'agent'),
-    npm_config_userconfig: userConfig, npm_config_globalconfig: globalConfig,
-    npm_config_cache: cache, npm_config_offline: 'true', npm_config_audit: 'false', npm_config_fund: 'false'});
+  Object.assign(env, {PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(scratch, 'agent')});
   const run = (name, command, args, options = {}) => {
     const child = spawnSync(command, args, {cwd: scratch, env, shell: false, windowsHide: true,
       encoding: 'utf8', timeout: 120000, maxBuffer: 4194304, ...options});
     writeFileSync(path.join(evidence, `${name}.log`), `exit=${child.status}\n${child.stdout ?? ''}\n${child.stderr ?? ''}`);
     return child;
   };
+  const offline = ['--offline', '--cache-dir', cache, '--linker=hoisted', '--ignore-scripts'];
+  const missingFromCache = child => [...`${child.stderr ?? ''}`.matchAll(/--offline: "([^"]+)" is not in the cache/g)].map(match => match[1]);
+  const readLock = folder => Bun.JSONC.parse(readFileSync(path.join(folder, 'bun.lock'), 'utf8')).packages ?? {};
   try {
-    const packed = run('pack', process.execPath, [npmCli, 'pack', root, '--offline', '--ignore-scripts', '--json', '--pack-destination', evidence]);
+    const packed = run('pack', process.execPath, ['pm', 'pack', '--ignore-scripts', '--quiet', '--destination', evidence], {cwd: root});
     if (packed.error || packed.status !== 0) {result.reason = 'local-pack-failed'; return result;}
-    const info = JSON.parse(packed.stdout);
-    if (info.length !== 1 || path.basename(info[0].filename) !== info[0].filename) throw new Error('Invalid package filename');
-    const tarball = path.join(evidence, info[0].filename);
-    result.package_sha256 = createHash('sha256').update(readFileSync(tarball)).digest('hex');
+    const tarball = packed.stdout.trim();
+    if (path.dirname(tarball) !== evidence || !tarball.endsWith('.tgz') || !existsSync(tarball)) throw new Error('Invalid package filename');
+    const tarballBytes = readFileSync(tarball);
+    result.package_sha256 = createHash('sha256').update(tarballBytes).digest('hex');
     const prefix = path.join(scratch, 'install');
-    // Bootstrap the exact peer and runtime dependency trees with npm ci: a tarball
-    // cache does not imply registry packuments are cached. Only lock entries
-    // reachable from those roots are kept, so dev-only test tooling never enters
-    // the install. No host dependency copy or junction, registry re-resolution, or repacked peer is used.
-    const sourceLock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-    const peerPin = sourceLock.packages?.['node_modules/@earendil-works/pi-coding-agent'];
-    if (peerPin?.version !== PI_VERSION ||
-        peerPin.resolved !== `https://registry.npmjs.org/@earendil-works/pi-coding-agent/-/pi-coding-agent-${PI_VERSION}.tgz` ||
-        !/^sha512-[A-Za-z0-9+/]+=*$/.test(peerPin.integrity ?? '')) throw new Error('Invalid pinned peer artifact');
+    // Bootstrap the exact peer and runtime dependency trees from the source bun.lock: a frozen lock needs no
+    // registry metadata, only cached tarballs. Only lock entries reachable from those roots are kept, so dev-only
+    // test tooling never enters the install. No host dependency copy or junction, registry re-resolution, or
+    // repacked peer is used.
+    const sourceLock = Bun.JSONC.parse(readFileSync(path.join(root, 'bun.lock'), 'utf8'));
+    const peerPin = sourceLock.packages?.['@earendil-works/pi-coding-agent'];
+    if (peerPin?.[0] !== `@earendil-works/pi-coding-agent@${PI_VERSION}` || peerPin[1] !== '' ||
+        !/^sha512-[A-Za-z0-9+/]+=*$/.test(peerPin[3] ?? '')) throw new Error('Invalid pinned peer artifact');
     mkdirSync(prefix);
     const {dependencies = {}} = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
     const bootstrap = {name: 'apex-windows-install-smoke', version: '0.0.0', private: true,
       dependencies, devDependencies: {'@earendil-works/pi-coding-agent': PI_VERSION}};
     writeFileSync(path.join(prefix, 'package.json'), JSON.stringify(bootstrap));
-    const packages = {'': bootstrap};
+    const packages = {};
     for (const key of lockSubtree(sourceLock.packages, ['@earendil-works/pi-coding-agent', ...Object.keys(dependencies)])) packages[key] = sourceLock.packages[key];
-    writeFileSync(path.join(prefix, 'package-lock.json'), JSON.stringify({...sourceLock, name: bootstrap.name, packages}));
-    const peerInstall = run('peer-ci', process.execPath, [npmCli, 'ci', '--prefix', prefix, '--offline', '--ignore-scripts', '--no-audit', '--no-fund']);
-    if (peerInstall.error || peerInstall.status !== 0) {result.reason = 'offline-peer-bootstrap-unavailable; inspect peer-ci.log'; return result;}
-    const installed = run('install', process.execPath, [npmCli, 'install', '--prefix', prefix, '--offline', '--ignore-scripts',
-      '--no-audit', '--no-fund', '--save-exact', '--legacy-peer-deps', tarball]);
-    if (installed.error || installed.status !== 0) {result.reason = 'offline-install-unavailable; inspect install.log, no online fallback attempted'; return result;}
+    writeFileSync(path.join(prefix, 'bun.lock'), JSON.stringify({lockfileVersion: sourceLock.lockfileVersion,
+      configVersion: sourceLock.configVersion, workspaces: {'': {name: bootstrap.name, dependencies,
+        devDependencies: bootstrap.devDependencies}}, packages}, null, 2));
+    const peerInstall = run('peer-install', process.execPath, ['install', '--frozen-lockfile', ...offline], {cwd: prefix});
+    if (peerInstall.error || peerInstall.status !== 0) {
+      result.reason = 'offline-peer-bootstrap-unavailable; inspect peer-install.log, no online fallback attempted';
+      result.missing_from_bun_cache = missingFromCache(peerInstall);
+      return result;
+    }
+    const installed = run('install', process.execPath, ['add', '--exact', ...offline, tarball], {cwd: prefix});
+    if (installed.error || installed.status !== 0) {
+      result.reason = 'offline-install-unavailable; inspect install.log, no online fallback attempted';
+      result.missing_from_bun_cache = missingFromCache(installed);
+      return result;
+    }
     result.status = 'FAIL';
     const packageRoot = path.join(prefix, 'node_modules', '@apex-agent', 'pi');
     const peerRoot = path.join(prefix, 'node_modules', '@earendil-works', 'pi-coding-agent');
-    result.checks.real_package_install = !lstatSync(packageRoot).isSymbolicLink();
-    const installedPeerPin = JSON.parse(readFileSync(path.join(prefix, 'package-lock.json'), 'utf8'))
-      .packages?.['node_modules/@earendil-works/pi-coding-agent'];
+    const installedLock = readLock(prefix);
+    result.checks.real_package_install = !lstatSync(packageRoot).isSymbolicLink() &&
+      installedLock['@apex-agent/pi']?.at(-1) === `sha512-${createHash('sha512').update(tarballBytes).digest('base64')}`;
     result.checks.real_pinned_peer = !lstatSync(peerRoot).isSymbolicLink() &&
       JSON.parse(readFileSync(path.join(peerRoot, 'package.json'), 'utf8')).version === PI_VERSION &&
-      installedPeerPin?.integrity === peerPin.integrity;
+      installedLock['@earendil-works/pi-coding-agent']?.at(-1) === peerPin[3];
     if (!result.checks.real_package_install || !result.checks.real_pinned_peer) throw new Error('Installed package/peer verification failed');
     const bin = path.join(prefix, 'node_modules', '.bin');
+    // Bun's Windows bin shim: apex.exe plus apex.bunx (UTF-16LE: bin path relative to node_modules, then the
+    // shebang program). The shim resolves `bun` from PATH, so the runtime directory follows the bin folder.
     env.PATH = [bin, path.dirname(process.execPath), env.PATH].join(path.delimiter);
-    for (const suffix of ['.ps1', '.cmd']) writeFileSync(path.join(evidence, `npm-apex${suffix}.txt`), readFileSync(path.join(bin, `apex${suffix}`)));
+    const shim = readFileSync(path.join(bin, 'apex.bunx')).toString('utf16le');
+    writeFileSync(path.join(evidence, 'bun-apex.bunx.txt'), shim);
+    result.checks.bun_shim_targets_packaged_bin = existsSync(path.join(bin, 'apex.exe')) &&
+      shim.startsWith('@apex-agent\\pi\\bin\\apex"\0bun ');
     const powershell = path.join(env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     run('powershell-command-diagnostic', powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
-      'Write-Output "native-powershell-started"; Get-Command apex,node.exe | Select-Object Name,CommandType,Source | ConvertTo-Json -Compress']);
+      'Write-Output "native-powershell-started"; Get-Command apex,bun.exe | Select-Object Name,CommandType,Source | ConvertTo-Json -Compress']);
     const help = run('powershell-shim', powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '& apex --apex-help; exit $LASTEXITCODE']);
     result.checks.powershell_apex_command = help.status === 0 && help.stdout.includes('--apex-target windows');
+    const cmd = path.join(env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe');
+    const cmdHelp = run('cmd-shim', cmd, ['/d', '/s', '/c', 'apex --apex-help']);
+    result.checks.cmd_apex_command = cmdHelp.status === 0 && cmdHelp.stdout.includes('--apex-target windows');
     const bash = fixtureShellPath();
     const bashHelp = bash && run('bash-shim', bash, ['--noprofile', '--norc', '-c', 'apex --apex-help']);
     result.checks.git_bash_apex_command = bashHelp?.status === 0 && bashHelp.stdout.includes('--apex-target windows');

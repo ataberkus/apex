@@ -14,7 +14,7 @@ from evals.analysis.metrics import summarize_runs
 from evals.harbor.datasets import load_dataset_manifest
 
 RUNTIME_DIRS = ('bin', 'lib', 'extensions', 'prompts', 'skills', 'templates')
-RUNTIME_FILES = ('package.json', 'package-lock.json')
+RUNTIME_FILES = ('package.json', 'bun.lock')
 MAX_FILE_BYTES = 16 * 1024 * 1024
 MAX_TRACE_BYTES = 32 * 1024 * 1024
 MAX_TOTAL_BYTES = 512 * 1024 * 1024

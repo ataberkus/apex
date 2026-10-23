@@ -80,8 +80,8 @@ function boundedLine(line, budget) {
 function commandMode(event) {
   const command = String(event.input?.command ?? '');
   if (/\bgit\s+(?:diff|show|log)\b/.test(command)) return 'diff';
-  if (/\b(?:pytest|vitest|jest|mocha|unittest)\b|\b(?:npm|pnpm|yarn|cargo|go)\s+(?:run\s+)?test\b|--test\b/.test(command)) return 'test';
-  if (/\b(?:npm|pnpm|yarn|pip|pip3|uv|apt|apt-get)\s+(?:install|ci|add|sync)\b/.test(command)) return 'package';
+  if (/\b(?:pytest|vitest|jest|mocha|unittest)\b|\b(?:npm|pnpm|yarn|bun|cargo|go)\s+(?:run\s+)?test\b|--test\b/.test(command)) return 'test';
+  if (/\b(?:npm|pnpm|yarn|bun|pip|pip3|uv|apt|apt-get)\s+(?:install|ci|add|sync)\b/.test(command)) return 'package';
   if (/\b(?:tsc|gcc|g\+\+|clang|rustc|eslint|ruff|pyright|mypy)\b/.test(command)) return 'diagnostic';
   return 'generic';
 }

@@ -7,11 +7,10 @@ import net from 'node:net';
 import tls from 'node:tls';
 import dns from 'node:dns';
 import dgram from 'node:dgram';
-import {syncBuiltinESMExports} from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
+import {denyBunNetwork, environmentNamesAllowed, fixtureEnvironment, fixtureShellPath, LIVE_BUILTINS, liveBuiltinsLoaded, PINNED_PI_VERSION, WINDOWS_FIXTURE_ENV} from './micro-session.mjs';
 
 // Importing this gate loads only Node builtins. SDK, factories, fixtures and
 // processes exist only inside a bounded, deliberately offline child run.
@@ -19,8 +18,10 @@ const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
+// Bun keeps its transpiler cache under HOME, the fixture on Windows; children disable it so the runtime never fills
+// the fixture (BUN_RUNTIME_TRANSPILER_CACHE_PATH=0).
 const permittedEnv = ['PATH', 'SystemRoot', 'WINDIR', 'LANG', 'LC_ALL', 'PI_OFFLINE', 'PI_CODING_AGENT_DIR',
-  ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
+  'BUN_RUNTIME_TRANSPILER_CACHE_PATH', ...(process.platform === 'win32' ? WINDOWS_FIXTURE_ENV : [])];
 const counters = () => ({network: 0, auth: 0, inference: 0, credentials: 0});
 const textOf = result => (result?.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('\n');
 const allZero = value => Object.values(value).every(count => count === 0);
@@ -35,7 +36,7 @@ function denyExternal(calls) {
   net.connect = net.createConnection = net.Socket.prototype.connect = tls.connect = deny;
   dns.lookup = dns.resolve = dns.resolve4 = dns.resolve6 = dns.reverse = deny;
   dgram.createSocket = deny;
-  syncBuiltinESMExports();
+  denyBunNetwork(deny);
 }
 
 function denyAmbientDiscovery(fixture, discovery) {
@@ -58,7 +59,6 @@ function denyAmbientDiscovery(fixture, discovery) {
       owner[name] = (file, ...args) => {guard(file); return original(file, ...args);};
     }
   }
-  syncBuiltinESMExports();
 }
 
 async function offlineRuntime(pi, calls, observed) {
@@ -246,8 +246,14 @@ async function mainFixture(pi, spec, shared, observed) {
       entry.type === 'custom_message' && entry.customType === 'apex-initial-context').length === 1;
     for (let index = 0; index < 5; index++) await turn(`Script-seeded orientation turn ${index}.`);
     observed.stage = 'contracts';
+    // Recognized Bun verification: `bun test` on a fixture test that imports the module, so a missing or invalid
+    // module fails. The tests are fixture scaffolding written directly, never tool mutations.
+    const fixtureTest = name => `import {expect, test} from 'bun:test';\nimport * as module from './${name}.mjs';\n` +
+      `test('${name} module exports', () => expect(Object.keys(module)).toEqual(['${name}']));\n`;
+    await writeFile(path.join(spec.fixture, 'fixture.test.mjs'), fixtureTest('fixture'));
+    await writeFile(path.join(spec.fixture, 'nested.test.mjs'), fixtureTest('nested'));
     const contract = await execute('contract', {action: 'set', criteria: [
-      {id: 'R1', requirement: 'Create a valid local fixture module.', check: 'node --check fixture.mjs',
+      {id: 'R1', requirement: 'Create a valid local fixture module.', check: 'bun test ./fixture.test.mjs',
         artifact: {path: 'fixture.mjs', format: 'text', contains: 'export const fixture'}},
       {id: 'R2', requirement: 'Report the local check outcome.', check: 'Manual fixture reporting criterion.'},
     ]});
@@ -273,7 +279,7 @@ async function mainFixture(pi, spec, shared, observed) {
       /offline|policy/i.test(automaticExtraction.reason) &&
       maxBlocked && maxSideEffects === 0 && allZero(shared.calls);
     observed.stage = 'verification_gate';
-    const beforeWriteCheck = await execute('bash', {command: 'node --check fixture.mjs'}, {allowError: true});
+    const beforeWriteCheck = await execute('bash', {command: 'bun test ./fixture.test.mjs'}, {allowError: true});
     await execute('write', {path: 'fixture.mjs', content: 'export const fixture = "native";\n'});
     const forced = [];
     let initiallyRunnable;
@@ -286,12 +292,12 @@ async function mainFixture(pi, spec, shared, observed) {
     // A new user run restores the gate budget and discards the earlier failure.
     await start(task);
     await execute('contract', {action: 'set', criteria: [{id: 'R1', requirement: 'Create a valid local fixture module.',
-      check: 'node --check fixture.mjs', artifact: {path: 'fixture.mjs', format: 'text', contains: 'export const fixture'}}]});
+      check: 'bun test ./fixture.test.mjs', artifact: {path: 'fixture.mjs', format: 'text', contains: 'export const fixture'}}]});
     await execute('todo', {action: 'done', id: 'R1'});
     await execute('write', {path: 'fixture.mjs', content: 'export const fixture = "after";\n'});
     await turn('Script-seeded final assistant after mutation.');
     const staleContinuation = await session._runBeforeSettleBoundary();
-    const verification = await execute('bash', {command: 'node --check fixture.mjs'});
+    const verification = await execute('bash', {command: 'bun test ./fixture.test.mjs'});
     await turn('Script-seeded final assistant after successful verification.');
     const verifiedContinuation = await session._runBeforeSettleBoundary();
     checks.native_verification_after_mutation = beforeWriteCheck.isError === true && staleContinuation === true &&
@@ -301,7 +307,7 @@ async function mainFixture(pi, spec, shared, observed) {
       (await readFile(path.join(spec.fixture, 'fixture.mjs'), 'utf8')).includes('export const fixture');
     observed.stage = 'nested_native_tools';
     const nestedCode = 'await tools.write({path:"nested.mjs",content:"export const nested = true;\\n"}); ' +
-      'const result = await tools.bash({command:"node --check nested.mjs"}); return "native-nested-exit=" + result.exit_code;';
+      'const result = await tools.bash({command:"bun test ./nested.test.mjs"}); return "native-nested-exit=" + result.exit_code;';
     const nestedResult = await execute('codemode', {code: nestedCode});
     const nestedParentId = manager.getBranch().findLast(entry => entry.type === 'message' && entry.message.role === 'toolResult')?.message.toolCallId;
     const nestedRecord = session._nestedToolCalls?.takeRecord(nestedParentId);
@@ -407,6 +413,9 @@ async function backgroundFixture(pi, spec, shared) {
 async function childMain(spec) {
   const calls = counters(), discovery = {attempts: 0};
   const observed = {stage: 'guards', suppressed_local_refreshes: 0};
+  // Without live builtins the fs guard would miss Pi's own reads and the gate could pass vacuously.
+  if (!liveBuiltinsLoaded()) return {failure: 'live_builtins_unavailable', failure_stage: observed.stage,
+    attempted_calls: calls, resource_discovery_attempts: 0};
   denyExternal(calls);
   denyAmbientDiscovery(spec.fixture, discovery);
   const environmentSanitized = process.env.PI_OFFLINE === '1' &&
@@ -437,10 +446,11 @@ async function childMain(spec) {
 }
 
 async function runChild(spec) {
-  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent')};
+  const env = {...fixtureEnvironment(permittedEnv, spec.fixture), PI_OFFLINE: '1', PI_CODING_AGENT_DIR: path.join(spec.fixture, 'agent'),
+    BUN_RUNTIME_TRANSPILER_CACHE_PATH: '0'};
   env.PATH = [path.dirname(process.execPath), path.join(root, '.tools/bin'), env.PATH].filter(Boolean).join(path.delimiter);
   return new Promise(resolve => {
-    const child = spawn(process.execPath, [script, '--phase2-micro-child', JSON.stringify(spec)],
+    const child = spawn(process.execPath, ['--preload', LIVE_BUILTINS, script, '--phase2-micro-child', JSON.stringify(spec)],
       {cwd: spec.fixture, env, shell: false, stdio: ['ignore', 'pipe', 'pipe']});
     let stdout = '', totalBytes = 0, exceeded = false;
     const timer = setTimeout(() => child.kill('SIGKILL'), 25000);

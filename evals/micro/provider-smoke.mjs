@@ -15,7 +15,7 @@ const MAX_OUTPUT_TOKENS = 6144;
 const PROTOCOL_TOKENS_PER_REQUEST = 4096;
 const TOTAL_TIMEOUT_MS = 120000;
 const TOOL_NAMES = ['read', 'edit', 'write', 'bash'];
-export const VERIFICATION_COMMAND = 'node -e \'const fs=require("node:fs"); const assert=require("node:assert/strict"); ' +
+export const VERIFICATION_COMMAND = 'bun -e \'const fs=require("node:fs"); const assert=require("node:assert/strict"); ' +
   'assert.equal(fs.readFileSync("sample.txt","utf8"),"alpha\\ndelta\\ngamma\\n"); ' +
   'assert.deepEqual(JSON.parse(fs.readFileSync("summary.json","utf8")),{lines:3,second:"delta"}); ' +
   'console.log("APEX_SMOKE_VERIFIED");\'';
@@ -390,7 +390,7 @@ async function main() {
   const {values} = parseArgs({options: {'run-id': {type:'string'}, 'harness-commit': {type:'string'},
     'max-spend-usd': {type:'string'}, 'max-requests': {type:'string'}, 'dry-run': {type:'boolean'}, help: {type:'boolean'}}});
   if (values.help) {
-    console.log('Usage: node evals/micro/provider-smoke.mjs --run-id ID --harness-commit SHA40 --max-spend-usd CAP [--max-requests 4|6] [--dry-run]');
+    console.log('Usage: bun evals/micro/provider-smoke.mjs --run-id ID --harness-commit SHA40 --max-spend-usd CAP [--max-requests 4|6] [--dry-run]');
     return;
   }
   const result = await runProviderSmoke({runId: values['run-id'], harnessCommit: values['harness-commit'],

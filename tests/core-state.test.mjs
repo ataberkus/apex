@@ -150,7 +150,7 @@ test('unverified gate names the checks it accepts so the model need not guess', 
   const response = await state.beforeSettle(boundary());
   assert.equal(response.continue, true);
   const content = response.entries.at(-1).content;
-  for (const accepted of ['npm test', 'node --test', 'pytest', 'tsc --noEmit', 'cargo test', 'go test']) assert.ok(content.includes(accepted), `${accepted} missing from: ${content}`);
+  for (const accepted of ['npm test', 'bun test', 'node --test', 'pytest', 'tsc --noEmit', 'cargo test', 'go test']) assert.ok(content.includes(accepted), `${accepted} missing from: ${content}`);
   assert.match(content, /shell operators/);
   assert.match(content, /ad hoc|node -e/i);
 });

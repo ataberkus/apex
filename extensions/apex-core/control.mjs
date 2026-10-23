@@ -433,9 +433,15 @@ async function findManifest(cwd, file, name) {
   return undefined;
 }
 
+// Bun has no `--check`: the child parses the file with Bun's transpiler, never runs it, and like `node --check` prints
+// the first error as `file:line:column` and `SyntaxError: message`. The path is embedded in the script: `bun -e`
+// would run a trailing file argument.
+const bunSyntaxCheck = file => `const file=${JSON.stringify(file)};try{new Bun.Transpiler({loader:'js'}).transformSync(require('node:fs').readFileSync(file,'utf8'))}`
+  + "catch(error){const item=error.errors?.[0]??error;console.log(file+':'+(item.position?.line??1)+':'+((item.position?.column??0)+1)+'\\nSyntaxError: '+item.message);process.exit(1)}";
+
 function diagnosticErrors(checker, output) {
   let rows;
-  if (checker === 'node') {
+  if (checker === 'bun') {
     const lines = output.split(/\r?\n/);
     const location = lines.find(line => /\.(?:[cm]?js):\d+(?::\d+)?$/.test(line)) ?? 'JavaScript';
     rows = lines.filter(line => /^SyntaxError:/.test(line)).map(line => `${location}: ${line}`);
@@ -492,9 +498,9 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
   const select = async file => {
     const extension = path.extname(file).toLowerCase();
     const relative = path.relative(root, file);
-    const nodeCommand = path.isAbsolute(process.execPath) ? process.execPath : process.env.CODEX_PRIMARY_RUNTIME_NODE ?? process.execPath;
-    if (['.js', '.mjs', '.cjs'].includes(extension) && await available(nodeCommand))
-      return {checker: 'node', command: nodeCommand, args: ['--check', file]};
+    const bunCommand = path.isAbsolute(process.execPath) ? process.execPath : 'bun';
+    if (['.js', '.mjs', '.cjs'].includes(extension) && await available(bunCommand))
+      return {checker: 'bun', command: bunCommand, args: ['-e', bunSyntaxCheck(file)]};
     if (['.ts', '.tsx', '.jsx'].includes(extension) && await available('tsc'))
       return {checker: 'tsc', command: 'tsc', args: ['--noEmit', '--pretty', 'false', '--incremental', 'false', '--skipLibCheck', ...(extension === '.jsx' ? ['--allowJs', '--checkJs'] : []), relative.startsWith('-') ? './' + relative : relative]};
     if (extension === '.py') {

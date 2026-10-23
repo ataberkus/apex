@@ -13,6 +13,8 @@ import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {withWindowsDefaults} from '../lib/windows-target.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
+// The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
+const preload = fixture => ['--preload', fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url)), '--preload', fileURLToPath(fixture)];
 
 function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
   return new Promise((resolve, reject) => {
@@ -97,7 +99,7 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
   await writeFile(join(home, 'dashboard.json'), JSON.stringify({workspaces: []}));
   const port = 48000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
@@ -188,7 +190,7 @@ test('auto-approve answers safety prompts for one session, including waiting one
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-auto-'));
   const port = 49000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);

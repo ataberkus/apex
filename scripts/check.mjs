@@ -9,21 +9,32 @@ import {CORE_FEATURES} from '../extensions/apex-core/config.mjs';
 
 const root = process.cwd();
 const args = process.argv.slice(2);
-if (args.length > 1 || args.some(arg => arg !== '--windows')) throw new Error('Usage: node scripts/check.mjs [--windows]');
+if (args.length > 1 || args.some(arg => arg !== '--windows')) throw new Error('Usage: bun scripts/check.mjs [--windows]');
+if (!process.versions.bun) throw new Error('Run the checks with Bun: bun scripts/check.mjs');
 const windows = args[0] === '--windows';
-if (windows && process.platform !== 'win32') throw new Error('Windows checks require native Windows Node.');
+if (windows && process.platform !== 'win32') throw new Error('Windows checks require native Windows Bun.');
 function sourceFiles(directory) {
   return readdirSync(directory, {withFileTypes: true}).flatMap(entry => {
     const file = path.join(directory, entry.name);
     return entry.isDirectory() ? sourceFiles(file) : [file];
   });
 }
+// Bun has no `--check`: parsing each file with Bun's transpiler reports the same syntax errors without running it.
+const transpiler = new Bun.Transpiler({loader: 'js'});
+let syntaxErrors = 0;
 for (const file of ['bin/apex', 'dashboard/app.js', ...['lib', 'scripts', 'tests', 'evals', 'evolve', 'extensions', 'skills', 'dashboard'].flatMap(sourceFiles).filter(file => file.endsWith('.mjs'))]) {
-  const result = spawnSync(process.execPath, ['--check', file], {stdio: 'inherit', shell: false});
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  try { transpiler.transformSync(readFileSync(file, 'utf8')); }
+  catch (error) {
+    syntaxErrors++;
+    for (const item of error.errors ?? [error]) console.error(`${file}:${item.position?.line ?? 0}:${item.position?.column ?? 0}: SyntaxError: ${item.message}`);
+  }
 }
+if (syntaxErrors) process.exit(1);
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
 if (manifest.devDependencies['@earendil-works/pi-coding-agent'] !== PI_VERSION) throw new Error('Pi launcher and package pin disagree');
+// bun.lock is JSONC (trailing commas), so it is parsed here rather than with the other JSON in check_python.py.
+const lockedPi = Bun.JSONC.parse(readFileSync('bun.lock', 'utf8')).packages?.['@earendil-works/pi-coding-agent']?.[0];
+if (lockedPi !== `@earendil-works/pi-coding-agent@${PI_VERSION}`) throw new Error('Pi launcher and bun.lock pin disagree');
 resolvePi();
 const ablations=JSON.parse(readFileSync('evals/phase1-ablations.json','utf8'));
 if (JSON.stringify(ablations.features.map(row=>row.flag))!==JSON.stringify(CONTEXT_FEATURES) ||

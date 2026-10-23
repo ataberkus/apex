@@ -1,10 +1,11 @@
 import {rmSync} from 'node:fs';
 import path from 'node:path';
-import {gitRepo, hiddenTests, npm, pathURL, read, unchanged, verdict, writeTree} from '../lib.mjs';
+import {gitRepo, hiddenTests, literalChars, npm, pathURL, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
 // Fixture sources are String.raw templates: they never contain a backtick or "${". In docs, ¤ stands for a backtick.
-const js = String.raw;
-const md = text => text.replaceAll('¤', '`');
+// literalChars keeps their non-ASCII characters literal under Bun.
+const js = (strings, ...values) => literalChars(String.raw(strings, ...values), '£¥€àéÜßïö');
+const md = text => literalChars(text, '¤£¥€→').replaceAll('¤', '`');
 
 const README = md(String.raw`# pressdoc
 

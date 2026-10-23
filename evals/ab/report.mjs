@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /** Summarize runs/ab/<run-id>/results.jsonl: per-arm totals and, for every pair of arms, paired per-task deltas with bootstrap CIs over tasks. */
 import {readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
@@ -112,6 +112,6 @@ export function report(runDir) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const dir = process.argv[2];
-  if (!dir) { console.error('usage: node evals/ab/report.mjs runs/ab/<run-id>'); process.exitCode = 2; }
+  if (!dir) { console.error('usage: bun evals/ab/report.mjs runs/ab/<run-id>'); process.exitCode = 2; }
   else console.log(report(path.resolve(dir)).markdown);
 }

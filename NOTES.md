@@ -6,7 +6,7 @@ Audited 2026-10-01. Phase 0 research and offline measuring tools are prepared; r
 
 | Component | Pin |
 |---|---|
-| Pi npm package | @earendil-works/pi-coding-agent 1.3.0 (was 0.99.2 for the phase records below); package-lock.json pins it and every transitive dependency by integrity |
+| Pi npm package | @earendil-works/pi-coding-agent 1.3.0 (was 0.99.2 for the phase records below); bun.lock pins it and every transitive dependency by integrity |
 | Audited Pi source | v1.3.0 tag 71023aec1546d6d677a65669c5665c0927ce0dd0 (the earlier audit used unreleased 8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d, 17 commits after the v0.99.2 tag 005af57d) |
 | Harbor runtime | git source 99218a4611e3bd76e49ce3b5f977e8c8134ad3ac; version label 0.23.0 |
 | Reference adapter, research only | badlogic/pi-terminal-bench 0074c915dc7d8ceeba5f61b19e7b9aa078564fa3 |
@@ -24,7 +24,7 @@ Phase sections below record the 0.99.2 contracts their evidence was gathered aga
 - `emitBeforeAgentStart(trigger, options)` and `_prepareRun` (live loadout wins unless a handler edits `selectedTools`) changed; the offline micro harnesses mirror the new sequence and record tool declarations like the agent loop.
 - `ToolLoadout.getPromptGuidelines`, `systemPromptOptions.hiddenTools`, `agent_settled.aborted`, `tool_execution_end.durationMs` and `ToolInfo.reachesTools` are additive.
 - Eval-visible behaviour shifts that invalidate 0.99.2 baselines rather than break Apex: compaction serialization and cross-model switches drop thinking, codemode's prompt is shorter, the TUI defaults to fullscreen.
-- Pi no longer ships npm-shrinkwrap.json; only this repository's lockfile pins its third-party dependencies. Harbor's in-container `npm install -g` of Pi is not lock-pinned.
+- Pi no longer ships npm-shrinkwrap.json; only this repository's lockfile pins its third-party dependencies. Harbor's in-container `npm install -g` of stock Pi is not lock-pinned, and neither is the Apex adapter's install (Bun 1.4.3 from the official installer pinned to `bun-v1.4.3`, then `bun add --global --exact --ignore-scripts` of the exact Pi 1.3.0 peer and the Apex tarball).
 
 Full exact event/result declarations, 41 pi.on signatures, requested document/source/example reviews, prompt contracts, and source lines are in [the Pi API appendix](research/pi-api-notes.md). These include re-exported cache-warming declarations and upstream MIT attribution. [Harbor notes](research/harbor-notes.md) preserve exact installed-agent contracts, CLI/dataset evidence and source/release differences. [Pricing notes](research/pricing-notes.md) cite official rates and exact API IDs.
 

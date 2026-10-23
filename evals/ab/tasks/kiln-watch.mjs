@@ -1,4 +1,4 @@
-import {gitRepo, hiddenTests, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
+import {gitRepo, hiddenTests, literalChars, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
 // Markdown with code spans: '~' stands for a backtick so the docs can live in template literals.
 const md = text => text.replaceAll('~', '\x60');
@@ -594,7 +594,8 @@ test('rebuilds compile only what changed', () => {
 });
 `;
 
-const VISIBLE_FS = String.raw`import test from 'node:test';
+// literalChars keeps the fixture's non-ASCII characters literal under Bun.
+const VISIBLE_FS = literalChars(String.raw`import test from 'node:test';
 import assert from 'node:assert/strict';
 import {manualClock, MemoryFs} from '../src/index.js';
 
@@ -611,7 +612,7 @@ test('mtimes have whole seconds', () => {
   fs.deleteFile('a.txt');
   assert.equal(fs.stat('a.txt'), null);
 });
-`;
+`, 'é');
 
 const files = {
   'package.json': PKG,

@@ -5,11 +5,15 @@ import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, readFile, rm, stat, chmod, readdir, link } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createCheckpointManager } from '../extensions/apex-features/checkpoints.mjs';
 import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
 
 const exec = promisify(execFile);
-const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'CODEX_PRIMARY_RUNTIME_NODE'].filter(k => process.env[k] !== undefined).map(k => [k, process.env[k]]));
+const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(k => process.env[k] !== undefined).map(k => [k, process.env[k]]));
+// Child fixtures patch builtin module objects; live-builtins makes the checkpoint module's named imports see them.
+const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+const childEnv = fixtureArgs => ({ ...env, PI_OFFLINE: '1', npm_config_offline: 'true', npm_config_registry: 'http://127.0.0.1', CHECKPOINT_FIXTURE: JSON.stringify(fixtureArgs) });
 const gitEnv = { ...env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' };
 const git = (cwd, args) => exec('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Checkpoint fixture', '-c', 'user.email=fixture@localhost', '-c', 'commit.gpgsign=false', ...args], { cwd, env: gitEnv });
 const runGitCommand = (args, opts) => { const execution = exec('git', args, opts); execution.child.stdin.on('error', () => {}); execution.child.stdin.end(opts.input); return execution; };
@@ -493,11 +497,10 @@ test('regular source/manifest replaced by FIFO after lstat refuses promptly at d
   const moduleURL = new URL('../extensions/apex-features/checkpoints.mjs', import.meta.url).href;
   const script = `
     import fs from 'node:fs';
-    import { syncBuiltinESMExports } from 'node:module';
     import { execFileSync } from 'node:child_process';
     import path from 'node:path';
     import { createHash } from 'node:crypto';
-    const [cwd, moduleURL, mode] = process.argv.slice(1);
+    const [cwd, moduleURL, mode] = JSON.parse(process.env.CHECKPOINT_FIXTURE);
     const sessionKey = createHash('sha256').update('session-a').digest('hex');
     const target = mode === 'source' ? path.join(cwd, 'tracked.txt') : path.join(cwd, '.apex/checkpoints', sessionKey, 'state.json');
     const original = fs.promises.lstat;
@@ -511,7 +514,6 @@ test('regular source/manifest replaced by FIFO after lstat refuses promptly at d
       }
       return info;
     };
-    syncBuiltinESMExports();
     const { createCheckpointManager } = await import(moduleURL);
     const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });
     try {
@@ -525,7 +527,7 @@ test('regular source/manifest replaced by FIFO after lstat refuses promptly at d
   for (const mode of ['source', 'manifest']) {
     const { cwd, manager } = await fixture(t);
     if (mode === 'manifest') await manager.capture('prepared');
-    const result = await exec(process.execPath, ['--input-type=module', '-e', script, cwd, moduleURL, mode], { env: { ...env, PI_OFFLINE: '1', npm_config_offline: 'true', npm_config_registry: 'http://127.0.0.1' }, timeout: 3000, maxBuffer: 4096 });
+    const result = await exec(process.execPath, ['--preload', liveBuiltins, '--input-type=module', '-e', script], { env: childEnv([cwd, moduleURL, mode]), timeout: 3000, maxBuffer: 4096 });
     const refusal = JSON.parse(result.stdout);
     assert.equal(refusal.replaced, true);
     assert.match(refusal.message, /regular|type|unsafe/i);
@@ -538,10 +540,9 @@ for (const mode of ['source', 'manifest']) test(`${mode} regular-file growth aft
   const moduleURL = new URL('../extensions/apex-features/checkpoints.mjs', import.meta.url).href;
   const script = `
     import fs from 'node:fs';
-    import { syncBuiltinESMExports } from 'node:module';
     import path from 'node:path';
     import { createHash } from 'node:crypto';
-    const [cwd, moduleURL, mode] = process.argv.slice(1);
+    const [cwd, moduleURL, mode] = JSON.parse(process.env.CHECKPOINT_FIXTURE);
     const sessionKey = createHash('sha256').update('session-a').digest('hex');
     const target = mode === 'source' ? path.join(cwd, 'tracked.txt') : path.join(cwd, '.apex/checkpoints', sessionKey, 'state.json');
     const cap = mode === 'source' ? 128 : 4096;
@@ -571,7 +572,6 @@ for (const mode of ['source', 'manifest']) test(`${mode} regular-file growth aft
       };
       return handle;
     };
-    syncBuiltinESMExports();
     const { createCheckpointManager } = await import(moduleURL);
     const reader = createCheckpointManager({ cwd, sessionId: 'session-a', limits: { maxFileBytes: 128, maxMetadataBytes: 4096 } });
     try {
@@ -583,7 +583,7 @@ for (const mode of ['source', 'manifest']) test(`${mode} regular-file growth aft
       if (!grown || unbounded || !maxBuffer || maxBuffer > bound || maxChunk > 128 * 1024 || totalRead > bound || !['conflict', 'metadata'].includes(error.code)) process.exitCode = 1;
     }
   `;
-  const result = await exec(process.execPath, ['--input-type=module', '-e', script, cwd, moduleURL, mode], { env: { ...env, PI_OFFLINE: '1', npm_config_offline: 'true', npm_config_registry: 'http://127.0.0.1' }, timeout: 3000, maxBuffer: 4096 });
+  const result = await exec(process.execPath, ['--preload', liveBuiltins, '--input-type=module', '-e', script], { env: childEnv([cwd, moduleURL, mode]), timeout: 3000, maxBuffer: 4096 });
   const read = JSON.parse(result.stdout);
   assert.equal(read.grown, true);
   assert.equal(read.unbounded, false);

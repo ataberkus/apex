@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Freeze this Apex working tree into NEW_DEST so a long A/B run (`run.mjs --apex-root NEW_DEST`) is unaffected by
  * later edits. Copies tracked and untracked non-ignored files, links node_modules (so dependency changes still
  * reach the snapshot), and writes apex-snapshot.json (HEAD, tree hash) and apex-snapshot.patch beside them.
  *
- *   node evals/ab/snapshot.mjs NEW_DEST
+ *   bun evals/ab/snapshot.mjs NEW_DEST
  */
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -14,7 +14,7 @@ import {fileURLToPath} from 'node:url';
 
 const source = fileURLToPath(new URL('../..', import.meta.url));
 const dest = process.argv[2] && path.resolve(process.argv[2]);
-if (!dest || existsSync(dest)) throw Error('usage: node evals/ab/snapshot.mjs NEW_DEST (must not exist)');
+if (!dest || existsSync(dest)) throw Error('usage: bun evals/ab/snapshot.mjs NEW_DEST (must not exist)');
 const git = (...args) => spawnSync('git', args, {cwd: source, encoding: 'utf8', maxBuffer: 1 << 28});
 const listed = flags => git('ls-files', ...flags, '--exclude-standard', '-z').stdout.split('\0')
   .filter(file => file && !file.startsWith('.claude/') && existsSync(path.join(source, file))).sort();

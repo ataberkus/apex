@@ -28,7 +28,7 @@ from .sources import build_rules, export_feedback, export_history
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = 'openrouter/meta/muse-spark-1.3-contributor'
 HARBOR_COMMIT = '99218a4611e3bd76e49ce3b5f977e8c8134ad3ac'
-RUNTIME = ('bin', 'lib', 'extensions', 'prompts', 'skills', 'templates', 'package.json', 'package-lock.json')
+RUNTIME = ('bin', 'lib', 'extensions', 'prompts', 'skills', 'templates', 'package.json', 'bun.lock')
 MAX_JSON = 32 * 1024 * 1024
 
 
@@ -327,8 +327,7 @@ def decide(campaign, candidate_records, *, leaderboard=None):
 def environment():
     names = ('PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP', 'COMSPEC', 'PATHEXT')
     value = {key: os.environ[key] for key in names if key in os.environ}
-    value.update(PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1', PYTHONIOENCODING='utf8', PI_OFFLINE='1',
-                 npm_config_offline='true', npm_config_audit='false', npm_config_fund='false', npm_config_update_notifier='false')
+    value.update(PYTHONDONTWRITEBYTECODE='1', PYTHONNOUSERSITE='1', PYTHONIOENCODING='utf8', PI_OFFLINE='1')
     return value
 
 
@@ -431,7 +430,7 @@ def execution_plan(campaign, *, config, evolution_config, ledger, estimate_usd, 
             blockers.append('installed Harbor source pin differs')
     except (importlib.metadata.PackageNotFoundError, ValueError):
         blockers.append('source-pinned Harbor is not installed')
-    for command in ('docker', 'node', 'git'):
+    for command in ('docker', 'bun', 'git'):
         if not shutil.which(command):
             blockers.append('required local executable unavailable: ' + command)
     return {'status': 'blocked' if blockers else 'ready', 'blockers': blockers, 'executed': False,
@@ -588,7 +587,7 @@ def run_iterations(campaign, *, config, evolution_config, ledger, estimate_usd, 
                     mounts = _mount(campaign / 'corpus', '/corpus') + _mount(output, '/output', True)
                     mounts += _mount(work / 'authorization.json', '/authorization.json') + _mount(ROOT / 'evolve' / 'proposer.mjs', '/opt/apex/evolve/proposer.mjs')
                     try:
-                        _container(prefix, limits['image'], mounts, ['node', 'evolve/proposer.mjs', '/authorization.json', '/corpus', '/output'],
+                        _container(prefix, limits['image'], mounts, ['bun', 'evolve/proposer.mjs', '/authorization.json', '/corpus', '/output'],
                                    log=campaign / (run_id + '-proposer.log'), env=env, credential=True, offline=False)
                         entry = import_proposal(campaign, output / 'proposal.json')
                         directory = campaign / 'iterations' / f"{entry['number']:03d}"
@@ -601,18 +600,18 @@ def run_iterations(campaign, *, config, evolution_config, ledger, estimate_usd, 
                 evidence.mkdir(mode=0o700)
                 mounts = _mount(evidence, '/opt/apex/validation', True)
                 for name in RUNTIME:
-                    if name not in ('package.json', 'package-lock.json'):
+                    if name not in ('package.json', 'bun.lock'):
                         (candidate / name).mkdir(exist_ok=True)
                     if (candidate / name).exists():
                         mounts += _mount(candidate / name, '/opt/apex/' + name)
                 # Trusted image owns immutable tests/evaluator. Candidate code never executes on the host.
                 try:
                     for script in ('check', 'test', 'micro'):
-                        _container(prefix, limits['image'], mounts, ['node', f'scripts/{script}.mjs'], log=directory / f'{script}.log', writable_root=True)
+                        _container(prefix, limits['image'], mounts, ['bun', f'scripts/{script}.mjs'], log=directory / f'{script}.log', writable_root=True)
                     package_dir = directory / 'package'
                     package_dir.mkdir(mode=0o700)
                     _container(prefix, limits['image'], mounts + _mount(package_dir, '/package', True),
-                               ['npm', 'pack', '--ignore-scripts', '--offline', '--json', '--pack-destination', '/package'], log=directory / 'pack.log')
+                               ['bun', 'pm', 'pack', '--ignore-scripts', '--destination', '/package'], log=directory / 'pack.log')
                     packages = list(package_dir.glob('*.tgz'))
                     if len(packages) != 1:
                         raise ValueError('exactly one candidate package required')

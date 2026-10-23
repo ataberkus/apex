@@ -89,7 +89,7 @@ function request(info, token, route, method = 'GET') {
 async function toolHost(spec) {
   const {createBashTool} = await import('@earendil-works/pi-coding-agent');
   const tool = createBashTool(spec.fixture, {shellPath: spec.bash, exposeSessionEnvironment: false});
-  const command = `${quote(spec.setsid)} ${quote(spec.nohup)} ${quote(spec.node)} server.mjs ${quote(spec.token)} < /dev/null > server.log 2>&1 &\nprintf '%s\\n' "$!" > launch.pid`;
+  const command = `${quote(spec.setsid)} ${quote(spec.nohup)} ${quote(spec.runtime)} server.mjs ${quote(spec.token)} < /dev/null > server.log 2>&1 &\nprintf '%s\\n' "$!" > launch.pid`;
   const result = await tool.execute('phase0-process-micro', {command, timeout: 2}, undefined, undefined);
   await writeFile(path.join(spec.fixture, 'host.json'), JSON.stringify({
     environment_sanitized: Object.keys(process.env).every(name => allowedHostEnv.includes(name)),
@@ -97,7 +97,7 @@ async function toolHost(spec) {
     native_bash_is_error: result.isError === true,
   }));
   if (result.isError || result.structuredContent?.exit_code !== 0) process.exitCode = 1;
-  // Natural Node exit proves that neither the native tool nor service holds the host open.
+  // Natural runtime exit proves that neither the native tool nor service holds the host open.
 }
 
 function waitHost(child) {
@@ -164,12 +164,13 @@ export async function runProcessMicro() {
   const skip = reason => ({...artifact, status: 'SKIP', skip_reason: reason,
     elapsed_ms: Date.now() - started});
   if (process.platform !== 'linux') return skip('requires Linux setsid and nohup');
-  const node = await executable(path.isAbsolute(process.execPath) ? [process.execPath] :
+  // The service and tool host run on the current JavaScript runtime (Bun), never a separately installed Node.
+  const runtime = await executable(path.isAbsolute(process.execPath) ? [process.execPath] :
     (process.env.PATH ?? '').split(path.delimiter).filter(Boolean).map(dir => path.join(dir, process.execPath)));
   const bash = await executable(['/bin/bash', '/usr/bin/bash']);
   const setsid = await executable(['/usr/bin/setsid', '/bin/setsid']);
   const nohup = await executable(['/usr/bin/nohup', '/bin/nohup']);
-  if (!node || !bash || !setsid || !nohup) return skip('required node/bash/setsid/nohup executable missing');
+  if (!runtime || !bash || !setsid || !nohup) return skip('required runtime/bash/setsid/nohup executable missing');
   let piVersion;
   try {
     const entry = fileURLToPath(import.meta.resolve('@earendil-works/pi-coding-agent'));
@@ -184,10 +185,10 @@ export async function runProcessMicro() {
   artifact.fixture = fixture;
   try {
     await writeFile(path.join(fixture, 'server.mjs'), serviceSource);
-    const spec = {fixture, token, node, bash, setsid, nohup};
-    const env = {PATH: `${path.dirname(node)}:/usr/bin:/bin`, HOME: fixture,
+    const spec = {fixture, token, runtime, bash, setsid, nohup};
+    const env = {PATH: `${path.dirname(runtime)}:/usr/bin:/bin`, HOME: fixture,
       TMPDIR: fixture, LANG: 'C', LC_ALL: 'C'};
-    const child = spawn(node, [script, '--tool-host', JSON.stringify(spec)], {
+    const child = spawn(runtime, [script, '--tool-host', JSON.stringify(spec)], {
       cwd: fixture, env, stdio: 'ignore', shell: false,
     });
     artifact.host = {pid: child.pid, ...await waitHost(child)};
@@ -214,7 +215,7 @@ export async function runProcessMicro() {
     artifact.failure = error.code ?? error.message;
   } finally {
     info ??= await waitReady(fixture, 100);
-    // Process launch can precede host exit while detached Node initialization
+    // Process launch can precede host exit while detached runtime initialization
     // starts the lease later. A missing/unreadable endpoint must reserve its
     // full bounded watchdog after the final readiness observation attempt.
     if (!info) watchdogDeadline = Date.now() + serviceWatchdogMs + 250;

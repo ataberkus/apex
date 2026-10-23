@@ -24,8 +24,9 @@ test('authenticated image sending forwards native image blocks, honors live capa
   await mkdir(textOnly);
   const port = 50000 + Math.floor(Math.random() * 5000);
   const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
-  const fixture = new URL('./fixtures/dashboard-images-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, ['--import', fixture, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  // The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
+  const preload = ['--preload', fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url)), '--preload', fileURLToPath(new URL('./fixtures/dashboard-images-rpc.mjs', import.meta.url))];
+  const child = spawn(process.execPath, [...preload, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 15000);

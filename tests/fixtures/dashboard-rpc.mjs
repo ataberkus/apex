@@ -1,9 +1,9 @@
-// Offline dashboard fixture: no real agent child or provider request can start.
+// Offline dashboard fixture: no real agent child or provider request can start. Preloaded after scripts/live-builtins.mjs,
+// which makes the server's named `spawn` import call the replacement below.
 import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
 import {appendFileSync, readFileSync} from 'node:fs';
 import {EventEmitter} from 'node:events';
-import {syncBuiltinESMExports} from 'node:module';
 import {PassThrough, Writable} from 'node:stream';
 import {fileURLToPath} from 'node:url';
 import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
@@ -74,4 +74,3 @@ function enhanceChild() {
   child.kill = () => true;
   return child;
 }
-syncBuiltinESMExports();

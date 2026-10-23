@@ -1,10 +1,10 @@
-// Offline image/RPC transport fixture. Intercept every child spawn; never call a model/provider.
+// Offline image/RPC transport fixture. Intercept every child spawn; never call a model/provider. Preloaded after
+// scripts/live-builtins.mjs, which makes the server's named `spawn` import call the replacement below.
 import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
 import {appendFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {EventEmitter} from 'node:events';
-import {syncBuiltinESMExports} from 'node:module';
 import {PassThrough, Writable} from 'node:stream';
 import {fileURLToPath} from 'node:url';
 import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
@@ -46,4 +46,3 @@ childProcess.spawn = (_command, args, options) => {
   child.kill = () => { child.stdin.end(); return true; };
   return child;
 };
-syncBuiltinESMExports();

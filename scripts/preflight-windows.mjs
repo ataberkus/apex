@@ -32,7 +32,7 @@ export function runWindowsPreflight({projectRoot = process.cwd(), platform = pro
   const root = path.resolve(projectRoot);
   const checks = [];
   const add = (id, passed, details = {}) => checks.push({id, status: passed ? 'pass' : 'blocked', required: true, ...details});
-  add('native-windows', platform === 'win32', {message: 'Run with native Windows Node, not WSL.'});
+  add('native-windows', platform === 'win32', {message: 'Run with native Windows Bun, not WSL.'});
   const env = windowsProbeEnvironment(root, sourceEnv);
   const options = {cwd: root, env, encoding: 'utf8', shell: false, windowsHide: true, timeout: 5000, maxBuffer: 32768};
   // Match runtime resolution: Pi finds Git Bash under Program Files, then PATH; Apex spawns git/rg/fd from
@@ -53,7 +53,7 @@ export function runWindowsPreflight({projectRoot = process.cwd(), platform = pro
     add(id, passed, passed ? {} : {reason});
   };
   if (platform === 'win32') {
-    add('node', atLeast(process.versions.node, '22.19.0'), {observed: process.versions.node, minimum: '22.19.0'});
+    add('bun', atLeast(process.versions.bun, '1.4.3'), {observed: process.versions.bun, minimum: '1.4.3'});
     const pi = readJson(path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent', 'package.json'));
     add('pi-pin', pi?.version === PI_VERSION, {observed: pi?.version === PI_VERSION ? PI_VERSION : null, expected: PI_VERSION});
     const locations = whitelistedEnvironment(['ProgramFiles', 'ProgramFiles(x86)'], sourceEnv, 'win32');

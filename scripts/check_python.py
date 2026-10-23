@@ -15,7 +15,8 @@ root = Path.cwd()
 for directory in ('evals', 'evolve', 'scripts', 'tests'):
     for source in (root / directory).rglob('*.py'):
         ast.parse(source.read_text(encoding='utf8'), filename=str(source))
-for source in [root / 'package.json', root / 'package-lock.json', *root.joinpath('evals').glob('*.json'), root / 'evolve/config.json']:
+# bun.lock is JSONC (trailing commas), so Bun validates it: `bun install --frozen-lockfile` and scripts/check.mjs.
+for source in [root / 'package.json', *root.joinpath('evals').glob('*.json'), root / 'evolve/config.json']:
     json.loads(source.read_text(encoding='utf8'))
 _registry(root / 'evals/pricing.json')
 ablations = json.loads((root / 'evals/phase1-ablations.json').read_text(encoding='utf8'))

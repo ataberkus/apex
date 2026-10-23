@@ -3,7 +3,7 @@ import {execFile, spawnSync} from 'node:child_process';
 import {promisify} from 'node:util';
 import {mkdtemp, mkdir, readFile, writeFile, rm, readdir, copyFile} from 'node:fs/promises';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import test from 'node:test';
 import {createCheckpointManager} from '../extensions/apex-features/checkpoints.mjs';
 import {createLearnings} from '../extensions/apex-features/learnings.mjs';
@@ -195,10 +195,12 @@ test('a helper refused by execution policy fails closed and names the executable
 
 test('Windows private storage helper import performs no process or filesystem work', () => {
   const url = new URL('../lib/windows-private-storage.mjs', import.meta.url).href;
-  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
-    import fs from 'node:fs'; import cp from 'node:child_process'; import {syncBuiltinESMExports} from 'node:module';
+  // live-builtins makes the helper's named builtin imports see the denials below.
+  const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+  const child = spawnSync(process.execPath, ['--preload', liveBuiltins, '--input-type=module', '-e', `
+    import fs from 'node:fs'; import cp from 'node:child_process';
     const deny=()=>{throw Error('allocation during import');};
-    cp.spawn=fs.mkdirSync=fs.writeFileSync=deny; syncBuiltinESMExports();
+    cp.spawn=fs.mkdirSync=fs.writeFileSync=deny;
     await import(${JSON.stringify(url)}); console.log('inert');`], {encoding: 'utf8', timeout: 5000});
   assert.equal(child.status, 0, child.stderr);
   assert.equal(child.stdout.trim(), 'inert');

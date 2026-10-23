@@ -8,22 +8,22 @@ import sys
 
 
 def main():
-    node = shutil.which('node')
-    if not node:
-        raise SystemExit('node is required')
+    bun = shutil.which('bun')
+    if not bun:
+        raise SystemExit('bun is required')
     env = dict(os.environ)
     env['PATH'] = str(Path('.tools/bin').resolve()) + os.pathsep + env.get('PATH', '')
     env['PI_CODING_AGENT_DIR'] = str(Path('.cache/pi-micro').resolve())
     env['PI_OFFLINE'] = '1'
-    result = subprocess.run([node, 'scripts/micro-tools.mjs'], capture_output=True, text=True, check=True, env=env)
+    result = subprocess.run([bun, 'scripts/micro-tools.mjs'], capture_output=True, text=True, check=True, env=env)
     tools = json.loads(result.stdout)
-    process_result = subprocess.run([node, 'scripts/micro-process.mjs'], capture_output=True,
+    process_result = subprocess.run([bun, 'scripts/micro-process.mjs'], capture_output=True,
                                     text=True, timeout=15, env=env)
     processes = json.loads(process_result.stdout)
     Path('validation/process-micro.json').write_text(json.dumps(processes, indent=2) + '\n', encoding='utf8')
     if process_result.returncode != 0 or processes.get('status') not in ('PASS', 'SKIP'):
         raise SystemExit('offline native process contract failed; see validation/process-micro.json')
-    session_result = subprocess.run([node, 'scripts/micro-session.mjs'], capture_output=True,
+    session_result = subprocess.run([bun, 'scripts/micro-session.mjs'], capture_output=True,
                                     text=True, timeout=25, env=env)
     sessions = json.loads(session_result.stdout)
     Path('validation/session-micro.json').write_text(json.dumps(sessions, indent=2) + '\n', encoding='utf8')
@@ -35,7 +35,7 @@ def main():
     Path('validation/pipeline-micro.json').write_text(json.dumps(pipeline, indent=2) + '\n', encoding='utf8')
     if pipeline_result.returncode != 0 or pipeline.get('status') != 'PASS':
         raise SystemExit('offline evaluation pipeline failed; see validation/pipeline-micro.json')
-    phase1_result = subprocess.run([node, 'scripts/micro-phase1.mjs'], capture_output=True,
+    phase1_result = subprocess.run([bun, 'scripts/micro-phase1.mjs'], capture_output=True,
                                   text=True, timeout=25, env=env)
     phase1 = json.loads(phase1_result.stdout)
     Path('validation/phase1-micro.json').write_text(json.dumps(phase1, indent=2) + '\n', encoding='utf8')
@@ -43,7 +43,7 @@ def main():
         raise SystemExit('offline Phase 1 contract failed; see validation/phase1-micro.json')
     # Offline fixture watchdog only: reserve all three primary child deadlines
     # and up to eight bounded owned-cleanup children. Evaluator timeouts do not change.
-    phase2_result=subprocess.run([node,'scripts/micro-phase2.mjs'],capture_output=True,text=True,timeout=330,env=env)
+    phase2_result=subprocess.run([bun,'scripts/micro-phase2.mjs'],capture_output=True,text=True,timeout=330,env=env)
     phase2=json.loads(phase2_result.stdout)
     Path('validation/phase2-micro.json').write_text(json.dumps(phase2,indent=2)+'\n',encoding='utf8')
     unexercised = [processes.get('reason', 'Native owned-process proof requires Linux')] if processes.get('status') == 'SKIP' else []
@@ -66,7 +66,7 @@ def main():
         unexercised.append(phase2['background']['reason'])
     elif phase2_result.returncode != 0 or phase2.get('status') != 'PASS':
         raise SystemExit('offline Phase 2 contract failed; see validation/phase2-micro.json')
-    phase3_result=subprocess.run([node,'scripts/micro-phase3.mjs'],capture_output=True,text=True,timeout=330,env=env)
+    phase3_result=subprocess.run([bun,'scripts/micro-phase3.mjs'],capture_output=True,text=True,timeout=330,env=env)
     phase3=json.loads(phase3_result.stdout)
     Path('validation/phase3-micro.json').write_text(json.dumps(phase3,indent=2)+'\n',encoding='utf8')
     if phase3_result.returncode!=0 or phase3.get('status')!='PASS':raise SystemExit('offline Phase 3 contract failed; see validation/phase3-micro.json')

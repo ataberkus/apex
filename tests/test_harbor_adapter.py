@@ -43,7 +43,7 @@ class HarborAdapterTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.temp.cleanup)
         self.directory = Path(self.temp.name)
         self.package = self.directory / "apex ; local.tgz"
-        self.package.write_bytes(b"synthetic package: never passed to a real npm")
+        self.package.write_bytes(b"synthetic package: never passed to a real package manager")
         self.environment = FakeEnvironment()
 
     def agent(self, **kwargs):
@@ -63,11 +63,12 @@ class HarborAdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any("@earendil-works/pi-coding-agent@1.3.0" in item for item in commands))
         upload_position = next(i for i, item in enumerate(self.environment.events) if item[0] == "upload")
         self.assertEqual(self.environment.events[upload_position][1:], (str(self.package), "/installed-agent/apex.tgz"))
-        apex_commands = [item for item in commands if "npm install -g --ignore-scripts --legacy-peer-deps" in item]
+        apex_commands = [item for item in commands if "bun add --global --exact --ignore-scripts" in item]
         self.assertEqual(len(apex_commands), 1)
-        self.assertIn("/installed-agent/apex.tgz", apex_commands[0])
+        self.assertIn("bash -s bun-v1.4.3", " ".join(commands))
+        self.assertIn("@earendil-works/pi-coding-agent@1.3.0 /installed-agent/apex.tgz", apex_commands[0])
         self.assertNotIn(str(self.package), apex_commands[0])
-        self.assertIn("apex --version", apex_commands[0])
+        self.assertTrue(any(item.endswith("apex --version") for item in commands))
 
     async def test_run_uses_headless_apex_and_retains_parent_session_provider_flags(self):
         agent = self.agent(thinking="high", extra_env={"OPENAI_API_KEY": "synthetic-test-only"})

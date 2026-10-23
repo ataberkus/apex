@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, writeFile, readFile, rm, mkdir, lstat} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 import test from 'node:test';
 import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
 
@@ -170,12 +171,12 @@ test('torn tail invalidates full subset and task totals and estimates while reta
 });
 
 test('a regular session replaced by an unwritten FIFO before real open is refused without blocking', {timeout: 5000, skip: unixOnly}, async t => {
-  const {file} = await fixture(t);
+  const {dir, file} = await fixture(t);
   const moduleURL = new URL('../lib/session-report.mjs', import.meta.url).href;
-  const preload = `
+  const preload = path.join(dir, 'fifo-preload.mjs');
+  await writeFile(preload, `
     import fs from 'node:fs/promises';
     import {spawnSync} from 'node:child_process';
-    import {syncBuiltinESMExports} from 'node:module';
     const target = ${JSON.stringify(file)};
     const original = fs.open;
     globalThis.accountingFifoReplaced = false;
@@ -188,8 +189,7 @@ test('a regular session replaced by an unwritten FIFO before real open is refuse
       }
       return original.call(this, candidate, flags, ...rest);
     };
-    syncBuiltinESMExports();
-  `;
+  `);
   const script = `
     const {readSessionReport} = await import(${JSON.stringify(moduleURL)});
     try {
@@ -199,10 +199,11 @@ test('a regular session replaced by an unwritten FIFO before real open is refuse
       process.stdout.write(JSON.stringify({replaced: globalThis.accountingFifoReplaced, refused: true, message: error.message}));
     }
   `;
-  const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'CODEX_PRIMARY_RUNTIME_NODE'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
+  const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
   Object.assign(env, {PI_OFFLINE: '1', npm_config_offline: 'true', npm_config_registry: 'http://127.0.0.1:9'});
-  const executable = process.env.CODEX_PRIMARY_RUNTIME_NODE ?? process.execPath;
-  const result = spawnSync(executable, ['--import', `data:text/javascript,${encodeURIComponent(preload)}`, '--input-type=module', '-e', script],
+  // live-builtins makes the reader's named fs/promises imports see the preload's patch.
+  const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
+  const result = spawnSync(process.execPath, ['--preload', liveBuiltins, '--preload', preload, '--input-type=module', '-e', script],
     {env, encoding: 'utf8', timeout: 2000, maxBuffer: 8192});
   assert.equal(result.error, undefined, 'the real session reader must refuse a FIFO replacement without waiting for a writer');
   assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, '');

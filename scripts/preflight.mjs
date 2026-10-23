@@ -100,8 +100,8 @@ export function runPreflight({ projectRoot = process.cwd() } = {}) {
   addCheck('execution-policy', config?.paid_runs_enabled === false && config?.execution_policy === 'offline-only',
     { message: 'Paid runs must be disabled and execution policy must be offline-only.' });
 
-  const nodeVersion = version(process.versions.node);
-  addCheck('node', atLeast(nodeVersion, PINS.node_minimum), { observed: nodeVersion, minimum: PINS.node_minimum });
+  const bunVersion = version(process.versions.bun);
+  addCheck('bun', atLeast(bunVersion, '1.4.3'), { observed: bunVersion, minimum: '1.4.3' });
 
   const piPackage = readJson(path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent', 'package.json'));
   const piVersion = version(piPackage?.version);

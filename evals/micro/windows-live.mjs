@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {appendFileSync, existsSync, mkdirSync, readFileSync, rmdirSync, writeFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {dirname, join, relative, resolve, sep} from 'node:path';
+import {delimiter, dirname, join, relative, resolve, sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseArgs} from 'node:util';
 import {PI_VERSION, resolvePi} from '../../lib/launcher.mjs';
@@ -135,9 +135,11 @@ function reconcile(file,runId,guard,summary) {
   save(file,ledger);return {usage_complete:complete,ledger_remaining_catalog_equivalent_usd:ledger.remaining_catalog_equivalent_usd};
 }
 
-const VERIFY = 'node verify.cjs';
-const SYNTAX = 'node --check verify.cjs';
-const LARGE = 'node large.cjs';
+// Bun has no `--check`; the fixture's `check` script is a transpile-only syntax check of verify.cjs.
+const VERIFY = 'bun verify.cjs';
+const SYNTAX = 'bun run check';
+const LARGE = 'bun large.cjs';
+const packageSource = `${JSON.stringify({private:true,scripts:{check:'bun build --no-bundle verify.cjs'}})}\n`;
 const verifySource = `const fs=require('node:fs'),a=require('node:assert/strict');a.equal(fs.readFileSync('sample.txt','utf8'),'alpha\\ndelta\\nomega\\n');a.deepEqual(JSON.parse(fs.readFileSync('summary.json','utf8')),{lines:3,second:'delta',third:'omega'});a.equal(fs.readFileSync('recovered.txt','utf8'),Array.from({length:180},(_,i)=>'ROW_'+String(i).padStart(3,'0')+'_'+'x'.repeat(64)).join('\\n')+'\\n');console.log('WINDOWS_LIVE_VERIFIED');\n`;
 const largeSource = `console.log(Array.from({length:180},(_,i)=>'ROW_'+String(i).padStart(3,'0')+'_'+'x'.repeat(64)).join('\\n'));\n`;
 function prompt(fixture) {
@@ -171,9 +173,11 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
   const fixture=join(directory,'fixture'),agentDir=join(directory,'agent'),sessionsDir=join(directory,'sessions');
   for(const dir of [fixture,agentDir,sessionsDir])mkdirSync(dir);
   const environment=fixtureEnvironment(['PATH','SystemRoot','WINDIR','LANG','LC_ALL',...WINDOWS_FIXTURE_ENV],fixture,windowsProbeEnvironment(projectRoot));
+  environment.PATH=[dirname(process.execPath),environment.PATH].filter(Boolean).join(delimiter); // the declared commands run this Bun
+  environment.BUN_RUNTIME_TRANSPILER_CACHE_PATH='0'; // HOME is the fixture: Bun children must not write .bun transpiler caches into it
   const shell=fixtureShellPath();if(!shell)fail('native_shell_missing');
   for(const name of Object.keys(process.env)) delete process.env[name];Object.assign(process.env,environment,{PI_OFFLINE:'1'});
-  for(const [name,content] of [['sample.txt','alpha\nbeta\ngamma\n'],['verify.cjs',verifySource],['large.cjs',largeSource]])writeFileSync(join(fixture,name),content,{flag:'wx'});
+  for(const [name,content] of [['sample.txt','alpha\nbeta\ngamma\n'],['verify.cjs',verifySource],['large.cjs',largeSource],['package.json',packageSource]])writeFileSync(join(fixture,name),content,{flag:'wx'});
   for(const args of [['init','--quiet'],['-c','user.name=Apex fixture','-c','user.email=fixture@invalid','add','.'],['-c','user.name=Apex fixture','-c','user.email=fixture@invalid','commit','--quiet','-m','fixture']]) {
     const result=spawnSync('git',args,{cwd:fixture,env:{...environment,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'NUL',GIT_TERMINAL_PROMPT:'0'},encoding:'utf8',timeout:10000});if(result.status!==0)fail('git_fixture_failed');
   }
@@ -257,7 +261,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
     const same=(name,expected)=>{try{return readFileSync(join(fixture,name),'utf8')===expected;}catch{return false;}};
     let summaryExact=false;try{assert.deepEqual(json(join(fixture,'summary.json')),{lines:3,second:'delta',third:'omega'});summaryExact=true;}catch{}
     fixtureOutcomes={sample:same('sample.txt','alpha\ndelta\nomega\n'),summary:summaryExact,recovered:same('recovered.txt',expectedOutput),
-      verification_script_unchanged:same('verify.cjs',verifySource),output_script_unchanged:same('large.cjs',largeSource)};
+      verification_script_unchanged:same('verify.cjs',verifySource)&&same('package.json',packageSource),output_script_unchanged:same('large.cjs',largeSource)};
     accounting={cost:await command('cost'),report:await command('report')};resume=await command('resume-info');
     const before=guard.sends.length;
     offline.plan=await command('plan','Offline refusal inspection');offline.planCancel=await command('plan','cancel');offline.review=await command('review');
@@ -284,7 +288,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
   if(session?.sessionFile&&existsSync(session.sessionFile)&&accounting) {
     let reopened;
     const before=guard.sends.length;
-    const fixtureHashes=()=>Object.fromEntries(['sample.txt','summary.json','recovered.txt','verify.cjs','large.cjs'].map(name=>{
+    const fixtureHashes=()=>Object.fromEntries(['sample.txt','summary.json','recovered.txt','verify.cjs','large.cjs','package.json'].map(name=>{
       try{return [name,hash(readFileSync(join(fixture,name)))];}catch(error){if(error.code==='ENOENT')return [name,null];throw error;}
     }));
     const beforeFiles=fixtureHashes();
@@ -343,7 +347,7 @@ async function executeWindowsLive({runId,projectRoot=root}={}) {
 
 async function main() {
   const {values}=parseArgs({options:{'run-id':{type:'string'},help:{type:'boolean'}}});
-  if(values.help){console.log('Usage: node evals/micro/windows-live.mjs --run-id UNIQUE_ID\nNative Windows, private valid Claude OAuth, capped catalog reservation in evals/claude-budget.json, real pinned Pi SDK.');return;}
+  if(values.help){console.log('Usage: bun evals/micro/windows-live.mjs --run-id UNIQUE_ID\nNative Windows, private valid Claude OAuth, capped catalog reservation in evals/claude-budget.json, real pinned Pi SDK.');return;}
   const summary=await runWindowsLive({runId:values['run-id']});console.log(JSON.stringify({run_id:summary.run_id,passed:summary.passed,checks:summary.checks,failure:summary.failure,physical_requests:summary.physical_requests,catalog_estimate_usd:summary.catalog_token_cost_usd,ledger_remaining_usd:summary.ledger_remaining_catalog_equivalent_usd}));
   if(!summary.passed)process.exitCode=1;
 }

@@ -116,8 +116,8 @@ test('recovery native settings are disabled offline and bounded only under exact
 });
 
 test('default verifier checks run real subprocesses inside a copy and preserve source files',async t=>{
- const {createSubagentTools}=await exports();const cwd=await fixture(t);await writeFile(path.join(cwd,'data.txt'),'original');await writeFile(path.join(cwd,'check.test.mjs'),"import test from 'node:test';import {writeFileSync} from 'node:fs';test('isolated modification',()=>{writeFileSync('data.txt','modified');console.log('REAL CHECK EVIDENCE');});");let request;
- const verify=createSubagentTools({policy:paid,runSession:async value=>{request=value;return {text:'VERDICT: PASS',usage:usage()};}})[1];const result=await verify.execute('checks',{task:'requirement',commands:['node --test check.test.mjs']},undefined,undefined,{cwd});assert.equal(result.details.status,'complete');assert.equal(result.details.checks[0].exitCode,0);assert.match(request.task,/REAL CHECK EVIDENCE/);assert.equal(await readFile(path.join(cwd,'data.txt'),'utf8'),'original');
+ const {createSubagentTools}=await exports();const cwd=await fixture(t);await writeFile(path.join(cwd,'data.txt'),'original');await writeFile(path.join(cwd,'check.test.mjs'),"import {test} from 'bun:test';import {writeFileSync} from 'node:fs';test('isolated modification',()=>{writeFileSync('data.txt','modified');console.log('REAL CHECK EVIDENCE');});");let request;
+ const verify=createSubagentTools({policy:paid,runSession:async value=>{request=value;return {text:'VERDICT: PASS',usage:usage()};}})[1];const result=await verify.execute('checks',{task:'requirement',commands:['bun test check.test.mjs']},undefined,undefined,{cwd});assert.equal(result.details.status,'complete');assert.equal(result.details.checks[0].exitCode,0);assert.match(request.task,/REAL CHECK EVIDENCE/);assert.equal(await readFile(path.join(cwd,'data.txt'),'utf8'),'original');
 });
 
 test('max rejects reused/source isolation paths and preserves cleanup errors',async()=>{
@@ -174,7 +174,7 @@ test('native future turn bound aborts tool loops and retains all partial usage',
 });
 
 test('verify rejects native test flags that open listeners or inject arbitrary startup modules',async()=>{
- const {createSubagentTools}=await exports();let calls=0;const verify=createSubagentTools({policy:paid,runChecks:async()=>{calls++;return [];},runSession:async()=>{calls++;return {text:'pass'};}})[1];for(const command of ['node --test --inspect=0 check.test.mjs','node --test --loader loader.mjs','node --test -r module.mjs','pytest -p arbitrary_plugin']){const result=await verify.execute('flags',{task:'task',commands:[command]},undefined,undefined,{cwd:process.cwd()});assert.equal(result.details.status,'error');}assert.equal(calls,0);
+ const {createSubagentTools}=await exports();let calls=0;const verify=createSubagentTools({policy:paid,runChecks:async()=>{calls++;return [];},runSession:async()=>{calls++;return {text:'pass'};}})[1];for(const command of ['node --test --inspect=0 check.test.mjs','node --test --loader loader.mjs','node --test -r module.mjs','bun test --inspect=0 check.test.mjs','bun test --preload module.mjs','bun --inspect test','bun run dev','pytest -p arbitrary_plugin']){const result=await verify.execute('flags',{task:'task',commands:[command]},undefined,undefined,{cwd:process.cwd()});assert.equal(result.details.status,'error');}assert.equal(calls,0);
 });
 
 test('native future session may finish successfully on its eighth final turn',async t=>{

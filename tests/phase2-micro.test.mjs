@@ -13,15 +13,17 @@ const load = () => import(gateUrl).catch(error => {
 test('Phase 2 gate import leaves SDK, extension factories and fixture allocation inert', async () => {
   const module = await load();
   assert.equal(typeof module.runPhase2Micro, 'function', 'offline Phase 2 gate is missing');
+  // Bun skips onResolve for some bare package specifiers, so the trap refuses SDK/extension module loads; the first
+  // matching onLoad wins, so it is registered before live-builtins, which then makes the gate's named fs imports see
+  // the mkdtemp traps.
   const child = spawnSync(process.execPath, ['--input-type=module', '-e',
     `import fs from 'node:fs'; import fsPromises from 'node:fs/promises';
-     import {registerHooks, syncBuiltinESMExports} from 'node:module';
-     registerHooks({resolve(specifier, context, nextResolve) {
-       if (specifier.startsWith('@earendil-works/') || specifier.includes('/extensions/')) throw Error('SDK import during inert load');
-       return nextResolve(specifier, context);
+     Bun.plugin({name: 'deny-sdk', setup(build) {
+       build.onLoad({filter: /[\\\\/](?:@earendil-works|extensions)[\\\\/]/}, () => {throw Error('SDK import during inert load');});
      }});
+     await import(${JSON.stringify(new URL('../scripts/live-builtins.mjs', import.meta.url).href)});
+     if (globalThis.__apexLiveBuiltins !== true) throw Error('live builtins not loaded');
      fs.mkdtempSync = fsPromises.mkdtemp = () => {throw Error('fixture allocated during inert load');};
-     syncBuiltinESMExports();
      await import(${JSON.stringify(gateUrl.href)}); console.log('inert');`],
   {encoding: 'utf8', timeout: 3000, env: {PATH: process.env.PATH ?? ''}});
   assert.equal(child.status, 0, child.stderr);

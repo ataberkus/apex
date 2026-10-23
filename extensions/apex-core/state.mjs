@@ -156,7 +156,7 @@ function classifySimple(command) {
   if (options.some(token => ['--help', '-h', '--version', '-v'].includes(token))) return 'mutation';
   if (options.some(token => /^--(?:pre|ext-diff|textconv|output)(?:=|$)/.test(token))) return 'mutation';
   const joined = tokens.join(' ');
-  if (/^(?:npm|pnpm|yarn) (?:test(?: .*)?|run (?:test|check|typecheck|lint)(?::[\w-]+)?(?: .*)?)$/.test(joined)
+  if (/^(?:npm|pnpm|yarn|bun) (?:test(?: .*)?|run (?:test|check|typecheck|lint)(?::[\w-]+)?(?: .*)?)$/.test(joined)
     || /^(?:pytest|ruff|pyright)(?: .*)?$/.test(joined)
     || /^python(?:3)? -m (?:pytest|unittest)(?: .*)?$/.test(joined)
     || /^node --(?:test|check)(?: .*)?$/.test(joined)
@@ -168,7 +168,7 @@ function classifySimple(command) {
 
 // Mirrors classify(): naming the accepted checks saves the model from guessing after an ad hoc check.
 const UNVERIFIED = 'Run a recognized verification action successfully after the last file change (with no pending mutations). '
-  + 'Only a plain bash call without shell operators counts: npm test, npm run test|check|typecheck|lint, node --test, node --check, '
+  + 'Only a plain bash call without shell operators counts: npm test, bun test, npm|bun run test|check|typecheck|lint, node --test, node --check, '
   + 'pytest, python -m pytest|unittest, ruff, pyright, tsc --noEmit, cargo test|check, go test|vet, make test|check. '
   + 'Ad hoc scripts such as node -e do not count; if none of these applies here, say so instead of inventing one.';
 

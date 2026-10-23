@@ -1,9 +1,10 @@
-import {gitRepo, hiddenTests, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
+import {gitRepo, hiddenTests, literalChars, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
 // Fixture sources are String.raw templates: they never contain a backtick or "${". In SPEC, ¤ stands for a backtick.
-const js = String.raw;
+// literalChars keeps their non-ASCII characters literal under Bun.
+const js = (strings, ...values) => literalChars(String.raw(strings, ...values), 'äö');
 
-const SPEC = String.raw`# Corpus migrations
+const SPEC = literalChars(String.raw`# Corpus migrations
 
 ¤src/migrator.js¤ exports ¤migrateCorpus(options)¤ and the error class ¤MigrationError¤ (a subclass of ¤Error¤ whose ¤name¤ is ¤"MigrationError"¤). ¤migrateCorpus¤ brings every document of a corpus directory to one schema version by running a chain of migrations, validates every intermediate result, and writes the changed documents all-or-nothing. Everything in this document is normative.
 
@@ -110,7 +111,7 @@ Otherwise ¤migrateCorpus¤ resolves to a plain object with exactly these proper
 - ¤written¤: ¤true¤ when the commit happened, ¤false¤ otherwise.
 
 All three lists are in document order. Failed documents appear only in ¤failed¤, never in ¤migrated¤ or ¤unchanged¤.
-`.replaceAll('¤', '`');
+`, '¤').replaceAll('¤', '`');
 
 const DRAFT = js`import fs from 'node:fs/promises';
 import path from 'node:path';

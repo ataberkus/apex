@@ -1,4 +1,4 @@
-import {gitRepo, hiddenTests, npm, read, run, unchanged, verdict, writeTree} from '../lib.mjs';
+import {bunTest, gitRepo, hiddenTests, npm, read, unchanged, verdict, writeTree} from '../lib.mjs';
 
 // The contract the agent must uphold; shared verbatim by the fixture and the reference.
 const CONTRACT = `/**
@@ -589,7 +589,7 @@ export default {
     let runs = 'skipped: another check failed';
     if (Object.values(checks).every(Boolean)) {
       runs = 1;
-      while (runs < VISIBLE_RUNS && run(process.execPath, ['--test', 'test/*.test.js'], {cwd: root}).status === 0) runs++;
+      while (runs < VISIBLE_RUNS && bunTest(root, ['./test/'], {timeout: 60000}).status === 0) runs++;
       checks.suite_reliable = runs === VISIBLE_RUNS;
     }
     return verdict(checks, {visibleRuns: runs, suite: (suite.stdout + suite.stderr).slice(-2000), hidden: hidden.output});

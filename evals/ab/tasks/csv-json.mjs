@@ -1,3 +1,6 @@
+// @bun
+// The pragma makes Bun run this file untranspiled, so functions embedded as source text keep their exact text (the
+// transpiler would reprint them). Bun then reads the file as Latin-1: keep it ASCII-only (evals/ab/run.mjs checks).
 import {rmSync} from 'node:fs';
 import path from 'node:path';
 import {gitRepo, read, run, verdict, writeTree} from '../lib.mjs';
