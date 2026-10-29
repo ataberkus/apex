@@ -11,7 +11,7 @@ import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
 OAuthLogin.prototype.status = ApiKeyLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
 const apex = fileURLToPath(new URL('../../bin/apex', import.meta.url));
 childProcess.spawn = (_command, args) => {
-  if (args.includes('--no-session')) return enhanceChild(); // the ✨ enhance print run
+  if (args.includes('--no-session')) return enhanceChild(args); // the ✨ enhance print run
   assert.equal(args[0], apex, 'Only the fixture agent may be started');
   if (process.env.APEX_FIXTURE_ARGV) appendFileSync(process.env.APEX_FIXTURE_ARGV, JSON.stringify(args.slice(1)) + '\n');
   const child = new EventEmitter();
@@ -54,8 +54,8 @@ childProcess.spawn = (_command, args) => {
 const savedMessages = args => !args.includes('--session') ? []
   : readFileSync(args[args.indexOf('--session') + 1], 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)).filter(entry => entry.type === 'message').map(entry => entry.message);
 // An echo model for enhance runs: its rewrite is the draft itself, and a draft that mentions the output limit stops
-// there, as a cut-off answer does. APEX_FIXTURE_ENHANCE collects each run's stdin.
-function enhanceChild() {
+// there, as a cut-off answer does. APEX_FIXTURE_ENHANCE collects each run's stdin and thinking level.
+function enhanceChild(args) {
   const child = new EventEmitter();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
@@ -63,7 +63,7 @@ function enhanceChild() {
   child.stdin = new Writable({
     write(chunk, _encoding, done) { input += chunk; done(); },
     final(done) {
-      if (process.env.APEX_FIXTURE_ENHANCE) appendFileSync(process.env.APEX_FIXTURE_ENHANCE, JSON.stringify(input) + '\n');
+      if (process.env.APEX_FIXTURE_ENHANCE) appendFileSync(process.env.APEX_FIXTURE_ENHANCE, JSON.stringify({input, thinking: args[args.indexOf('--thinking') + 1]}) + '\n');
       const draft = /<draft>\n([\s\S]*)\n<\/draft>/.exec(input)[1];
       const message = {role: 'assistant', content: [{type: 'text', text: draft}], stopReason: draft.includes('output limit') ? 'length' : 'stop'};
       child.stdout.once('end', () => child.emit('close', 0));
