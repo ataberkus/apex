@@ -140,7 +140,7 @@ async function nativeFixture(spec, calls, observed) {
         const result = target.registerFlag(flag, options);
         if (flag === 'apex-context-flags') {
           observed.flag_registered = nativeGetFlag(flag) === '';
-          selected = spec.fixtureMode === 'missing-compact' ? 'cache,shape,mask,read,search,edit,patch,lazy,route,output' : 'all';
+          selected = spec.fixtureMode === 'missing-compact' ? 'cache,shape,mask,read,search,edit,patch,lazy,route,output,browser,computer' : 'all';
         }
         return result;
       };

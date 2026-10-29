@@ -1,5 +1,5 @@
 """Pure Phase 1 variant validation; no Harbor or provider imports."""
-FEATURES = ('cache', 'shape', 'mask', 'compact', 'read', 'search', 'edit', 'patch', 'lazy', 'route', 'output')
+FEATURES = ('cache', 'shape', 'mask', 'compact', 'read', 'search', 'edit', 'patch', 'lazy', 'route', 'output', 'browser', 'computer')
 
 
 def validate_context_flags(value):

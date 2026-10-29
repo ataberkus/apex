@@ -5,7 +5,9 @@ import { capRoutinePayload, createCacheLedger } from './cache.mjs';
 export default function apexContext(pi) {
   pi.registerFlag('apex-context-flags',{type:'string',default:'',description:'Opt-in Apex context feature names, comma-separated; all experiments default off.'});
   let releaseFeatures=()=>{};
-  let features=new Set(),ledger=createCacheLedger(),shape,mask,compact,prompt='';
+  let features=new Set(),ledger=createCacheLedger(),shape,mask,compact,prompt='',browser,computer;
+  // The browser tool owns a Chrome/Edge process and the computer tool a PowerShell host; every re-initialisation and shutdown closes them.
+  const closeTools=async()=>{const open=[browser,computer];browser=computer=undefined;await Promise.all(open.map(tool=>tool?.close()));};
 
   const restoreLedger=ctx=>{
     ledger=createCacheLedger();
@@ -20,6 +22,7 @@ export default function apexContext(pi) {
       thinkingLevel:ctx.thinkingLevel??'xhigh'});
   };
   const initialize=async(_event,ctx)=>{
+    await closeTools();
     releaseFeatures();features=new Set(parseContextFlags(pi.getFlag('apex-context-flags')));releaseFeatures=markContextFeatures(ctx,features);
     restoreLedger(ctx);
     shape=mask=compact=undefined;prompt='';
@@ -38,11 +41,21 @@ export default function apexContext(pi) {
       const names=(await import('./lazy.mjs')).registerLazyTools(pi);
       pi.setActiveTools([...new Set([...pi.getActiveTools(),...names])]);
     }
+    if(features.has('browser')) {
+      browser=(await import('./browser.mjs')).createBrowserTool();
+      pi.registerTool(browser);
+      pi.setActiveTools([...new Set([...pi.getActiveTools(),browser.name])]);
+    }
+    if(features.has('computer')) {
+      computer=(await import('./computer.mjs')).createComputerTool();
+      pi.registerTool(computer);
+      pi.setActiveTools([...new Set([...pi.getActiveTools(),computer.name])]);
+    }
   };
   pi.on('session_start',initialize);
   pi.on('session_tree',initialize);
   pi.on('session_fork',initialize);
-  pi.on('session_shutdown',()=>{releaseFeatures();features=new Set();shape=mask=compact=undefined;prompt='';ledger=createCacheLedger();});
+  pi.on('session_shutdown',async()=>{releaseFeatures();features=new Set();shape=mask=compact=undefined;prompt='';ledger=createCacheLedger();await closeTools();});
   pi.on('before_agent_start',(event,ctx)=>{
     if(prompt)event.systemPromptOptions.sections.apex_efficiency=prompt;
     observePrefix(ctx);

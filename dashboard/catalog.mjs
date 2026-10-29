@@ -22,6 +22,8 @@ export const GROUPS = [
     f('lazy', 'Defer the patch tool', 'Hides apply_patch until the model asks for it. Only matters together with the patch tool.'),
     f('route', 'Auto model route', 'Selects the virtual apex/auto model, which routes back to the same Muse model.'),
     f('output', 'Short answers', 'Adds a short, stable output-style section and lowers the output cap on routine turns.'),
+    f('browser', 'Browser', 'Adds a browser tool that drives your installed Chrome or Edge headless with a temporary profile: open http(s) pages, read them, click, type and take screenshots. Never downloads a browser.'),
+    f('computer', 'Computer use', 'Adds a computer tool that sees and controls this desktop: screenshots of the primary monitor, mouse moves, clicks, drags, scrolling, typing and key presses on your real screen.', {limited: 'Windows only'}),
   ]},
   {id: 'core', option: '--apex-core', title: 'Success rate', blurb: 'Keep long tasks on track.', features: [
     f('snapshot', 'Environment snapshot', 'Injects one bounded observation of the OS, shell, tools, package managers and git state at the start.'),
