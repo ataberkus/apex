@@ -1,5 +1,5 @@
 export const SELECTED_MODEL = 'openrouter/meta/muse-spark-1.3-contributor';
-export const CONTEXT_FEATURES = Object.freeze(['cache','shape','mask','compact','read','search','edit','patch','lazy','route','output']);
+export const CONTEXT_FEATURES = Object.freeze(['cache','shape','mask','compact','read','search','edit','patch','lazy','route','output','browser','computer']);
 
 export function parseContextFlags(value) {
   if (value === undefined || value === '') return Object.freeze([]);
