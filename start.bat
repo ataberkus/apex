@@ -1,6 +1,7 @@
 @echo off
-rem Starts Apex from this checkout: "start.bat" runs terminal Apex, "start.bat dashboard" the dashboard,
-rem any other arguments go to "bun bin/apex" unchanged.
+rem Starts Apex from this checkout: "start.bat" runs terminal Apex on the checkout folder, any arguments go to
+rem "bun bin/apex" unchanged. "start.bat dashboard" still starts the dashboard; dashboard.bat is its own launcher.
+rem For "apex" on any folder from cmd, run install-apex.bat once (it puts bin\apex.cmd on the user PATH).
 setlocal
 set "SELF=%~f0"
 cd /d "%~dp0"
