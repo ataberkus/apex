@@ -26,8 +26,8 @@ SHA = 'b' * 40
 
 
 class FeatureFlagTests(unittest.TestCase):
-    def test_exact_nine_flags_and_default_off(self):
-        self.assertEqual(FEATURES, ('cost', 'checkpoints', 'review', 'plan', 'remember', 'skills', 'safety', 'report', 'resume'))
+    def test_exact_ten_flags_and_default_off(self):
+        self.assertEqual(FEATURES, ('cost', 'checkpoints', 'review', 'plan', 'remember', 'skills', 'safety', 'report', 'resume', 'autocompact'))
         self.assertEqual(validate_feature_flags(''), '')
         self.assertEqual(selected_feature_flags(''), ())
         self.assertEqual(selected_feature_flags('all'), FEATURES)

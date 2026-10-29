@@ -9,7 +9,7 @@ const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const moduleUrl = new URL('../scripts/preflight.mjs', import.meta.url).href;
 const helperUrl = new URL('../scripts/python-runtime.mjs', import.meta.url).href;
 const harborCommit = '99218a4611e3bd76e49ce3b5f977e8c8134ad3ac';
-const piCommit = '71023aec1546d6d677a65669c5665c0927ce0dd0';
+const piCommit = '4a080252f06caf63a525d7873c5d94d3c23887e0';
 const baseEnv = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
 const liveBuiltins = fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url));
 const bunExecutable = path.isAbsolute(process.execPath) ? process.execPath
@@ -31,7 +31,7 @@ function fixture(t, changes = {}) {
   const root = temporaryRoot(t);
   mkdirSync(path.join(root, 'evals'));
   writeFileSync(path.join(root, 'evals', 'versions.json'), JSON.stringify({
-    pi: { version: '1.3.0', node_minimum: '22.19.0', source_commit: piCommit },
+    pi: { version: '1.4.0', node_minimum: '22.19.0', source_commit: piCommit },
     harbor: { version: '0.23.0', commit: harborCommit },
     ...changes.pins,
   }));
@@ -41,7 +41,7 @@ function fixture(t, changes = {}) {
   }));
   const piDirectory = path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent');
   mkdirSync(piDirectory, { recursive: true });
-  writeFileSync(path.join(piDirectory, 'package.json'), JSON.stringify({ version: changes.piVersion ?? '1.3.0' }));
+  writeFileSync(path.join(piDirectory, 'package.json'), JSON.stringify({ version: changes.piVersion ?? '1.4.0' }));
   return root;
 }
 
@@ -174,7 +174,7 @@ test('a same-version Harbor wheel without the pinned VCS commit blocks readiness
 
 test('prerelease or suffixed package versions cannot satisfy exact Pi and Harbor pins', t => {
   for (const suffix of ['-beta.1', '+local']) {
-    const piRoot = fixture(t, { piVersion: `1.3.0${suffix}` });
+    const piRoot = fixture(t, { piVersion: `1.4.0${suffix}` });
     const pi = simulationResult(simulatedPreflight(piRoot)).result;
     assert.equal(pi.readiness, 'blocked');
     assert.equal(pi.checks.find(check => check.id === 'pi-pin').status, 'blocked');
@@ -190,7 +190,8 @@ test('prerelease or suffixed package versions cannot satisfy exact Pi and Harbor
 test('old Python, changed Pi, or changed configured pins cannot report tooling ready', t => {
   for (const changes of [
     { piVersion: '0.99.2' },
-    { pins: { pi: { version: '1.3.0', node_minimum: '22.19.0', source_commit: '0'.repeat(40) } } },
+    { piVersion: '1.3.0' },
+    { pins: { pi: { version: '1.4.0', node_minimum: '22.19.0', source_commit: '0'.repeat(40) } } },
     { pins: { harbor: { version: '0.23.0', commit: '0'.repeat(40) } } },
     { config: { paid_runs_enabled: true } },
     { config: { execution_policy: 'allow-network' } },

@@ -1,6 +1,6 @@
 """Pure Phase 3 variant validation; never imports providers or Harbor."""
 
-FEATURES = ('cost', 'checkpoints', 'review', 'plan', 'remember', 'skills', 'safety', 'report', 'resume')
+FEATURES = ('cost', 'checkpoints', 'review', 'plan', 'remember', 'skills', 'safety', 'report', 'resume', 'autocompact')
 
 
 def validate_feature_flags(value):

@@ -78,7 +78,7 @@ async function offlineRuntime(pi, calls, observed) {
       if (typeof owner[name] === 'function') owner[name] = deny('credentials');
     }
   }
-  // Pi 1.3.0 registers virtual catalog entries synchronously, then schedules an
+  // Pi 1.4.0 registers virtual catalog entries synchronously, then schedules an
   // availability refresh even with allowNetwork:false. Suppress only that test
   // discovery boundary; never allow credentials or account availability reads.
   runtime.refresh = async options => {

@@ -22,7 +22,7 @@ export const liveBuiltinsLoaded = () => globalThis.__apexLiveBuiltins === true;
 const modelId = 'meta/muse-spark-1.3-contributor';
 const modelName = `openrouter/${modelId}`;
 // Mirrors lib/launcher.mjs PI_VERSION; the micro gates stay builtin-only at import.
-export const PINNED_PI_VERSION = '1.3.0';
+export const PINNED_PI_VERSION = '1.4.0';
 export const WINDOWS_FIXTURE_ENV = Object.freeze([
   'TEMP', 'TMP', 'HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH',
   'SYSTEMDRIVE', 'USERNAME', 'USERDOMAIN', 'LOGONSERVER', 'PATHEXT',

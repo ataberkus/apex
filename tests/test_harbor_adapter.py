@@ -60,13 +60,13 @@ class HarborAdapterTests(unittest.IsolatedAsyncioTestCase):
         agent = self.agent()
         await agent.install(self.environment)
         commands = [event[1]["command"] for event in self.environment.events if event[0] == "exec"]
-        self.assertTrue(any("@earendil-works/pi-coding-agent@1.3.0" in item for item in commands))
+        self.assertTrue(any("@earendil-works/pi-coding-agent@1.4.0" in item for item in commands))
         upload_position = next(i for i, item in enumerate(self.environment.events) if item[0] == "upload")
         self.assertEqual(self.environment.events[upload_position][1:], (str(self.package), "/installed-agent/apex.tgz"))
         apex_commands = [item for item in commands if "bun add --global --exact --ignore-scripts" in item]
         self.assertEqual(len(apex_commands), 1)
         self.assertIn("bash -s bun-v1.4.3", " ".join(commands))
-        self.assertIn("@earendil-works/pi-coding-agent@1.3.0 /installed-agent/apex.tgz", apex_commands[0])
+        self.assertIn("@earendil-works/pi-coding-agent@1.4.0 /installed-agent/apex.tgz", apex_commands[0])
         self.assertNotIn(str(self.package), apex_commands[0])
         self.assertTrue(any(item.endswith("apex --version") for item in commands))
 
@@ -157,9 +157,9 @@ class HarborAdapterTests(unittest.IsolatedAsyncioTestCase):
         )
 
     def test_incompatible_explicit_pi_version_is_rejected_before_install(self):
-        for version in ("latest", "0.85.1", "0.99.2"):
+        for version in ("latest", "0.85.1", "0.99.2", "1.3.0"):
             with self.subTest(version=version):
-                with self.assertRaisesRegex(ValueError, "1.3.0"):
+                with self.assertRaisesRegex(ValueError, "1.4.0"):
                     self.agent(version=version)
         self.assertEqual(self.environment.events, [])
 

@@ -68,6 +68,14 @@ test('tree navigation restores base tools without old plan writes into new branc
  const h=fixture('plan');createApexFeatures()(h.pi);await h.emit('session_start');await h.commands.get('plan').handler('inspect',h.ctx);
  h.branch.length=0;await h.emit('session_tree');assert.deepEqual(h.pi.getActiveTools(),['read','write','edit','bash']);assert.equal(h.branch.length,0);
 });
+test('tree navigation keeps the loadout Pi replayed from a compacted target branch',async()=>{
+ const h=fixture('plan');createApexFeatures()(h.pi);await h.emit('session_start');await h.commands.get('plan').handler('inspect',h.ctx);
+ // The target declares its tools only before its compaction, which carries no loadout snapshot.
+ const tool=name=>({name,description:name,parameters:{}});
+ h.branch.length=0;h.branch.push({type:'message',id:'s',message:{role:'system',content:'',toolsAdded:['read','grep','todo'].map(tool)}},{type:'compaction',id:'c',summary:'earlier work',firstKeptEntryId:'c',tokensBefore:1});
+ h.pi.setActiveTools(['read','grep','todo']);await h.emit('session_tree');
+ assert.deepEqual(h.pi.getActiveTools(),['read','grep','todo']);
+});
 
 test('checkpoint turn IDs remain unique across tree navigation and undo stays on active branch',async()=>{
  const h=fixture('checkpoints');const all=[],records=[];const append=h.pi.appendEntry;

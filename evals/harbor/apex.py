@@ -21,7 +21,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 
 
-PINNED_PI_VERSION = "1.3.0"
+PINNED_PI_VERSION = "1.4.0"
 _PI_RUN_FRAGMENT = "pi --print --mode json "
 _APEX_RUN_FRAGMENT = "apex --profile headless --print --mode json "
 _REMOTE_PACKAGE = "/installed-agent/apex.tgz"
@@ -35,7 +35,7 @@ _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/+-]*")
 
 
 class ApexOptions(PiOptions):
-    version: Literal["1.3.0"] | None = Field(default=PINNED_PI_VERSION)
+    version: Literal["1.4.0"] | None = Field(default=PINNED_PI_VERSION)
     apex_package: str = Field(
         description="Absolute host path to the local Apex .tgz package."
     )

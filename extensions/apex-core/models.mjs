@@ -194,7 +194,7 @@ function guardedRuntime(runtime,request) {
   const physical=model=>{
     if(model?.provider!=='openrouter'||model?.id!=='meta/muse-spark-1.3-contributor'||model.api==='pi-virtual'||model.thinkingLevelMap?.xhigh!=='xhigh')throw new Error('Auxiliary request must use the exact physical Muse/xhigh model.');
   };
-  // Pi 1.3.0 ModelRuntime uses ordinary properties (no #private fields), so preserving the proxy receiver
+  // Pi 1.4.0 ModelRuntime uses ordinary properties (no #private fields), so preserving the proxy receiver
   // also guards its lazy prepareRequest -> getAuth chain (stream, classify, generateImages) without editing SDK code.
   return new Proxy(runtime,{get(target,name,receiver){
     check();const value=Reflect.get(target,name,receiver);
@@ -348,7 +348,7 @@ async function maxAttempts(options) {
   }
 }
 
-/** Pi 1.3.0 Settings.retry (settings-schema RetrySettings): agent backoff only; no hidden provider retry multiplication. */
+/** Pi 1.4.0 Settings.retry (settings-schema RetrySettings): agent backoff only; no hidden provider retry multiplication. */
 export function recoverySettings({policy,maxRetries=2,baseDelayMs=1000}={}) {
   if(policy?.paid_runs_enabled!==true||policy?.execution_policy!=='paid-enabled')return {retry:{enabled:false,maxRetries:0,baseDelayMs:1000,maxAgentDelayMs:8000,provider:{maxRetries:0,maxRetryDelayMs:8000,timeoutMs:60000}}};
   assertPolicy(policy);
