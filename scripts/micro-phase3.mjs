@@ -106,7 +106,7 @@ function fixtureLoader(pi, spec, settings, factories) {
     noThemes: true, noContextFiles: true, appendSystemPrompt: [], extensionFactories: factories,
     agentsFilesOverride: () => ({agentsFiles: [{path: path.join(spec.fixture, 'AGENTS.md'),
       content: 'PHASE3_NATIVE_CONTEXT: explicitly supplied native project instructions.'}]})});
-  // Pi 1.3.0 resolves packages before applying no* flags. Keep both actual
+  // Pi 1.4.0 resolves packages before applying no* flags. Keep both actual
   // discovery seams local, while allowing selected resources_discover paths.
   if (spec.fixtureMode !== 'ambient-discovery') {
     if (typeof loader.packageManager?.resolve !== 'function' ||
@@ -181,7 +181,7 @@ async function makeSession(pi, spec, shared, {flags = 'all', coreFlags = '', con
   let clock = 0, toolIndex = 0, turnIndex = 0;
   const zeroUsage = {input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
     cost: {input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0}};
-  // Each script-seeded assistant message stands for one model request. Pi 1.3.0's agent loop
+  // Each script-seeded assistant message stands for one model request. Pi 1.4.0's agent loop
   // records the active-tool delta as a system message before every request (declareToolChanges);
   // do the same so the transcript carries the loadout that resume restores.
   const declareTools = () => {
@@ -235,7 +235,7 @@ async function makeSession(pi, spec, shared, {flags = 'all', coreFlags = '', con
     if (result.isError && !allowError) throw Error(`fixture_tool_failed:${name}`);
     return result;
   };
-  // Mirrors Pi 1.3.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
+  // Mirrors Pi 1.4.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
   // unless a handler edited selectedTools, then record the prompt/tool loadout.
   const start = async task => {
     const before = session._baseSystemPromptOptions.selectedTools;
@@ -421,7 +421,7 @@ async function nativeFixture(pi, spec, shared, observed) {
     const saved = await command('plan', `save ${markdown}`);
     checks.native_plan_saved_exactly = await readFile(path.join(spec.fixture, 'PLAN.md'), 'utf8') === markdown;
     checks.native_plan_loadout_restored = JSON.stringify(session.getActiveToolNames().slice().sort()) === JSON.stringify(originalTools);
-    // Pi 1.3.0 resume restores the last loadout recorded in the transcript. Plan runs record the
+    // Pi 1.4.0 resume replays every tool loadout the branch recorded. Plan runs record the
     // read-only loadout and the next run records the restored one, so a session resumed after
     // /plan save (before any further run) must still come back with the original tools.
     observed.stage = 'native_plan_resume';
@@ -431,8 +431,9 @@ async function nativeFixture(pi, spec, shared, observed) {
     const resumed = await makeSession(pi, spec, shared, {coreFlags: 'contract,todo,verify,subagents',
       manager: pi.SessionManager.open(resumedFile, path.dirname(resumedFile), spec.fixture)});
     try {
-      // Precondition: the copied transcript still declares the plan's read-only loadout.
-      const recorded = shared.ai.getCurrentTools(resumed.manager.buildSessionContext().messages).map(tool => tool.name).sort();
+      // Precondition: the copied branch still declares the plan's read-only loadout.
+      const recorded = shared.ai.getCurrentTools(resumed.manager.getBranch().flatMap(entry =>
+        entry.type === 'message' && entry.message.role === 'system' ? [entry.message] : [])).map(tool => tool.name).sort();
       checks.native_plan_resume_restores_tools = JSON.stringify(recorded) === JSON.stringify(['find', 'grep', 'ls', 'read']) &&
         JSON.stringify(resumed.session.getActiveToolNames().slice().sort()) === JSON.stringify(originalTools);
     } finally {await resumed.dispose();}

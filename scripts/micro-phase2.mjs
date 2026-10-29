@@ -100,7 +100,7 @@ function fixtureLoader(pi, spec, settings, factories) {
     noThemes: true, noContextFiles: true, appendSystemPrompt: [], extensionFactories: factories,
     agentsFilesOverride: () => ({agentsFiles: [{path: path.join(spec.fixture, 'AGENTS.md'),
       content: 'NATIVE_CONTEXT_SENTINEL: preserve this explicitly supplied fixture context.'}]})});
-  // no* flags apply after package resolution in Pi 1.3.0. Isolate the actual
+  // no* flags apply after package resolution in Pi 1.4.0. Isolate the actual
   // package-manager discovery seam as well, rather than trusting flags alone.
   if (spec.fixtureMode !== 'ambient-discovery') {
     if (typeof loader.packageManager?.resolve !== 'function' ||
@@ -187,7 +187,7 @@ async function makeSession(pi, spec, shared, {flags = 'all', phase1 = false, man
     if (result.isError && !allowError) throw new Error('fixture_tool_failed');
     return result;
   };
-  // Mirrors Pi 1.3.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
+  // Mirrors Pi 1.4.0 AgentSession._prepareRun for a user trigger: emit, let the live loadout win
   // unless a handler edited selectedTools, then record the prompt/tool loadout.
   const start = async task => {
     const before = session._baseSystemPromptOptions.selectedTools;

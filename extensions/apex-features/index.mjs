@@ -10,6 +10,8 @@ const STATE='apex-features-state';
 const reason=error=>String(error?.message??error).slice(0,1000);
 const notify=(ctx,message)=>{if(typeof ctx.ui?.notify==='function')ctx.ui.notify(message,'info');};
 const latest=(branch,type)=>{let value;for(const entry of branch){if(entry.type==='custom'&&entry.customType===type)value=entry.data;else if(entry.type==='compaction'&&entry.details?.apexState?.[type])value=entry.details.apexState[type];}return value;};
+// Message entries of the active branch: the source Pi 1.4.0 replays tool loadouts from on resume and /tree.
+const branchMessages=ctx=>ctx.sessionManager.getBranch?.().flatMap(entry=>entry.type==='message'?[entry.message]:[]);
 
 /** Hooks and flags only at construction. Every capability defaults off. */
 export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}){
@@ -35,9 +37,9 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   const initialize=async(_event,ctx)=>{
    await checkpoints?.shutdown();releaseMode();
    // Tree navigation has already moved the branch. Do not append old plan state into it.
-   // Pi 1.3 restores the target branch's recorded loadout first; only undo our read-only loadout when
+   // Pi 1.4 restores the target branch's recorded loadout first; only undo our read-only loadout when
    // the target declares none, so Pi left it in place.
-   if(plan?.isActive()&&baseTools&&!workflows.recordedToolNames(ctx.sessionManager.buildSessionProjection?.().messages))pi.setActiveTools(baseTools);
+   if(plan?.isActive()&&baseTools&&!workflows.recordedToolNames(branchMessages(ctx)))pi.setActiveTools(baseTools);
    checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;
    flags=new Set(parseFeatureFlags(pi.getFlag('apex-feature-flags')));evalMode=pi.getFlag('apex-eval')===true;
    if(flags.has('autocompact'))autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));
@@ -74,7 +76,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    if(flags.has('plan')||flags.has('review'))workflows=await import('./workflows.mjs');
    if(flags.has('plan')){
     baseTools=latest(branch,'apex-plan-state')?.tools??pi.getActiveTools();
-    plan=workflows.createPlanManager({cwd:ctx.cwd,pi,policy,branch,recordedTools:workflows.recordedToolNames(ctx.sessionManager.buildSessionProjection?.().messages),
+    plan=workflows.createPlanManager({cwd:ctx.cwd,pi,policy,branch,recordedTools:workflows.recordedToolNames(branchMessages(ctx)),
      persist:entry=>pi.appendEntry(entry.customType,entry.data)});
     command('plan','Enter read-only planning, save literal Markdown, or cancel',async(args,ctx)=>{
      await ctx.waitForIdle();

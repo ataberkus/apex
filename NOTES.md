@@ -6,8 +6,8 @@ Audited 2026-10-01. Phase 0 research and offline measuring tools are prepared; r
 
 | Component | Pin |
 |---|---|
-| Pi npm package | @earendil-works/pi-coding-agent 1.3.0 (was 0.99.2 for the phase records below); bun.lock pins it and every transitive dependency by integrity |
-| Audited Pi source | v1.3.0 tag 71023aec1546d6d677a65669c5665c0927ce0dd0 (the earlier audit used unreleased 8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d, 17 commits after the v0.99.2 tag 005af57d) |
+| Pi npm package | @earendil-works/pi-coding-agent 1.4.0 (was 1.3.0 before 2026-10-29, and 0.99.2 for the phase records below); bun.lock pins it and every transitive dependency by integrity |
+| Audited Pi source | v1.4.0 tag 4a080252f06caf63a525d7873c5d94d3c23887e0 (previous audit: v1.3.0 tag 71023aec1546d6d677a65669c5665c0927ce0dd0; the first audit used unreleased 8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d, 17 commits after the v0.99.2 tag 005af57d) |
 | Harbor runtime | git source 99218a4611e3bd76e49ce3b5f977e8c8134ad3ac; version label 0.23.0 |
 | Reference adapter, research only | badlogic/pi-terminal-bench 0074c915dc7d8ceeba5f61b19e7b9aa078564fa3 |
 | Validated environment | Linux x86_64; Node 24.19.0; Python 3.12.14 |
@@ -15,9 +15,20 @@ Audited 2026-10-01. Phase 0 research and offline measuring tools are prepared; r
 
 Pi requires Node >=22.19.0; Harbor requires Python >=3.12. Upstream code was inspected read-only. No Pi core patch or upstream PR was needed.
 
+### Pi 1.4.0 upgrade (from 1.3.0)
+
+[The Pi API appendix](research/pi-api-notes.md) is re-audited for 1.4.0 and lists every change. `extensions/types.ts`, `runner.ts`, `system-prompt.ts`, `session-manager.ts`, `settings-manager.ts`, `resource-loader.ts` and `package-manager.ts` are byte-identical, and the internals Apex mirrors still hold: `ModelRuntime` has no `#private` fields and an unchanged `refresh`, `Settings.retry` keeps its shape, compaction and branch-summary usage entries still carry no model, `packageManager.resolve` still runs before the `no*` flags, `_prepareRun`/`_baseSystemPromptOptions`/`declareToolChanges` are unchanged, and the package entry point `resolvePi()` resolves did not move. Changes Apex adapts to:
+
+- Resume and `/tree` now replay every tool-loadout system message on the branch (`getBranch()`), including those before a compaction, instead of the compaction-aware projection. The plan manager and the tree-navigation reset fold the same branch messages (`recordedToolNames(branchMessages(ctx))`), so a compaction without a loadout snapshot no longer makes Apex think Pi left the read-only loadout in place. The phase 3 micro harness checks its resume precondition on the branch as well.
+- Pi now also activates extension tools the branch never added or removed (unless `defaultActive:false`) on resume and `/tree`. Apex's `session_start` already activates the context, lazy and browser tools it registers (`extensions/apex-context/index.mjs`), so this matches Apex's own behaviour.
+- Eval-visible behaviour shifts that invalidate 1.3.0 baselines rather than break Apex: native compaction, split-turn and branch summaries request the model's output limit instead of `0.8 × reserveTokens` (history), `0.5 × reserveTokens` (split-turn prefix) or 4096 tokens (branch), so stock-Pi summary cost and length change (Apex's own `compact` hook still caps `maxTokens` at `reserveTokens`, which 1.4.0 still passes in `preparation.settings`); `/compact <instructions>` also steers split-turn summaries; `grep` runs `rg --no-config`; provider retries no longer fire on status-code digits inside request ids and do fire on more gateway/stream-disconnect errors; recovery from a cut-off response omits its tool results; attribution headers move into pi-ai's client identity (`before_provider_headers` no longer sees OpenRouter/OpenCode/NVIDIA attribution); Windows shell detection finds PowerShell and the WSL launcher outside `PATH` and accepts Store aliases.
+- Apex's runtime `dependencies` contain no host-provided package (`@earendil-works/pi-*`, `@mariozechner/pi-*`, `typebox`, `@sinclair/typebox`), so 1.4.0's host-package warning does not fire for Apex; host Pi stays a `"*"` peer.
+- Pi still ships no npm-shrinkwrap; Harbor's stock install and the Apex adapter now install exact Pi 1.4.0, still not lock-pinned beyond Pi itself.
+- The upgrade's `bun run check` exposed an older drift: `autocompact` was in the JS feature list and `evals/phase3-ablations.json` but missing from `evals/feature_flags.py`. Python now lists all ten flags.
+
 ### Pi 1.3.0 upgrade (from 0.99.2)
 
-Phase sections below record the 0.99.2 contracts their evidence was gathered against; [the Pi API appendix](research/pi-api-notes.md) is re-audited for 1.3.0 and lists every change. Changes Apex adapts to:
+Phase sections below record the 0.99.2 contracts their evidence was gathered against. Changes Apex adapted to for 1.3.0:
 
 - `before_agent_start` is a union on `messageType`. `"custom"` runs (an idle `pi.sendMessage(..., {triggerTurn:true})`) carry `message` and no `prompt`; apex-core still applies its mode section but starts no task boundary for them.
 - Tool loadouts are transcript state: Pi's agent loop records the active-tool delta as a system message before each model request, and resume and `/tree` restore the branch's declared tools. `/plan` save/cancel restores prior tools after the planning requests were declared, so a session resumed before its next request would come back read-only; the plan manager undoes exactly that stale loadout (`recordedToolNames`, `createPlanManager`), and tree navigation only resets the old plan's loadout when the target branch declares none.

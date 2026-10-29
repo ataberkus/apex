@@ -46,9 +46,10 @@ async function writePlan(cwd,markdown,signal){
 const planStateOf=entry=>entry?.type==='custom'&&entry.customType===TYPE?entry.data:entry?.type==='compaction'?entry.details?.apexState?.[TYPE]:undefined;
 const sameSet=(left,right)=>left.length===right.length&&left.every(name=>right.includes(name));
 /**
- * Tool names the transcript declares, folded like Pi's getCurrentTools(): Pi's agent loop records the
- * active-tool delta as a system message before each model request, and resume or /tree restores it.
- * Undefined when the projection declares no tools, in which case Pi leaves the loadout alone.
+ * Tool names the branch declares, folded like Pi's getCurrentTools(): Pi's agent loop records the
+ * active-tool delta as a system message before each model request, and resume or /tree replays every
+ * one on the branch, including those before a compaction (Pi 1.4.0 _restoreToolsFromTranscript).
+ * Undefined when the branch declares no tools, in which case Pi leaves the loadout alone.
  */
 export function recordedToolNames(messages){
  let tools;
@@ -75,7 +76,7 @@ function restoredState(branch){
 
 /**
  * persist accepts a detached {customType,data} entry; callers adapt it to pi.appendEntry().
- * recordedTools: recordedToolNames() of the branch projection Pi restored the loadout from.
+ * recordedTools: recordedToolNames() of the branch messages Pi restored the loadout from.
  */
 export function createPlanManager({cwd,pi,persist=()=>{},branch=[],recordedTools,policy}={}){
  const restored=restoredState(branch);let state=restored.state;let queue=Promise.resolve();

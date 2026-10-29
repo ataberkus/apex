@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { pythonRuntime } from './python-runtime.mjs';
 
 const PINS = Object.freeze({
-  pi_version: '1.3.0',
-  pi_source_commit: '71023aec1546d6d677a65669c5665c0927ce0dd0',
+  pi_version: '1.4.0',
+  pi_source_commit: '4a080252f06caf63a525d7873c5d94d3c23887e0',
   harbor_version: '0.23.0',
   harbor_commit: '99218a4611e3bd76e49ce3b5f977e8c8134ad3ac',
   node_minimum: '22.19.0',
