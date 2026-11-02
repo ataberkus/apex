@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
-import {spawn} from 'node:child_process';
 import {mkdtemp, mkdir, readFile, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {MAX_SEND_BODY_BYTES} from '../dashboard/attachments.mjs';
+import {startDashboard} from './fixtures/dashboard-server.mjs';
 
 const PNG = {type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSfUAAAAASUVORK5CYII='};
 function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
@@ -22,18 +22,11 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 test('authenticated image sending forwards native image blocks, honors live capabilities, rejects bad data and waits for RPC acceptance', {timeout: 30000}, async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-images-')), textOnly = join(home, 'text-only');
   await mkdir(textOnly);
-  const port = 50000 + Math.floor(Math.random() * 5000);
   const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
   // The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
   const preload = ['--preload', fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url)), '--preload', fileURLToPath(new URL('./fixtures/dashboard-images-rpc.mjs', import.meta.url))];
-  const child = spawn(process.execPath, [...preload, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [...preload, server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 15000);
-      child.once('error', error => { clearTimeout(timer); reject(error); });
-      child.once('exit', code => { clearTimeout(timer); reject(new Error(`Dashboard exited: ${code}`)); });
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     assert.equal((await call(port, {path: '/vendor/marked.js'})).status, 403);
     const login = await call(port, {path: `/?t=${token}`});
     const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};

@@ -446,8 +446,12 @@ An audit with benchmarks and adversarial verification found the costs in per-tur
     - The kept-mirror test forged index stat data from Bun's `lstat`. Git for Windows never matches that, because its ctime is the creation time.
     - The auto-gc test assumed `maintenance run --auto` runs `gc`. Git 2.56 runs a geometric repack instead, which neither uses gc.auto's estimate nor prunes; its trace shows the shadow commit's maintenance running with `--no-detach`, as intended.
     - Two absolute timing bounds failed only under the loaded suite. Idle on the runner, the edit pre-check takes 1–2 ms (d0c6d2b: 60–107 ms) and the 100 KB delete check 1–6 ms.
+  - One more Windows-only failure predates the branch. The dashboard tests picked random ports in 44000–55000, inside the ephemeral ranges (Windows 49152–65535, Linux 32768–60999 by default). On the runner, one port was taken (`Failed to start server. Is port 49697 in use?`), and the test waited out its 20 s deadline although the server had already exited. The tests now start servers through `tests/fixtures/dashboard-server.mjs`:
+    - a probed port in 20000–31999;
+    - failure as soon as the server exits, with its own message;
+    - a retry on another port when the cause is a listen failure.
   - Parallelism, three interleaved runs at each width:
-    - Two workers: 316 s (no timings file yet), 196 s and 205 s. One run timed out a dashboard fixture start.
+    - Two workers: 316 s (no timings file yet), 196 s and 205 s. One run lost a dashboard fixture to a port collision (below).
     - Four workers: 180 s, 190 s and 186 s. Two of the three runs timed out `session-micro` fixture children (`child_failed_or_timed_out`).
     - The win32 default stays two. A Windows machine with four or more cores is still unmeasured.
   - Checkpoints, on a 2,000-file / 16 MB repository with the stat cache off (median of turns 2–8, two rounds): capture 21.9–22.3 s → 1.19–1.21 s, finish 21.7–22.3 s → 1.19–1.23 s, repeat capture 39–41 ms → 0 ms. The first capture into an empty shadow store took 29–88 s on either version (the initial `git add` under Defender).
