@@ -5,6 +5,7 @@ import {lstat, open, readlink, realpath, stat} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createEditToolDefinition} from '@earendil-works/pi-coding-agent';
+import {linkFreeRealpath} from '../../lib/real-path.mjs';
 
 const knownTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls', 'bash', 'powershell']);
 const pathTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls']);
@@ -142,6 +143,31 @@ async function resolvedExistingAncestor(candidate, depth = 0) {
   }
 }
 
+async function linkFreeExistingAncestor(candidate) {
+  let ancestor = candidate;
+  const suffix = [];
+  while (true) {
+    try {
+      const real = await linkFreeRealpath(ancestor);
+      return real && path.join(real, ...suffix);
+    } catch (error) {
+      const parent = path.dirname(ancestor);
+      if (error.code !== 'ENOENT' || parent === ancestor) throw error;
+      suffix.unshift(path.basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+// One Windows path has several spellings (8.3 names, case), and correctToolCall hands the canonical one to sibling
+// handlers. A link on either side is no spelling, so a junction into cwd from outside stays refused.
+async function insideAsSpelled(root, absolute) {
+  try {
+    const [realRoot, real] = await Promise.all([linkFreeRealpath(root), linkFreeExistingAncestor(absolute)]);
+    return realRoot !== undefined && real !== undefined && inside(realRoot, real);
+  } catch { return false; }
+}
+
 async function confinedPath(cwd, value, {readOnly = false} = {}) {
   if (typeof cwd !== 'string' || !cwd) throw new Error('A working directory is required for confined paths');
   const root = path.resolve(cwd);
@@ -150,7 +176,7 @@ async function confinedPath(cwd, value, {readOnly = false} = {}) {
     const resolved = await resolvedExistingAncestor(absolute);
     if (inside(await realpath(skillsRoot), resolved)) return resolved;
   }
-  if (!inside(root, absolute)) throw new Error('Tool path must be confined to cwd; path is outside the working directory');
+  if (!inside(root, absolute) && !await insideAsSpelled(root, absolute)) throw new Error('Tool path must be confined to cwd; path is outside the working directory');
   const realRoot = await realpath(root);
   const resolved = await resolvedExistingAncestor(absolute);
   if (!inside(realRoot, resolved)) throw new Error('Tool path resolves outside the confined working directory');
@@ -516,7 +542,9 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
   };
   const select = async file => {
     const extension = path.extname(file).toLowerCase();
-    const relative = path.relative(root, file);
+    // `file` is canonical, so under a short root a relative path would climb out and back in. A linked root stays as it is.
+    const base = await linkFreeRealpath(root) ?? root;
+    const relative = path.relative(base, file);
     const bunCommand = path.isAbsolute(process.execPath) ? process.execPath : 'bun';
     if (['.js', '.mjs', '.cjs'].includes(extension) && await available(bunCommand))
       return {checker: 'bun', command: bunCommand, args: ['-e', bunSyntaxCheck(file)]};
@@ -528,7 +556,7 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
     }
     if (extension === '.go' && await available('go')) return {checker: 'go', command: 'go', args: ['vet', relative]};
     if (extension === '.rs' && await available('cargo')) {
-      const manifest = await findManifest(root, file, 'Cargo.toml');
+      const manifest = await findManifest(base, file, 'Cargo.toml');
       if (manifest) return {checker: 'cargo', command: 'cargo', args: ['check', '--offline', '--locked', '--quiet', '--message-format=short', '--manifest-path', manifest, '--target-dir', path.join(root, '.apex', 'diagnostics-target')]};
     }
     return undefined;
