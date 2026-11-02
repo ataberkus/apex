@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {mkdtemp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {delimiter, join} from 'node:path';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
@@ -410,4 +410,69 @@ test('import creates no processes or files and returns promptly', async t => {
   assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout.trim(), 'imported');
   await assert.rejects(readFile(join(cwd, 'IMPORT_SIDE_EFFECT')), {code: 'ENOENT'});
+});
+
+test('a session probe cache reuses available version probes and probes everything else again', async t => {
+  const {captureEnvironment} = await api();
+  const cwd = await fixture(t);
+  await put(cwd, 'package.json', '{"name":"cached","scripts":{"test":"node --test"}}');
+  const calls = [];
+  const runCommand = async (command, args) => {
+    calls.push([command, ...args].join(' '));
+    if (command === 'fd') return {code: 1, stdout: '', stderr: 'fd: broken'};
+    if (command === 'go') throw Object.assign(new Error('not installed'), {code: 'ENOENT'});
+    return {code: 0, stdout: `${command} fixture 1.0\nsecond line`, stderr: ''};
+  };
+  const stable = details => ({...details, resources: {...details.resources, freeMemoryBytes: 0}});
+  const probeCache = new Map();
+  const first = await captureEnvironment({cwd, task: 'fix', entrypoints: true, runCommand, probeCache});
+  assert.equal(calls.length, 14);
+  const uncached = await captureEnvironment({cwd, task: 'fix', entrypoints: true, runCommand});
+  assert.equal(uncached.text, first.text);
+  assert.deepEqual(stable(uncached.details), stable(first.details));
+  calls.length = 0;
+  const second = await captureEnvironment({cwd, task: 'fix', entrypoints: true, runCommand, probeCache});
+  // Repository status, listening services and disk are live observations; unavailable tools may have been installed since.
+  assert.deepEqual(calls.map(call => call.split(' ')[0]).sort(), ['df', 'fd', 'git', 'go', 'ss']);
+  assert.match(calls.find(call => call.startsWith('git ')), / status /);
+  assert.equal(second.text, first.text);
+  assert.deepEqual(stable(second.details), stable(first.details));
+  second.details.tools.node.stdout = 'tampered';
+  second.details.packageManagers.pip.stdout = 'tampered';
+  const third = await captureEnvironment({cwd, runCommand, probeCache});
+  assert.equal(third.details.tools.node.stdout, 'node fixture 1.0\nsecond line');
+  assert.equal(third.details.packageManagers.pip.stdout, 'pip3 fixture 1.0\nsecond line');
+  calls.length = 0;
+  const shared = new Map();
+  const [left, right] = await Promise.all([captureEnvironment({cwd, runCommand, probeCache: shared}),
+    captureEnvironment({cwd, runCommand, probeCache: shared})]);
+  assert.equal(left.text, right.text);
+  for (const command of ['node', 'python3', 'rustc', 'pip3', 'uv', 'fd', 'go']) assert.equal(calls.filter(call => call.startsWith(`${command} `)).length, 1, command);
+  // The key holds the project root and the filtered PATH, so per-directory shims and PATH changes are probed afresh.
+  calls.length = 0;
+  const other = await fixture(t);
+  await captureEnvironment({cwd: other, runCommand, probeCache});
+  assert.equal(calls.length, 14);
+  const original = process.env.PATH;
+  try {
+    process.env.PATH = `${original}${delimiter}/apex-probe-cache-test-path`;
+    calls.length = 0;
+    await captureEnvironment({cwd, runCommand, probeCache});
+    assert.equal(calls.length, 14);
+  } finally { process.env.PATH = original; }
+});
+
+test('a timed-out version probe is not cached and is probed again by the next capture', async t => {
+  const {captureEnvironment} = await api();
+  const cwd = await fixture(t);
+  let rustc = 0;
+  const runCommand = async command => {
+    if (command === 'rustc' && ++rustc === 1) return new Promise(() => {});
+    return {code: 0, stdout: `${command} fixture`, stderr: ''};
+  };
+  const probeCache = new Map();
+  assert.equal((await captureEnvironment({cwd, runCommand, probeCache})).details.tools.rustc.status, 'timed-out');
+  assert.equal((await captureEnvironment({cwd, runCommand, probeCache})).details.tools.rustc.status, 'available');
+  await captureEnvironment({cwd, runCommand, probeCache});
+  assert.equal(rustc, 2);
 });

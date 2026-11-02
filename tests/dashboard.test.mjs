@@ -117,12 +117,15 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
     assert.equal(started.status, 200, started.text);
     // Plain agent picks nothing, so bin/apex's Windows defaults must not apply. On native Windows a signed-in model
     // still takes the bare target, which adds only the Claude identity patch; elsewhere it runs stock Pi.
-    const [plainArgs] = (await readFile(join(home, 'argv.jsonl'), 'utf8')).trim().split('\n').map(JSON.parse);
-    const plain = buildPiInvocation(withWindowsDefaults(plainArgs), resolvePi().cli).args;
+    const [plain] = (await readFile(join(home, 'argv.jsonl'), 'utf8')).trim().split('\n').map(JSON.parse);
     assert.deepEqual(plain.filter((arg, index) => plain[index - 1] === '--extension').map(file => file.split(/[/\\]/).at(-1)),
       process.platform === 'win32' ? ['claude-identity.mjs'] : [], 'nothing picked adds no Apex feature');
     assert.ok(!plain.some(arg => /^--apex-(?:context|core|feature)-flags$/.test(arg)));
     const {id} = JSON.parse(started.text);
+    // The dashboard starts Pi itself with exactly the invocation bin/apex would build from the launch arguments.
+    const launched = (await state()).workspaces.flatMap(w => w.live).find(s => s.id === id), sol = (await state()).models.find(m => m.id === 'sol');
+    const launchArgs = [...(launched.target ? ['--apex-target', launched.target] : ['--apex-off']), '--provider', sol.provider, '--model', sol.model, '--thinking', launched.thinking, '--mode', 'rpc'];
+    assert.deepEqual(plain, buildPiInvocation(withWindowsDefaults(launchArgs, {cwd: home}), resolvePi().cli).args);
     const sent = await post('/api/send', {id, message: 'Offline fixture prompt'});
     assert.equal(sent.status, 200, sent.text);
     const settings = async body => { const r = await post('/api/settings', {id, ...body}); return {...JSON.parse(r.text), code: r.status}; };
@@ -229,6 +232,49 @@ test('auto-approve answers safety prompts for one session, including waiting one
     text = await log();
     assert.doesNotMatch(text, /answered Confirm tool action#0\.75/);
     assert.equal((await post('/api/stop', {id})).status, 200);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise(resolve => child.once('exit', resolve));
+      child.kill();
+      await exited;
+    }
+    await rm(home, {recursive: true, force: true});
+  }
+});
+
+test('an agent killed by a signal ends its session with the exit code bin/apex reported for it', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'apex-dash-signal-'));
+  const port = 44000 + Math.floor(Math.random() * 1000);
+  const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
+  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  try {
+    const token = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
+      child.once('error', error => { clearTimeout(timer); reject(error); });
+      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
+    });
+    const login = await call(port, {path: `/?t=${token}`});
+    const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
+    const post = (path, body) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
+    const live = async () => JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text).workspaces.flatMap(w => w.live);
+    const exitOf = id => new Promise(resolve => {
+      const req = http.get({host: '127.0.0.1', port, path: `/api/events?id=${id}`, headers: {host: `127.0.0.1:${port}`, ...cookie}}, res => {
+        let text = ''; res.on('data', chunk => { text += chunk; }); res.on('error', () => {});
+        setTimeout(() => { req.destroy(); resolve(text.split('\n\n').map(event => event.slice('data: '.length)).filter(Boolean).map(JSON.parse).find(event => event.type === 'dashboard_exit')); }, 200);
+      });
+      req.on('error', () => {});
+    });
+    assert.equal((await post('/api/workspaces', {path: home})).status, 200);
+    const ids = {};
+    for (const signal of ['SIGTERM', 'SIGINT']) {
+      ids[signal] = JSON.parse((await post('/api/start', {cwd: home, model: 'sol'})).text).id;
+      assert.equal((await post('/api/send', {id: ids[signal], message: `exit on ${signal}`})).status, 200);
+      assert.equal((await post('/api/stop', {id: ids[signal]})).status, 200);
+    }
+    for (let tries = 0; (await live()).some(s => s.status !== 'error') && tries < 200; tries++) await new Promise(resolve => setTimeout(resolve, 10));
+    assert.deepEqual((await live()).map(s => s.status), ['error', 'error'], 'a signalled agent stays listed as failed');
+    assert.equal((await exitOf(ids.SIGTERM)).code, 1);
+    assert.equal((await exitOf(ids.SIGINT)).code, 130);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = new Promise(resolve => child.once('exit', resolve));

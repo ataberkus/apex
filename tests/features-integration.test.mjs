@@ -24,6 +24,36 @@ test('selected cost exposes native status/report without model work',async()=>{
  const s=await h.commands.get('cost').handler('',h.ctx);assert.equal(s.cost.label,'estimate, not invoice');
  assert.equal(h.tools.length,0);assert.equal(await h.emit('resources_discover'),undefined);
 });
+test('cost status and commands equal a full summary across turns, repricing, model switches and tree navigation',async()=>{
+ const {summarizeSession,formatCost}=await import('../extensions/apex-features/accounting.mjs');
+ const h=fixture('cost,report');h.ctx.hasUI=true;const statuses=[];h.ctx.ui.setStatus=(key,text)=>statuses.push([key,text]);
+ // Pi hands out its own entry objects in a fresh array on every call.
+ let entries=[];h.ctx.sessionManager.getEntries=()=>[...entries];h.ctx.sessionManager.getLeafId=()=>entries.at(-1)?.id??null;
+ h.ctx.model={provider:'fixture',id:'model',contextWindow:1000,cost:{input:1,output:2,cacheRead:0.1,cacheWrite:0.5}};
+ h.ctx.getContextUsage=()=>({tokens:entries.length*10,contextWindow:1000});
+ const full=()=>summarizeSession(entries,{context:h.ctx.getContextUsage(),model:h.ctx.model,pricing:h.ctx.model?.cost,activeLeaf:entries.at(-1)?.id??null});
+ const status=()=>['apex-cost',formatCost(full())];
+ const turn=n=>{const usage={input:n+1,output:4,cacheRead:2,cacheWrite:1,totalTokens:n+8};
+  entries.push({type:'message',id:`a${n}`,parentId:entries.at(-1)?.id??null,message:{role:'assistant',provider:'fixture',model:'model',usage,stopReason:'toolUse',responseId:`r${n}`,content:[{type:'text',text:'x'.repeat(n*10)}]}},
+   {type:'message',id:`t${n}`,parentId:`a${n}`,message:{role:'toolResult',content:[{type:'text',text:'y'.repeat(n*20)}]}});};
+ createApexFeatures()(h.pi);await h.emit('session_start');assert.deepEqual(statuses.at(-1),status());
+ for(let n=0;n<8;n++){
+  // An extraction stays unaccounted until its helper record lands two turns later.
+  if(n===2)entries.push({type:'custom',id:'s',parentId:entries.at(-1).id,customType:'apex-task-state',data:{taskId:'task-1',extraction:{attempted:true,usage:{}}}});
+  if(n===3)h.ctx.model.cost.output=4;
+  if(n===4)entries.push({type:'custom',id:'h',parentId:entries.at(-1).id,customType:'apex-helper-usage',data:{version:1,requestId:'task-1:contract:1',taskId:'task-1',kind:'contract',provider:'fixture',model:'model',usage:{input:7,output:2,cacheRead:0,cacheWrite:0,totalTokens:9},complete:true,status:'complete'}});
+  if(n===5)h.ctx.model={...h.ctx.model,id:'model-2'};
+  if(n===6){h.ctx.model={provider:'other',id:'m2',contextWindow:2000,cost:{input:9,output:9,cacheRead:1,cacheWrite:1}};entries.push({type:'model_change',id:'m',parentId:entries.at(-1).id,provider:'other',modelId:'m2'});}
+  turn(n);await h.emit('turn_end');assert.deepEqual(statuses.at(-1),status());
+  await h.emit('agent_settled');assert.deepEqual(statuses.at(-1),status());
+  assert.deepEqual(await h.commands.get('cost').handler('',h.ctx),full());
+ }
+ assert.deepEqual(await h.commands.get('report').handler('',h.ctx),full());
+ // Tree navigation re-initializes; the branch is then seen through other entry objects.
+ entries=structuredClone(entries.slice(0,11));await h.emit('session_tree');assert.deepEqual(statuses.at(-1),status());
+ assert.deepEqual(await h.commands.get('cost').handler('',h.ctx),full());
+ await h.emit('session_shutdown');assert.deepEqual(statuses.at(-1),['apex-cost',undefined]);
+});
 test('plan gates any nested/deferred mutator, retains readonly and cancels tools',async()=>{
  const h=fixture('plan');createApexFeatures()(h.pi);await h.emit('session_start');
  const r=await h.commands.get('plan').handler('inspect this project',h.ctx);assert.equal(r.active,true);assert.equal(r.prompted,false);

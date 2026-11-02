@@ -105,12 +105,34 @@ function selectText(clean, pointer, event, maxBytes, maxLines) {
     output.push(pointer);
     return output.join('\n');
   }
+  // render() emits newline-free elements ending in the non-empty pointer, so fits(render()) holds
+  // exactly when elements <= maxLines and their joined bytes <= maxBytes. add() tracks both
+  // incrementally: re-rendering for every candidate line took seconds on megabyte outputs.
+  const omittedBytes = bytes('[…  lines omitted …]') + 1; // gap marker without its ASCII digits, plus newline
+  const markerBytes = gap => gap > 0 ? omittedBytes + String(gap).length : 0;
+  let order, total, count;
+  function account() {
+    order = [...selected.keys()].sort((a, b) => a - b);
+    total = bytes(pointer); count = 1;
+    let previous = -1;
+    for (const index of [...order, lines.length]) {
+      total += markerBytes(index - previous - 1); count += Number(index - previous - 1 > 0);
+      if (index < lines.length) { total += bytes(selected.get(index)) + 1; count++; }
+      previous = index;
+    }
+  }
   function add(index, candidate = lines[index]) {
     if (index < 0 || index >= lines.length || selected.has(index)) return false;
+    let low = 0, high = order.length;
+    while (low < high) { const middle = (low + high) >> 1; if (order[middle] < index) low = middle + 1; else high = middle; }
+    const before = low > 0 ? order[low - 1] : -1, after = low < order.length ? order[low] : lines.length;
+    const nextTotal = total - markerBytes(after - before - 1) + markerBytes(index - before - 1) + markerBytes(after - index - 1) + bytes(candidate) + 1;
+    const nextCount = count - Number(after - before - 1 > 0) + Number(index - before - 1 > 0) + Number(after - index - 1 > 0) + 1;
+    if (nextCount > maxLines || nextTotal > maxBytes) return false;
     selected.set(index, candidate);
-    if (fits(render())) return true;
-    selected.delete(index);
-    return false;
+    order.splice(low, 0, index);
+    total = nextTotal; count = nextCount;
+    return true;
   }
 
   // Reserve both boundaries before diagnostic selection. Oversized individual lines
@@ -130,6 +152,8 @@ function selectText(clean, pointer, event, maxBytes, maxLines) {
       if (!fits(render())) selected.clear();
     }
   }
+  // From here on `selected` changes only through add().
+  account();
 
   // Prioritize distinct failures and diff lines, then their context. These are
   // heuristic observations, never an authoritative declaration of test success.
@@ -143,9 +167,11 @@ function selectText(clean, pointer, event, maxBytes, maxLines) {
       hot.push(index);
     }
   }
+  const hotBudget = Math.max(1, Math.floor(maxBytes / 4));
   for (const index of hot) {
-    if (!add(index) && !selected.has(index)) {
-      add(index, boundedLine(lines[index], Math.max(1, Math.floor(maxBytes / 4))));
+    // boundedLine returns a line within budget unchanged, so retrying it cannot succeed.
+    if (!add(index) && !selected.has(index) && bytes(lines[index]) > hotBudget) {
+      add(index, boundedLine(lines[index], hotBudget));
     }
   }
   const radius = mode === 'test' || mode === 'diff' ? 2 : 1;

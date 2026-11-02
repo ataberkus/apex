@@ -186,3 +186,16 @@ Current checkout has no Git metadata or local pinned node_modules/Harbor environ
 
 Requested Muse and its observed canonical OpenRouter slug are an explicit known identity pair; arbitrary requested/observed changes still fail comparison. Native JSONL bytes, including CRLF framing, survive curated feedback export. Missing/poison held-out raw files are rejected or excluded based on split metadata before content access. Existing normalized caller-supplied trace/result association remains unverified, never relabeled authenticated.
 
+
+## Performance-sensitive source contracts (2026-11-02)
+
+The optimizations recorded in `DECISIONS.md` (performance pass) rest on these source facts. A change to any of them must rerun the matching differential test. Each test compares against a frozen `tests/fixtures/*-d0c6d2b.mjs` reference. Replace a reference only on purpose, when behavior is meant to change; `accounting-d0c6d2b.mjs` is pinned by SHA-256.
+
+- **Pi sessions are append-only.** `SessionManager` only pushes to `fileEntries` and reassigns it in `newSession`, `_loadEntries` and `createBranchedSession`. `getEntries()` returns the same entry objects. The incremental summarizer detects a new history only by length and by the identity of the last processed entry (`features-accounting-incremental`).
+- **Pi prepares tool calls one at a time** (`agent-loop.js`), so checkpoint `capture`/`finish` never overlap within a session in the product. The checkpoint module still keeps d0c6d2b's concurrent-call semantics (`features-checkpoints-equivalence`, `features-checkpoints-io`).
+- **Checkpoint stat cache:** Bun's bigint `lstat`/`fstat` expose `dev`, `ino`, `mtimeNs` and `ctimeNs`. A filesystem reporting `ino` 0 rewrites the whole mirror every snapshot. The cache stays off on win32.
+- **Pi's edit dry run calls `ops.writeFile` only after every edit has matched**, and writer errors are not wrapped. The correction pre-check stops at the writer with a private sentinel (`core-control`).
+- **Read results always carry `structuredContent`** (Pi `read.js` `toReadOutput`, Apex `efficientRead`), so `shapeToolResult` never shapes them. `selectText`'s incremental fit assumes `render()` emits newline-free elements ending in the pointer, and ASCII digits in gap markers (`context-shaping`).
+- **Marked 18.0.11:** tokens without `text` (list, table, hr, space, def) are built from their `raw` alone, and inline state flows only forward. Streaming reuse keys on type, raw and text, and any change in the reference-link map rebuilds everything. Do not add suffix lexing. `appendTokens` must stay stateless between top-level tokens. Click handlers must read their strings from the DOM, never capture token strings, which are slices of the paint's whole source. After any Marked upgrade, rerun `dashboard-content`.
+- **Dashboard details column:** `infoSnapshot()` must list every input `renderInfo`/`renderUsage` reads. Objects compared by identity must be replaced, never mutated in place.
+- **Dashboard replay:** `replayLine()` in `dashboard/server.mjs` drops event types `app.js` does not render. If `app.js` starts rendering one, keep it there. `dashboard-replay` extracts `replayLine`, `eachLine` and `enhanceInput` from the server source by declaration shape, so keep those as top-level `function` declarations.

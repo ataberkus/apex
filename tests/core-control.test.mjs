@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {chmod, mkdtemp, mkdir, readFile, rm, writeFile} from 'node:fs/promises';
+import {chmod, mkdtemp, mkdir, readFile, rm, stat, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {createEditToolDefinition} from '@earendil-works/pi-coding-agent';
 import {directoryLink, fileLink} from './fixtures/filesystem.mjs';
@@ -205,6 +205,165 @@ test('quoted command descriptions and literal home strings do not request catast
       {headless: false, confirm: async () => { confirmations++; return false; }}), undefined, command);
     assert.equal(confirmations, 0, command);
   }
+});
+
+// The Windows delete check used to be this regex; it is kept here only as the reference for equivalence tests.
+const ORIGINAL_WINDOWS_DELETE = /\b(?:Remove-Item|del|rd)\b[^\n;]*(?:-Recurse|\/s)[^\n;]*\s(?:[A-Z]:\\|\$HOME)\s*$/i;
+const seeded = seed => n => Math.floor((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32 * n);
+async function asksConfirmation(correctToolCall, command, cwd = process.cwd()) {
+  let confirmations = 0;
+  const outcome = await correctToolCall(call('bash', {command}), {cwd, mode: 'tui', hasUI: true},
+    {headless: false, confirm: async () => { confirmations++; return false; }});
+  assert.equal(outcome?.block === true, confirmations === 1, command);
+  if (outcome?.block) assert.equal(outcome.reason, 'Catastrophic command was not confirmed in the TUI');
+  return confirmations === 1;
+}
+
+test('Windows recursive deletes of a drive root or $HOME need TUI confirmation and near misses do not', async t => {
+  const cwd = await fixture(t);
+  const {correctToolCall} = await moduleApi();
+  const dangerous = ['Remove-Item -Recurse -Force C:\\', 'rd /s /q C:\\', 'del /s $HOME', 'cmd /c rd /S /Q c:\\   ', 'rd /s /q\nC:\\',
+    'rd/s C:\\', 'Remove-Item -Path x -Recurse\t$home\r\n', 'echo ok; rd /s\u00a0Z:\\'];
+  const harmless = ['rd /s /q C:\\build', 'del /s x; echo C:\\', 'Remove-Item -Recurse $HOME\\x', 'Remove-Item C:\\ -Recurse',
+    'echo rd; /s C:\\', 'rd /s\n;C:\\', 'xrd /s C:\\', 'Remove-Items -Recurse C:\\', 'rd /s C:\\x', 'rd /s 1:\\', 'rd /s $HOMEx', 'rd /q C:\\'];
+  for (const command of dangerous) {
+    assert.equal(ORIGINAL_WINDOWS_DELETE.test(command), true, command);
+    assert.equal(await asksConfirmation(correctToolCall, command, cwd), true, command);
+  }
+  for (const command of harmless) {
+    assert.equal(ORIGINAL_WINDOWS_DELETE.test(command), false, command);
+    assert.equal(await asksConfirmation(correctToolCall, command, cwd), false, command);
+  }
+});
+
+test('the Windows delete check gives the original regex answer on seeded random commands', async () => {
+  const {correctToolCall} = await moduleApi();
+  // No token can form rm, dd, mkfs, shutdown or a fork bomb, so only the Windows branch can ask for confirmation.
+  const tokens = ['rd', 'RD', 'del', 'DeL', 'Remove-Item', 'remove-item', 'Remove-Items', 'xrd', 'rdx', '-', '-Recurse', '-recurse',
+    '/s', '/S', '/src', '/', 's', ' ', '  ', '\t', '\n', '\r', '\r\n', ';', '\u00a0', '\u2028', '\ufeff', '\u0085', '\u000b', 'C:\\', 'c:\\',
+    'Z:\\', '1:\\', 'C:', '\\', ':', '$HOME', '$home', '$HOMEx', '$', 'HOME', 'a', '_', '9', '\u00e9', '\u017f', '/q', '"', "'", '|', '&', '#'];
+  const tails = [' C:\\', ' $HOME', '\nC:\\', ' c:\\  ', ' $home\t', '\u00a0C:\\', ';C:\\', ' C:\\\n\r '];
+  const random = seeded(20261102);
+  let positives = 0;
+  for (let i = 0; i < 50000; i++) {
+    let command = '';
+    for (let length = 1 + random(14); length > 0; length--) command += tokens[random(tokens.length)];
+    if (random(3) === 0) command += tails[random(tails.length)];
+    const expected = ORIGINAL_WINDOWS_DELETE.test(command);
+    positives += expected;
+    assert.equal(await asksConfirmation(correctToolCall, command), expected, JSON.stringify(command));
+  }
+  assert.ok(positives > 500, `only ${positives} positive cases`);
+});
+
+test('catastrophic confirmation matches the d0c6d2b check on seeded random POSIX and Windows commands', async () => {
+  const {correctToolCall} = await moduleApi();
+  const reference = await import('./fixtures/core-control-d0c6d2b.mjs');
+  const tokens = ['rm', ' rm ', 'sudo ', 'command ', '-rf', ' -rf ', ' -fr', ' -R', ' -f', ' --', ' /', ' "/"', " '/'", ' ~', ' ~/', ' "$HOME"',
+    ' ${HOME}', ' $HOME', 'dd', ' of=/dev/sda', 'mkfs.ext4', 'shutdown', ':(){ :|:& };:', '#', ';', '\n', ' && ', ' | ', '"', "'", '\\',
+    'rd', ' /s', ' /q', 'del', 'Remove-Item', ' -Recurse', ' C:\\', ' c:\\', 'echo ', 'x', ' '];
+  const random = seeded(7);
+  let positives = 0;
+  for (let i = 0; i < 20000; i++) {
+    let command = '';
+    for (let length = 1 + random(10); length > 0; length--) command += tokens[random(tokens.length)];
+    const expected = await asksConfirmation(reference.correctToolCall, command);
+    positives += expected;
+    assert.equal(await asksConfirmation(correctToolCall, command), expected, JSON.stringify(command));
+  }
+  assert.ok(positives > 200, `only ${positives} positive cases`);
+});
+
+test('a 100 KB single-line command is checked for catastrophic deletes in linear time', async () => {
+  const {correctToolCall} = await moduleApi();
+  const grow = (target, prefix, item, joiner, suffix) => {
+    const items = [];
+    for (let i = 0, size = prefix.length + suffix.length; size < target; i++) { const value = item(i); items.push(value); size += value.length + joiner.length; }
+    return prefix + items.join(joiner) + suffix;
+  };
+  // Each of these took 0.5-2 s at 23-48 KB with the old regex, and cubic growth made 100 KB take minutes.
+  const shapes = {
+    printf: size => grow(size, "printf '%s' 'import os\\n", i => i % 7 === 0 ? `    del cache[k${i}]` : i % 5 === 0 ? `    p = Path("/srv/app/src/m${i}.py")` : `    x${i} = compute(x${i - 1}) + 1`, '\\n', "\\n' > tool.py"),
+    json: size => grow(size, "echo '[", i => `{"path":"/src/module${i}/index.js","addr":"${i} Main ${i % 20 === 0 ? 'Rd' : 'St'}"}`, ',', "]' > fixtures/data.json"),
+    locale: size => grow(size, "echo '{", i => `"k${i}":"Configuraci\u00f3n del sistema ${i}","u${i}":"https://ex.com/search/${i}"`, ',', "}' > locales/es.json"),
+  };
+  for (const [name, shape] of Object.entries(shapes)) {
+    // Grow step by step so that a regression fails at a small size instead of hanging the test run.
+    for (const size of [6e3, 12e3, 25e3, 50e3, 100e3]) {
+      const command = shape(size);
+      const started = performance.now();
+      assert.equal(await asksConfirmation(correctToolCall, command), false, name);
+      const elapsed = performance.now() - started;
+      assert.ok(elapsed < 100, `${name} at ${command.length} bytes took ${elapsed.toFixed(1)} ms`);
+    }
+    const started = performance.now();
+    assert.equal(await asksConfirmation(correctToolCall, `${shape(100e3)} && rd /s /q C:\\`), true, name);
+    assert.ok(performance.now() - started < 100, name);
+  }
+});
+
+test('edit precondition gives the d0c6d2b results and normalized input for seeded random edits', async t => {
+  const cwd = await fixture(t);
+  const {correctToolCall} = await moduleApi();
+  const reference = await import('./fixtures/core-control-d0c6d2b.mjs');
+  const vocabulary = ['alpha = 1', 'beta = 2', 'repeat', '  indented  ', 'value = \u201cold\u201d', 'x', '', 'gamma(delta)', '\ttabbed', 'repeat'];
+  const random = seeded(99);
+  const pick = list => list[random(list.length)];
+  let blocked = 0, accepted = 0;
+  for (let i = 0; i < 400; i++) {
+    const lines = Array.from({length: 2 + random(12)}, () => pick(vocabulary));
+    const text = lines.join('\n') + (random(2) ? '\n' : '');
+    const bytes = (random(4) === 0 ? '\ufeff' : '') + (random(3) === 0 ? text.replace(/\n/g, '\r\n') : text);
+    const name = `case${i}.txt`;
+    await writeFile(path.join(cwd, name), bytes);
+    const oldText = () => {
+      const kind = random(7);
+      if (kind === 0) return 'missing text';
+      if (kind === 1) return pick(vocabulary.filter(Boolean));
+      if (kind === 2) return (pick(lines.filter(Boolean)) ?? 'x').replace(/ /g, '  ').replace(/[\u201c\u201d]/g, '"');
+      const start = random(lines.length), end = start + 1 + random(3);
+      return lines.slice(start, end).join('\n') || 'alpha';
+    };
+    const edits = Array.from({length: 1 + random(3)}, () => {
+      const from = oldText();
+      return random(6) === 0 ? {old_string: from, new_string: from} : {oldText: from, newText: pick(vocabulary)};
+    });
+    const input = random(5) === 0 ? {file_path: name, ...edits[0]} : {path: name, edits};
+    const expectedEvent = call('edit', structuredClone(input)), actualEvent = call('edit', structuredClone(input));
+    const expected = await reference.correctToolCall(expectedEvent, {cwd});
+    const actual = await correctToolCall(actualEvent, {cwd});
+    assert.deepEqual(actual, expected, JSON.stringify({bytes, input}));
+    assert.deepEqual(actualEvent.input, expectedEvent.input);
+    if (expected?.block) blocked++; else accepted++;
+    assert.equal(await readFile(path.join(cwd, name), 'utf8'), bytes);
+  }
+  assert.ok(blocked > 50 && accepted > 50, `blocked ${blocked}, accepted ${accepted}`);
+});
+
+test('edit precondition stops at the native writer, skipping whole-file diff work, without writing', async t => {
+  const cwd = await fixture(t);
+  const {correctToolCall} = await moduleApi();
+  const file = path.join(cwd, 'large.js');
+  const lines = Array.from({length: 900}, (_, i) => `  const value${i} = compute(${i}, "some text here ${i % 97}"); // line ${i}`);
+  const original = lines.join('\n') + '\n';
+  await writeFile(file, original);
+  const block = lines.slice(450, 850).join('\n');
+  const edits = [{oldText: block, newText: block.replace(/compute/g, 'calc').replace(/line/g, 'L')}];
+  const before = await stat(file);
+  const times = [];
+  for (let i = 0; i < 5; i++) {
+    const event = call('edit', {path: 'large.js', edits});
+    const started = performance.now();
+    assert.equal(await correctToolCall(event, {cwd}), undefined);
+    times.push(performance.now() - started);
+    assert.deepEqual(event.input, {path: file, edits});
+  }
+  // Pi's two whole-file diffs of this 400-line rewrite took about 90 ms per pre-check; matching alone takes about 1 ms.
+  const median = times.sort((a, b) => a - b)[2];
+  assert.ok(median < 25, `median pre-check ${median.toFixed(1)} ms`);
+  const after = await stat(file);
+  assert.equal(await readFile(file, 'utf8'), original);
+  assert.equal(after.mtimeMs, before.mtimeMs);
 });
 
 test('loop breaker notes repeat failures at three, bounds output and does not lower Muse effort', async () => {
