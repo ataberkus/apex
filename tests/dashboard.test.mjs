@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
-import {spawn} from 'node:child_process';
 import {mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 import {tmpdir} from 'node:os';
@@ -11,6 +10,8 @@ import {fileURLToPath} from 'node:url';
 import {IMAGE_HELP, MAX_IMAGES} from '../dashboard/attachments.mjs';
 import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {withWindowsDefaults} from '../lib/windows-target.mjs';
+import net from 'node:net';
+import {freePort, startDashboard} from './fixtures/dashboard-server.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
 // The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
@@ -30,13 +31,8 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 
 test('dashboard refuses requests without the startup token, loopback Host or same-origin writes, and never starts unlisted folders', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-test-'));
-  const port = 47000 + Math.floor(Math.random() * 1000);
-  const child = spawn(process.execPath, [server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      child.once('error', reject);
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) resolve(match[1]); });
-    });
     assert.equal((await call(port, {path: '/api/state'})).status, 403);
     assert.equal((await call(port, {path: '/?t=wrong'})).status, 403);
     const login = await call(port, {path: `/?t=${token}`});
@@ -87,6 +83,31 @@ test('dashboard refuses requests without the startup token, loopback Host or sam
   }
 });
 
+// A Windows runner's random port 49697 was taken: the server exited at once, but the test waited out its 20 s deadline.
+test('a dashboard whose port is taken fails that start at once with its own message and starts on another port', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'apex-dash-port-'));
+  const blocker = net.createServer(), taken = await freePort();
+  await new Promise(resolve => blocker.listen(taken, '127.0.0.1', resolve));
+  let dashboard;
+  try {
+    const started = performance.now();
+    dashboard = await startDashboard({args: [server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}, ports: [taken], timeoutMs: 120000});
+    assert.ok(performance.now() - started < 60000, 'the taken port failed on the server exit, not at the deadline');
+    assert.deepEqual(dashboard.failures.map(failure => failure.port), [taken]);
+    assert.match(dashboard.failures[0].reason, /in use|EADDRINUSE/i);
+    assert.notEqual(dashboard.port, taken);
+    assert.equal((await call(dashboard.port, {path: `/?t=${dashboard.token}`})).status, 302);
+  } finally {
+    if (dashboard && dashboard.child.exitCode === null && dashboard.child.signalCode === null) {
+      const exited = new Promise(resolve => dashboard.child.once('exit', resolve));
+      dashboard.child.kill();
+      await exited;
+    }
+    await new Promise(resolve => blocker.close(resolve));
+    await rm(home, {recursive: true, force: true});
+  }
+});
+
 test('Codex sessions start and accept prompts above the former cap', async () => {
   const budget = JSON.parse(await readFile(new URL('../evals/codex-budget.json', import.meta.url), 'utf8'));
   const matrix = JSON.parse(await readFile(new URL('../evals/final-validation.json', import.meta.url), 'utf8'));
@@ -97,16 +118,9 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
   assert.equal(matrix.codex_oauth_testing_budget_cap_usd, null);
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-uncapped-'));
   await writeFile(join(home, 'dashboard.json'), JSON.stringify({workspaces: []}));
-  const port = 48000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [...preload(fixture), server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_FIXTURE_ARGV: join(home, 'argv.jsonl')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', error => { clearTimeout(timer); reject(error); });
-      child.once('exit', code => { clearTimeout(timer); reject(new Error(`Dashboard exited: ${code}`)); });
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const login = await call(port, {path: `/?t=${token}`});
     const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
     const state = async () => JSON.parse((await call(port, {path: '/api/state', headers: cookie})).text);
@@ -191,15 +205,9 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
 
 test('auto-approve answers safety prompts for one session, including waiting ones, and never catastrophic confirmations', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-auto-'));
-  const port = 49000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [...preload(fixture), server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', error => { clearTimeout(timer); reject(error); });
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const login = await call(port, {path: `/?t=${token}`});
     const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
     const post = (path, body) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
@@ -244,15 +252,9 @@ test('auto-approve answers safety prompts for one session, including waiting one
 
 test('an agent killed by a signal ends its session with the exit code bin/apex reported for it', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-signal-'));
-  const port = 44000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
-  const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [...preload(fixture), server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', error => { clearTimeout(timer); reject(error); });
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const login = await call(port, {path: `/?t=${token}`});
     const cookie = {cookie: login.headers['set-cookie'][0].split(';')[0]};
     const post = (path, body) => call(port, {method: 'POST', path, headers: {...cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
