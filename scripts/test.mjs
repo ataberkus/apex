@@ -13,8 +13,9 @@ if (windows && process.platform !== 'win32') throw new Error('Windows tests requ
 const requested = process.env.APEX_TEST_PARALLEL || undefined;
 if (requested !== undefined && !/^(?:[1-9]|1[0-6])$/.test(requested)) throw new Error('APEX_TEST_PARALLEL must be an integer from 1 to 16');
 // Isolated worker processes bound offline unit-file concurrency. Two dates from a Node-era session watchdog fault under nine
-// parallel files; up to four keeps every fixture watchdog's margin on Linux. Native Windows stays at two until a native run
-// confirms the same margins there (APEX_TEST_PARALLEL overrides either default).
+// parallel files; up to four keeps every fixture watchdog's margin on Linux. Native Windows stays at two: on a two-vCPU
+// Windows runner with Defender on (2026-11-02), four workers timed out session-micro fixture children in two of three
+// runs (APEX_TEST_PARALLEL overrides either default).
 const parallel = requested ? Number(requested) : process.platform === 'win32' ? 2 : Math.min(4, Math.max(2, os.availableParallelism()));
 if (windows) console.log('Windows-native Bun tests; Python/Harbor analysis tests remain in the separate full test command. Capability skips are retained.');
 const files = readdirSync('tests').filter(name => name.endsWith('.test.mjs')).map(name => `./tests/${name}`);
