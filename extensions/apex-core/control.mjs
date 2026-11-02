@@ -536,14 +536,17 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
       networkAllowed: false, env: checkerEnv()})); }
     catch (error) { return {code: 127, output: bounded(error.message, 600), truncated: false, timedOut: false}; }
   };
+  // correctToolCall hands over the canonical path, which is lexically outside a linked root. This only decides which
+  // file a checker sees, so the tool gate stays lexical; the target is still the one a tool resolves from root.
+  const confined = value => confinedPath(root, value).catch(async () => confinedPath(await realpath(root), path.resolve(root, value)));
   const available = command => {
     if (!installed.has(command)) installed.set(command, run(command, [command === 'go' ? 'version' : '--version'], 1000).then(value => value.code === 0 && !value.timedOut && !value.truncated));
     return installed.get(command);
   };
   const select = async file => {
     const extension = path.extname(file).toLowerCase();
-    // `file` is canonical, so under a short root a relative path would climb out and back in. A linked root stays as it is.
-    const base = await linkFreeRealpath(root) ?? root;
+    // `file` is canonical, so from a short or linked root a relative path would climb out and back in.
+    const base = await realpath(root);
     const relative = path.relative(base, file);
     const bunCommand = path.isAbsolute(process.execPath) ? process.execPath : 'bun';
     if (['.js', '.mjs', '.cjs'].includes(extension) && await available(bunCommand))
@@ -573,7 +576,7 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) return skipped(event, 'A tool-call id is required');
       const epoch = generation;
       try {
-        const file = await confinedPath(root, event.input?.path);
+        const file = await confined(event.input?.path);
         let existed = true;
         try {
           const info = await stat(file);
@@ -598,7 +601,7 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
       if (!baseline) return skipped(event, 'No complete pre-edit baseline for this tool call');
       if (event.isError) return skipped(event, 'Mutation failed; diagnostics skipped');
       try {
-        await confinedPath(root, baseline.file);
+        await confined(baseline.file);
         const output = await check(baseline.selection);
         if (baseline.epoch !== generation) return skipped(event, 'Diagnostics were reset during the checker');
         if (output.incomplete) return skipped(event, 'Post-edit checker was incomplete', {checker: baseline.selection.checker, truncated: output.truncated});

@@ -31,7 +31,15 @@ async function spellings(t) {
   if (short === cwd) t.skip('This volume has no 8.3 names; the short spelling is unexercised');
   return {base, cwd, outside, short: short === cwd ? undefined : short};
 }
-const call = (toolName, input, id = 'call') => ({type: 'tool_call', toolName, input, toolCallId: id});
+// The real cwd sits one level down, so a manifest can lie just above it.
+async function linked(t) {
+  const base = await realpath(await fixture(t));
+  const cwd = path.join(base, 'project'), link = path.join(await fixture(t), 'linked-cwd');
+  await mkdir(cwd);
+  await directoryLink(cwd, link);
+  return {base, cwd, link};
+}
+const call =(toolName, input, id = 'call') => ({type: 'tool_call', toolName, input, toolCallId: id});
 const result = (toolName, input, text, isError = false, id = 'result') =>
   ({type: 'tool_result', toolName, input, content: [{type: 'text', text}], isError, toolCallId: id});
 
@@ -686,6 +694,122 @@ test('diagnostics find a Cargo manifest under a short cwd and stop at the cwd', 
   assert.equal(baseline.checker, 'cargo', baseline.reason);
   assert.equal(cargo[cargo.indexOf('--manifest-path') + 1], path.join(cwd, 'Cargo.toml'));
   assert.equal(cargo[cargo.indexOf('--target-dir') + 1], path.join(short, '.apex', 'diagnostics-target'));
+});
+
+test('correction then diagnostics keep a baseline and report new errors under a linked cwd', async t => {
+  const {cwd, link} = await linked(t);
+  await mkdir(path.join(cwd, 'src'));
+  const file = path.join(cwd, 'src', 'module.py');
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  for (const [toolName, input] of [['write', {path: 'src/module.py', content: 'new'}],
+    ['edit', {path: 'src/module.py', edits: [{oldText: 'old', newText: 'new'}]}]]) {
+    await writeFile(file, 'old');
+    const checked = [];
+    const diagnostics = createDiagnostics({cwd: link, runCommand: async (command, args, options) => {
+      if (args[0] === '--version') return {code: command === 'ruff' ? 0 : 127, stdout: '', stderr: ''};
+      assert.equal(options.cwd, link);
+      checked.push(args.at(-1));
+      const changed = await readFile(file, 'utf8') === 'new';
+      return {code: changed ? 1 : 0, stdout: changed ? 'module.py:1:1: F821 introduced problem\n' : '', stderr: ''};
+    }});
+    const event = call(toolName, input, toolName);
+    assert.equal(await correctToolCall(event, {cwd: link}), undefined);
+    assert.equal(event.input.path, file);
+    const baseline = await diagnostics.before(event);
+    assert.equal(baseline.status, 'baseline', baseline.reason);
+    await writeFile(file, 'new');
+    const after = await diagnostics.after(result(toolName, event.input, 'done', false, toolName));
+    assert.equal(after.status, 'diagnostics', after.reason);
+    assert.deepEqual(after.newErrors, ['module.py:1:1: F821 introduced problem']);
+    assert.deepEqual(checked, Array(2).fill(path.join('src', 'module.py')));
+  }
+});
+
+test('diagnostics recheck a baseline taken from a relative path under a linked cwd', async t => {
+  const {cwd, link} = await linked(t);
+  await writeFile(path.join(cwd, 'file.py'), 'old');
+  const {createDiagnostics} = await moduleApi();
+  const diagnostics = createDiagnostics({cwd: link, runCommand: async () => ({code: 0, stdout: '', stderr: ''})});
+  const event = call('write', {path: 'file.py', content: 'new'}, 'relative');
+  assert.equal((await diagnostics.before(event)).status, 'baseline');
+  const after = await diagnostics.after(result('write', event.input, 'done', false, 'relative'));
+  assert.equal(after.status, 'diagnostics', after.reason);
+});
+
+test('diagnostics find a Cargo manifest under a linked cwd and stop at the cwd', async t => {
+  const {base, cwd, link} = await linked(t);
+  await mkdir(path.join(cwd, 'src'));
+  await writeFile(path.join(cwd, 'src', 'lib.rs'), 'pub fn value() {}');
+  await writeFile(path.join(base, 'Cargo.toml'), '[package]\n');
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  let cargo;
+  const diagnostics = createDiagnostics({cwd: link, runCommand: async (command, args) => {
+    if (args[0] === '--version') return {code: command === 'cargo' ? 0 : 127, stdout: '', stderr: ''};
+    cargo = args;
+    return {code: 0, stdout: '', stderr: ''};
+  }});
+  const above = call('write', {path: 'src/lib.rs', content: 'new'}, 'above');
+  assert.equal(await correctToolCall(above, {cwd: link}), undefined);
+  assert.match((await diagnostics.before(above)).reason, /available|installed/);
+  await writeFile(path.join(cwd, 'Cargo.toml'), '[package]\n');
+  const event = call('write', {path: 'src/lib.rs', content: 'new'}, 'rust');
+  assert.equal(await correctToolCall(event, {cwd: link}), undefined);
+  const baseline = await diagnostics.before(event);
+  assert.equal(baseline.checker, 'cargo', baseline.reason);
+  assert.equal(cargo[cargo.indexOf('--manifest-path') + 1], path.join(cwd, 'Cargo.toml'));
+  assert.equal(cargo[cargo.indexOf('--target-dir') + 1], path.join(link, '.apex', 'diagnostics-target'));
+});
+
+test('correction and diagnostics under a linked cwd refuse links and paths leaving the canonical cwd', async t => {
+  const {base, cwd, link} = await linked(t);
+  const outside = await realpath(await fixture(t));
+  await writeFile(path.join(cwd, 'file.py'), 'inside');
+  await writeFile(path.join(outside, 'file.py'), 'outside');
+  await writeFile(path.join(base, 'file.py'), 'above');
+  await directoryLink(outside, path.join(cwd, 'external'));
+  await directoryLink(path.join(outside, 'missing'), path.join(cwd, 'dangling'));
+  const alias = path.join(outside, 'alias-of-cwd');
+  await directoryLink(cwd, alias);
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  let calls = 0;
+  const diagnostics = createDiagnostics({cwd: link, runCommand: async () => { calls++; return {code: 0, stdout: '', stderr: ''}; }});
+  // The last one names the cwd only when walked from the real directory, which is not where a tool would resolve it.
+  for (const value of ['external/file.py', 'external/new.py', 'dangling/new.py', path.join(link, 'external', 'file.py'),
+    path.join(cwd, 'external', 'file.py'), path.join(cwd, 'external', 'new.py'), path.join(cwd, 'dangling', 'new.py'),
+    path.join(alias, 'file.py'), path.join(alias, 'new.py'), path.join(outside, 'file.py'), path.join(base, 'file.py'),
+    '../file.py', `${cwd}-sibling`, path.join('..', path.basename(cwd), 'file.py')]) {
+    const refused = await diagnostics.before(call('write', {path: value, content: 'x'}, value));
+    assert.equal(refused.status, 'skipped', value);
+    assert.match(refused.reason, /outside|confined/, value);
+    const blocked = await correctToolCall(call('write', {path: value, content: 'x'}), {cwd: link});
+    assert.equal(blocked?.block, true, value);
+  }
+  assert.equal(calls, 0);
+  assert.equal(await readFile(path.join(outside, 'file.py'), 'utf8'), 'outside');
+});
+
+test('diagnostics under a linked cwd run no check once a junction takes the file outside', async t => {
+  const {cwd, link} = await linked(t);
+  const outside = await realpath(await fixture(t));
+  await mkdir(path.join(cwd, 'src'));
+  await writeFile(path.join(cwd, 'src', 'file.py'), 'inside');
+  await writeFile(path.join(outside, 'file.py'), 'outside');
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  let checks = 0;
+  const diagnostics = createDiagnostics({cwd: link, runCommand: async (_command, args) => {
+    if (args[0] !== '--version') checks++;
+    return {code: 0, stdout: '', stderr: ''};
+  }});
+  const event = call('write', {path: 'src/file.py', content: 'new'}, 'swap');
+  assert.equal(await correctToolCall(event, {cwd: link}), undefined);
+  await diagnostics.before(event);
+  const baselineChecks = checks;
+  await rm(path.join(cwd, 'src'), {recursive: true});
+  await directoryLink(outside, path.join(cwd, 'src'));
+  const after = await diagnostics.after(result('write', event.input, 'done', false, 'swap'));
+  assert.equal(after.status, 'skipped');
+  assert.match(after.reason, /outside|confined/);
+  assert.equal(checks, baselineChecks);
 });
 
 test('diagnostics do not label moved pre-existing errors as newly introduced errors', async t => {
