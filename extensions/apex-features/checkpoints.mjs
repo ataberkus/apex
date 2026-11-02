@@ -18,6 +18,18 @@ async function renameRetrying(from, to) {
 }
 
 const exec = promisify(execFile);
+const POOL = 32;
+const settle = promise => promise.then(value => ({ value }), error => ({ error }));
+// Results keep input order. After a failure no further item starts and the call waits for the ones in flight, so no
+// filesystem work outlives the serialized job that started it (cancellation, shutdown, the next job on the session).
+async function pool(items, width, fn) {
+  const out = new Array(items.length); let next = 0; let failed;
+  await Promise.all(Array.from({ length: Math.min(width, items.length) }, async () => {
+    while (next < items.length && !failed) { const index = next++; try { out[index] = await fn(items[index], index); } catch (error) { failed ??= { error }; } }
+  }));
+  if (failed) throw failed.error;
+  return out;
+}
 const queues = new Map();
 // gitTimeoutMs guards against hung Git, not slow Git: a session's first capture runs `git add --all` over the whole
 // tree into an empty shadow store. On Windows, 660 files / 37 MB took 8.9–38.3 s across fresh copies.
@@ -180,11 +192,18 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   }
   async function ignored(paths, repo, signal) {
     if (!paths.length) return new Set();
-    // NUL-delimited stdin preserves literal newlines/tabs in filenames.
-    const found = new Set();
-    for (let i = 0; i < paths.length; i += 100) {
+    // NUL-delimited stdin preserves literal newlines/tabs in filenames. The output is a subset of the input, so a batch
+    // of at most maxGitOutputBytes can never trip the output cap; a collect then needs one Git process, not one per 100 paths.
+    const found = new Set(); const batches = []; let batch = []; let size = 0;
+    for (const name of paths) {
+      const length = Buffer.byteLength(name) + 1;
+      if (batch.length && size + length > limits.maxGitOutputBytes) { batches.push(batch); batch = []; size = 0; }
+      batch.push(name); size += length;
+    }
+    batches.push(batch);
+    for (const names of batches) {
       try {
-        const output = await git([...repo, 'check-ignore', '--no-index', '-z', '--stdin'], root, signal, 'utf8', paths.slice(i, i + 100).join('\0') + '\0');
+        const output = await git([...repo, 'check-ignore', '--no-index', '-z', '--stdin'], root, signal, 'utf8', names.join('\0') + '\0');
         for (const name of String(output).split('\0').filter(Boolean)) found.add(name);
       } catch (error) { if (error.code !== 1) throw error; }
     }
@@ -201,16 +220,24 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     const excluded = await ignored(candidates, repo, signal);
     // Smallest first, so past maxBytes the large files (assets, datasets) are the ones left out, not source code.
     // A stat error sorts the path first and leaves sourceFile to report it as before.
-    const sized = [];
-    for (const relative of candidates) if (!excluded.has(relative)) { cancelled(signal); sized.push([relative, await lstat(path.join(root, relative)).then(info => info.size, () => 0)]); }
+    const sized = await pool(candidates.filter(relative => !excluded.has(relative)), POOL, async relative => { cancelled(signal); return [relative, await lstat(path.join(root, relative)).then(info => info.size, () => 0)]; });
     sized.sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1));
+    // Read ahead through the pool what the loop below will read if sizes hold. The loop still makes every budget, skip
+    // and error decision in sorted order; a file it reaches unexpectedly is read there. The read-ahead stops once it
+    // holds maxBytes (files that grew after their lstat), so memory stays bounded as before.
+    const prefetched = new Map(); const wanted = []; let predicted = 0; let held = 0;
+    for (const [relative, size] of sized) { if (predicted + size > limits.maxBytes) continue; predicted += size; wanted.push(relative); }
+    await pool(wanted, POOL, async relative => {
+      if (held > limits.maxBytes) return;
+      const read = await settle(sourceFile(relative, signal)); held += read.value?.bytes.length ?? 0; prefetched.set(relative, read);
+    });
     const files = Object.create(null); const contents = new Map(); const skipped = []; let bytes = 0;
     for (const [relative, size] of sized) {
       // A file that does not fit is skipped unread: a large repository must not block every mutation, nor be read in full per capture.
       if (bytes + size > limits.maxBytes) { skipped.push(relative); continue; }
       let file;
       // One oversized file (a dataset, a build artifact) must not block every mutation: leave it out and record it.
-      try { file = await sourceFile(relative, signal); } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
+      try { const read = prefetched.get(relative) ?? await settle(sourceFile(relative, signal)); prefetched.delete(relative); if (read.error) throw read.error; file = read.value; } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
       if (!file) continue;
       if (bytes + file.bytes.length > limits.maxBytes) { skipped.push(relative); continue; }
       bytes += file.bytes.length;
