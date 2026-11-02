@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
-import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
+import {directoryLink, fileLink, shortPath, unixOnly} from './fixtures/filesystem.mjs';
 
 const load = () => import('../lib/session-report.mjs').catch(() => ({}));
 const header = {type: 'session', version: 3, id: '00000000-0000-4000-8000-000000000001', timestamp: '2026-10-01T00:00:00Z', cwd: '/fixture'};
@@ -83,6 +83,16 @@ test('report refuses file and parent symlinks and nonregular files', async t => 
   const sub = path.join(dir, 'sub'); await mkdir(sub); const parentLink = path.join(dir, 'parent'); await directoryLink(dir, parentLink);
   await assert.rejects(() => readSessionReport(path.join(parentLink, 'session.jsonl')), /symlink/i);
   await assert.rejects(() => readSessionReport(sub), /regular|file/i);
+});
+
+test('report reads a short path but not a parent junction through its short alias', {skip: process.platform !== 'win32' && 'Windows 8.3 names'}, async t => {
+  const {readSessionReport} = await load(); assert.equal(typeof readSessionReport, 'function');
+  const {dir, file} = await fixture(t);
+  const short = shortPath(file);
+  if (short === file) return t.skip('This volume has no 8.3 names; the short spelling is unexercised');
+  assert.equal((await readSessionReport(short)).id, (await readSessionReport(file)).id);
+  const parent = path.join(dir, 'a-long-parent-junction'); await directoryLink(dir, parent);
+  await assert.rejects(() => readSessionReport(shortPath(path.join(parent, 'session.jsonl'))), /symlink/i);
 });
 
 test('invalid UTF8, empty files and nonnative headers fail with bounded messages', async t => {
