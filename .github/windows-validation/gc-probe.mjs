@@ -22,10 +22,12 @@ await git(['init', '--template=', '-q']);
 await writeFile(path.join(cwd, '.gitignore'), '.apex/\n'); await writeFile(path.join(cwd, 'tracked.txt'), 'committed\n');
 await git(['add', '.']); await git(['commit', '-qm', 'fixture']);
 const log = [];
+let trace = false;
 const runGit = (args, opts) => {
+  if (trace && args.includes('commit')) opts = { ...opts, env: { ...opts.env, GIT_TRACE: '1', GIT_TRACE2: '1' } };
   const execution = exec('git', args, opts); execution.child.stdin.on('error', () => {}); execution.child.stdin.end(opts.input);
   const name = args.find(a => ['add', 'commit', 'rev-parse', 'ls-tree', 'check-ignore', 'ls-files', 'init', 'cat-file', 'read-tree', 'update-index', 'config', 'status', 'diff', 'write-tree'].includes(a)) ?? args.slice(-3).join(' ');
-  execution.then(r => log.push({ cmd: name, stderr: String(r.stderr).trim().slice(0, 600) }), e => log.push({ cmd: name, code: e.code, stderr: String(e.stderr ?? '').trim().slice(0, 600) }));
+  execution.then(r => log.push({ cmd: name, stderr: String(r.stderr).trim().slice(0, trace ? 20000 : 600) }), e => log.push({ cmd: name, code: e.code, stderr: String(e.stderr ?? '').trim().slice(0, 600) }));
   return execution;
 };
 const manager = createCheckpointManager({ cwd, sessionId: 'session-a', runGit });
@@ -46,6 +48,13 @@ let seeded = await seed();
 await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
 await manager.finish('gc');
 report.viaFinish = { remaining: await left(seeded), commands: log.filter(entry => entry.stderr || (entry.code !== undefined && !(entry.cmd === 'check-ignore' && entry.code === 1))) };
+// Once more with GIT_TRACE/GIT_TRACE2 on the commit: does it spawn `git maintenance run --auto`, and what happens there?
+trace = true; log.length = 0;
+await manager.capture('traced'); seeded = await seed();
+await writeFile(path.join(cwd, 'tracked.txt'), 'agent again');
+await manager.finish('traced');
+const leftovers = await readdir(path.join(shadow, '.git')).catch(() => []);
+report.viaFinishTraced = { remaining: await left(seeded), gitDirEntries: leftovers, commit: log.filter(entry => entry.cmd === 'commit').map(entry => ({ ...entry, stderr: entry.stderr?.split(/\r?\n/).filter(line => /run_command|maintenance|gc|child_start|child_exit|exit|error|fatal|warning/i.test(line)).map(line => line.slice(0, 220)).slice(0, 40) })) };
 await manager.shutdown();
 // By hand, in the module's environment (PATH, LANG, LC_ALL, no system or global config) plus the foreground settings.
 const moduleEnv = { ...fixtureEnv, GIT_OPTIONAL_LOCKS: '0', GIT_COMMON_DIR: '.git', GIT_OBJECT_DIRECTORY: '.git/objects', GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: 'gc.autoDetach', GIT_CONFIG_VALUE_0: 'false', GIT_CONFIG_KEY_1: 'maintenance.autoDetach', GIT_CONFIG_VALUE_1: 'false' };
