@@ -1,9 +1,10 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { constants } from 'node:fs';
-import { lstat, realpath, mkdir, open, writeFile, readdir, rename, unlink, rmdir, rm, chmod } from 'node:fs/promises';
+import { lstat, mkdir, open, writeFile, readdir, rename, unlink, rmdir, rm, chmod } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
+import {linkFreeRealpath} from '../../lib/real-path.mjs';
 import {ensureWindowsPrivateApex} from '../../lib/windows-private-storage.mjs';
 
 // Windows refuses a rename while another process (antivirus, an indexer) holds either file without
@@ -112,6 +113,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   const limits = { ...DEFAULTS, ...configured };
   for (const [name, value] of Object.entries(limits)) if (!Object.hasOwn(DEFAULTS, name) || !Number.isSafeInteger(value) || value < 1 || value > DEFAULTS[name]) throw fail('invalid-options', `Checkpoint limit ${name} is invalid or exceeds the hard cap`);
   const root = path.resolve(cwd);
+  // root keeps the caller's spelling, which on Windows may use 8.3 names or another case. state.json records this one, so
+  // a session resumes under any spelling, and the Windows private storage helper verifies this one against final paths.
+  let canonical = root;
   const sessionKey = sha(sessionId);
   const store = path.join(root, '.apex', 'checkpoints', sessionKey);
   const shadow = path.join(store, 'shadow');
@@ -164,7 +168,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       current = path.join(current, component);
       let info = await maybeStat(current);
       if (!info && create) {
-        if (process.platform === 'win32' && component === '.apex') await ensureWindowsPrivateApex(root);
+        if (process.platform === 'win32' && component === '.apex') await ensureWindowsPrivateApex(await validateRoot());
         else await mkdir(current, { mode: 0o700 });
         info = await lstat(current);
       }
@@ -176,7 +180,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   }
   async function validateRoot() {
     const info = await lstat(root);
-    if (!info.isDirectory() || info.isSymbolicLink() || await realpath(root) !== root) throw fail('symlink', 'Checkpoint cwd must be a real directory without symlink ancestors');
+    const real = info.isDirectory() && !info.isSymbolicLink() ? await linkFreeRealpath(root) : undefined;
+    if (!real) throw fail('symlink', 'Checkpoint cwd must be a real directory without symlink ancestors');
+    return canonical = real;
   }
   async function userGit(signal) {
     cancelled(signal);
@@ -301,10 +307,10 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (cache) { const live = new Set(sized.map(entry => entry[0])); for (const relative of cache.keys()) if (!live.has(relative)) cache.delete(relative); statCaches.set(lockKey, cache); }
     return { files, contents, bytes, repo, skipped: skipped.sort() };
   }
-  const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
+  const blank = () => ({ version: 1, sessionKey, cwd: canonical, storedBytes: 0, records: [] });
   function validateState(state, keep) {
     // maxCheckpoints + 1: save exempts the turn being captured until finish knows whether it changed anything.
-    if (!state || state.version !== 1 || state.sessionKey !== sessionKey || state.cwd !== root || !Array.isArray(state.records) || state.records.length > limits.maxCheckpoints + 1 || !Number.isSafeInteger(state.storedBytes) || state.storedBytes < 0 || state.storedBytes > limits.maxStoredBytes) throw fail('metadata', 'Checkpoint metadata is invalid or foreign');
+    if (!state || state.version !== 1 || state.sessionKey !== sessionKey || state.cwd !== canonical || !Array.isArray(state.records) || state.records.length > limits.maxCheckpoints + 1 || !Number.isSafeInteger(state.storedBytes) || state.storedBytes < 0 || state.storedBytes > limits.maxStoredBytes) throw fail('metadata', 'Checkpoint metadata is invalid or foreign');
     const ids = new Set();
     for (const record of state.records) {
       if (record !== keep && validated.get(record) === limitsKey) {
@@ -517,7 +523,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
         const apex = await maybeStat(path.join(root, '.apex'));
         // Preserve normal symlink/type refusal diagnostics. Existing public roots
         // must never be silently permission-modified or used for private snapshots.
-        if (apex?.isDirectory() && !apex.isSymbolicLink()) await ensureWindowsPrivateApex(root, signal);
+        if (apex?.isDirectory() && !apex.isSymbolicLink()) await ensureWindowsPrivateApex(await validateRoot(), signal);
       }
       cancelled(signal); return work(signal);
     }).catch(error => { states.delete(stateFile); throw error; });
