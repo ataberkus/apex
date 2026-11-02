@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
-import {spawn} from 'node:child_process';
 import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {runInContext} from 'node:vm';
 import {tmpdir} from 'node:os';
@@ -10,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 import {JSDOM} from 'jsdom';
 import {renderMarkdown, renderMessage, renderThought} from '../dashboard/chat-content.mjs';
 import * as attachments from '../dashboard/attachments.mjs';
+import {startDashboard} from './fixtures/dashboard-server.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
 const [html, script] = await Promise.all([
@@ -41,14 +41,8 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 
 test('/api/transcript returns a listed workspace session file and refuses files outside its session folder, starting no agent', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-transcript-'));
-  const port = 52000 + Math.floor(Math.random() * 3000);
-  const child = spawn(process.execPath, [server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', reject);
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const headers = {cookie: (await call(port, {path: `/?t=${token}`})).headers['set-cookie'][0].split(';')[0]};
     const get = file => call(port, {path: '/api/transcript?file=' + encodeURIComponent(file), headers});
     const project = join(home, 'project'); await mkdir(project);
