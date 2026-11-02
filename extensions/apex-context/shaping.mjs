@@ -193,22 +193,6 @@ function selectText(clean, pointer, event, maxBytes, maxLines) {
   return byteHead('[elided]', maxBytes);
 }
 
-// Scattered log-style selection leaves holes in file text; a contiguous head with an exact
-// offset lets the next read continue in one call.
-function readHead(text, pointer, event, maxBytes, maxLines) {
-  const offset = event.input?.offset ?? 1;
-  if ((event.input?.mode ?? 'text') !== 'text' || !Number.isSafeInteger(offset)) return undefined;
-  const start = Math.max(1, offset);
-  const trailer = end => `[Apex shaped: lines ${start}-${end} shown; continue with offset=${end + 1}]\n${pointer}`;
-  // The head is a strict prefix of over-cap text, so Pi's own final continuation line is never
-  // kept; reserving the widest trailer keeps the result inside both caps.
-  const reserve = trailer(start + maxLines);
-  const head = truncateHead(text, {maxBytes:maxBytes - bytes(reserve) - 1, maxLines:Math.max(1, maxLines - lineCount(reserve))});
-  if (head.outputLines === 0) return undefined;
-  const result = `${head.content}\n${trailer(start + head.outputLines - 1)}`;
-  return truncateHead(result, {maxBytes,maxLines}).truncated ? undefined : result;
-}
-
 async function ownedDirectory(path) {
   let created = false;
   try { await mkdir(path, {mode:0o700}); created = true; }
@@ -340,11 +324,7 @@ export async function shapeToolResult(event, {cwd, maxBytes = 8192, maxLines = 1
   // Interleaved captions can depend on image order; do not merge such text blocks.
   if (textBlocks.length > 1 && textBlocks.length !== event.content.length) return undefined;
   const raw = textBlocks.map(block => block.text).join('\n');
-  // File text must stay byte-exact because edit oldText is copied from it: reads skip cleanText,
-  // and a read the model sized with limit stays as Pi returned it under Pi's own caps.
-  const fileRead = event.toolName === 'read';
-  if (fileRead && Number.isSafeInteger(event.input?.limit) && event.input.limit > 0) return undefined;
-  const clean = fileRead ? raw : cleanText(raw);
+  const clean = cleanText(raw);
   if (clean === raw && !truncateHead(raw, {maxBytes,maxLines}).truncated) return undefined;
   let spill;
   try { spill = await spillText(cwd, event.toolCallId, raw); }
@@ -358,7 +338,7 @@ export async function shapeToolResult(event, {cwd, maxBytes = 8192, maxLines = 1
     return undefined;
   }
   const pointer = `[Apex shaped; hook log ${spill.relativePath}]`;
-  const shaped = (fileRead && readHead(raw, pointer, event, maxBytes, maxLines)) || selectText(clean, pointer, event, maxBytes, maxLines);
+  const shaped = selectText(clean, pointer, event, maxBytes, maxLines);
   let firstText = true;
   const content = event.content.flatMap(block => {
     if (block.type !== 'text') return [block];

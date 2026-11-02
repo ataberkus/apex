@@ -4,7 +4,7 @@ import {mkdtemp, readFile, readdir, rm, mkdir, stat, writeFile, chmod, link} fro
 import {basename, join, resolve, relative} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
-import {createBashToolDefinition, createReadToolDefinition} from '@earendil-works/pi-coding-agent';
+import {createBashToolDefinition} from '@earendil-works/pi-coding-agent';
 import {directoryLink, unixOnly} from './fixtures/filesystem.mjs';
 import * as reference from './fixtures/shaping-d0c6d2b.mjs';
 
@@ -469,87 +469,7 @@ test('selection work stays linear: a 1 MB git diff scans a bounded multiple of i
   const output = textOf(result);
   assert.ok(Buffer.byteLength(output) <= 8192 && linesOf(output) <= 120);
   assert.match(output, /^@@ -0,7 \+0,8 @@ function f0\(\)\n/);
+  // The floor proves the probe saw the work: a runtime that bypassed the patched property would scan 0.
+  assert.ok(scanned >= raw.length, `probe saw only ${scanned} characters`);
   assert.ok(scanned < 25 * raw.length, `${(scanned / raw.length).toFixed(1)}x input scanned`);
-});
-
-const readEvent = (native, input, extra = {}) => event('', {toolName:'read', toolCallId:'read-1', input,
-  content:native.content, details:native.details, ...extra});
-const piRead = (cwd, args) => createReadToolDefinition(cwd).execute('read-1', args, undefined, undefined, {cwd});
-
-test('small reads with CRLF, repeated lines or control text stay byte-exact without a spill', async t => {
-  const cwd = await fixture(t);
-  const python = ['import os', '', '', 'def a():', '    return 1', '', '', 'def b():', '    return 2', ''].join('\n');
-  for (const text of [python, ['const a = 1;', 'const b = 2;', ''].join('\r\n'), '\u001b[31mred\u001b[0m\nload 10%\rload 100%\n']) {
-    assert.equal(await shape(event(text, {toolName:'read', input:{path:'file'}}), {cwd}), undefined);
-  }
-  assert.deepEqual(await readdir(cwd), []);
-  // Command output keeps its repetition cleanup.
-  assert.match(textOf(await shape(event(python), {cwd})), /^\[blank line\] \[×2\]$/m);
-});
-
-test('explicitly sized reads are returned as Pi produced them without a spill', async t => {
-  const cwd = await fixture(t);
-  const source = Array.from({length:400}, (_, index) => `export const value${index} = compute(${index}); // ${'x'.repeat(index % 40)}`).join('\n');
-  await writeFile(join(cwd, 'source.mjs'), source);
-  for (const args of [{path:'source.mjs', limit:200}, {path:'source.mjs', offset:41, limit:300}]) {
-    const native = await piRead(cwd, args);
-    assert.ok(Buffer.byteLength(textOf(native)) > 8192 && linesOf(textOf(native)) > 120);
-    assert.equal(await shape(readEvent(native, args), {cwd}), undefined);
-  }
-  assert.deepEqual(await readdir(cwd), ['source.mjs']);
-});
-
-test('unlimited over-cap reads keep a contiguous byte-exact head with an exact continuation offset', async t => {
-  const cwd = await fixture(t);
-  const fileLines = Array.from({length:3000}, (_, index) => index % 9 < 2 ? '' : index % 13 === 0 ? 'repeated line\r' :
-    `line ${index + 1}: ${'é'.repeat(index % 7)} value = compute(${index});\r`);
-  await writeFile(join(cwd, 'source.txt'), fileLines.join('\n'));
-  const wideLines = Array.from({length:200}, (_, index) => `wide ${index + 1} ${'w'.repeat(150)}`);
-  await writeFile(join(cwd, 'wide.txt'), wideLines.join('\n'));
-  // [native read arguments, model-visible input, caps, file lines]. The third case mirrors Apex's read tool,
-  // which applies a default limit the model never set.
-  for (const [args, input, caps, lines] of [
-    [{path:'source.txt'}, {path:'source.txt'}, {}, fileLines],
-    [{path:'source.txt', offset:41}, {path:'source.txt', offset:41}, {}, fileLines],
-    [{path:'wide.txt', offset:1, limit:80}, {path:'wide.txt'}, {}, wideLines],
-    [{path:'source.txt', offset:2950}, {path:'source.txt', offset:2950, mode:'text'}, {maxBytes:2000, maxLines:30}, fileLines],
-  ]) {
-    const native = await piRead(cwd, args);
-    const raw = textOf(native);
-    const {maxBytes = 8192, maxLines = 120} = caps;
-    if (args.offset !== 2950) assert.match(raw, /\n\n\[[^\n]+ Use offset=\d+ to continue\.\]$/);
-    const result = await shape(readEvent(native, input), {cwd, ...caps});
-    const output = textOf(result);
-    const trailer = /\n\[Apex shaped: lines (\d+)-(\d+) shown; continue with offset=(\d+)\]\n\[Apex shaped; hook log \.apex\/out\/[^\n\]]+\.log\]$/.exec(output);
-    assert.ok(trailer, output.slice(-300));
-    const [first, last, next] = trailer.slice(1).map(Number);
-    assert.equal(first, input.offset ?? 1);
-    assert.equal(next, last + 1);
-    assert.ok(last - first + 1 >= 20, `${last - first + 1} lines kept`);
-    assert.equal(output.slice(0, trailer.index), lines.slice(first - 1, last).join('\n'));
-    assert.doesNotMatch(output, /Use offset=|lines omitted|×\d/);
-    assert.ok(Buffer.byteLength(output) <= maxBytes && linesOf(output) <= maxLines);
-    assert.equal(result.details.apexShape.returnedBytes, Buffer.byteLength(output));
-    assert.equal(await readFile(result.details.apexShape.logPath, 'utf8'), raw);
-    // The hint resumes at the first unseen line.
-    assert.equal(textOf(await piRead(cwd, {path:args.path, offset:next})).split('\n')[0], lines[next - 1]);
-  }
-  // Native read results reach the hook with structuredContent, which keeps them unshaped as before.
-  const native = await piRead(cwd, {path:'source.txt'});
-  assert.equal(await shape(readEvent(native, {path:'source.txt'}, {structuredContent:native.structuredContent}), {cwd}), undefined);
-});
-
-test('reads without a usable contiguous head fall back to bounded selection of the uncleaned text', async t => {
-  const cwd = await fixture(t);
-  const long = 'START-' + 'x'.repeat(20000) + '\r-FINISH';
-  const single = textOf(await shape(event(long, {toolName:'read', input:{path:'one-line.txt'}}), {cwd}));
-  assert.ok(Buffer.byteLength(single) <= 8192);
-  assert.match(single, /^START-x+ … x+\r-FINISH\n\[Apex shaped; hook log /);
-  const text = Array.from({length:200}, (_, index) => `row ${index}\r`).join('\n');
-  for (const [input, caps] of [[{path:'rows.txt', mode:'outline'}, {}], [{path:'rows.txt', offset:2.5}, {}], [{path:'rows.txt'}, {maxBytes:500, maxLines:2}]]) {
-    const output = textOf(await shape(event(text, {toolName:'read', input}), {cwd, ...caps}));
-    assert.doesNotMatch(output, /Apex shaped: lines/);
-    assert.ok(linesOf(output) <= (caps.maxLines ?? 120));
-    if (!caps.maxLines) assert.match(output, /^row 0\r\nrow 1\r\n[^]*\nrow 199\r\n/);
-  }
 });
