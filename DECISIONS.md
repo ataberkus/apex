@@ -459,3 +459,11 @@ An audit with benchmarks and adversarial verification found the costs in per-tur
     - On Stop, Pi exits on stdin EOF in 18–900 ms. The dashboard then reports exit 0 and drops the session.
     - With the Windows defaults, two of four exits took 5.4 s and 17.2 s while Windows PowerShell (the private-storage helper) was slow. The 5 s fallback then killed Pi, and the session showed exit 1 (d0c6d2b: `null`) with status error. No process outlived a Stop.
   - `check:windows`, `micro:windows` and `smoke:windows-package` stopped at the preflight (BLOCKED) on both versions, because the 5 s Windows PowerShell probe took 24–40 s, with or without real-time scanning. That validation left them unverified; the release workflow now passes `check:windows` on the runner by hiding its preinstalled PowerShell modules.
+
+## Windows path spellings: 8.3 names and case are not links (2026-11-02)
+
+Bun's async `realpath` expands 8.3 names and normalizes case as well as resolving links, so `realpath(path) !== path` also refused `C:\Users\RUNNER~1\...` and `c:\...`. A bare `apex` launched from such a directory lost `/plan` and every later feature, because `session_start` stopped at the first checkpoint call. `realpathSync` keeps both spellings, which is why `checkpointsUsable` had turned checkpoints on.
+
+- `linkFreeRealpath` (`lib/real-path.mjs`) replaces the comparison for checkpoints and session reports. When the spellings differ on Windows they must have the same root and depth, and each pair of components must be one entry by `lstat` identity with neither a link. Junctions and symlinks stay refused under either spelling, and a mapped or `subst` drive stays refused because its root differs.
+- `root` keeps the caller's spelling. `state.json` records the canonical path, as it always has, so one session resumes under any spelling. `private-spill.ps1` compares final paths, so it receives the canonical path too, and only after `validateRoot`.
+- Other `realpath` callers in `extensions/` and `lib/` compare two canonical paths and were never affected.

@@ -445,7 +445,9 @@ async function nativeFixture(pi, spec, shared, observed) {
     checks.native_remember_append = remembered.structuredContent?.ok === true &&
       (await readFile(learningsPath, 'utf8')).includes(fact) && !(await readFile(learningsPath, 'utf8')).includes('DO_NOT_PERSIST_DURING_PLAN');
     const profile = await start('Inspect explicit native learnings and preserve existing project context.');
-    checks.native_learnings_context = profile.systemPromptOptions.contextFiles.some(file => file.path === learningsPath && file.content.includes(fact)) &&
+    // Learnings report the canonical path; a fixture under a short-path TEMP spells it differently.
+    const canonicalLearnings = await fsPromises.realpath(learningsPath);
+    checks.native_learnings_context = profile.systemPromptOptions.contextFiles.some(file => file.path === canonicalLearnings && file.content.includes(fact)) &&
       profile.systemPromptOptions.contextFiles.some(file => file.content.includes('PHASE3_NATIVE_CONTEXT')) && session.systemPrompt.includes(fact);
     let evalAttempts = 0;
     const originals = [];
