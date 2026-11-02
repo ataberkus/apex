@@ -41,8 +41,23 @@ jobs:
       # module folder. GitHub's image fills those with Azure and other modules: command lookup takes 16 s instead of 0.7 s.
       - name: Hide the runner's preinstalled PowerShell modules
         run: |
-          Rename-Item 'C:\Modules' Modules.hidden
+          [Environment]::SetEnvironmentVariable('PSModulePath', "$env:SystemRoot\system32\WindowsPowerShell\v1.0\Modules", 'Machine')
           Rename-Item "$env:ProgramFiles\WindowsPowerShell\Modules" Modules.hidden
+      - name: TEMP time each remaining module folder
+        shell: bash
+        run: |
+          bun -e "
+          import {spawnSync} from 'node:child_process';
+          import {windowsProbeEnvironment} from './scripts/preflight-windows.mjs';
+          const ps='C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
+          const env=windowsProbeEnvironment(process.cwd());
+          const t=(name,cmd,e)=>{const s=Date.now();const r=spawnSync(ps,['-NoLogo','-NoProfile','-NonInteractive','-Command',cmd],{env:e,encoding:'utf8',windowsHide:true,timeout:60000});console.log('DIAG',name,Date.now()-s,'ms',r.status,r.error?.code??'');return r.stdout||''};
+          const P='[void](Get-ExecutionPolicy)';
+          const dirs=t('modulepath','\$env:PSModulePath',env).trim().split(';').filter(Boolean);
+          console.log('DIAG dirs',dirs);
+          t('baseline',P,env);
+          for(const dir of dirs)t('only '+dir,P,{...env,PSModulePath:dir});
+          "
       - run: bun run check:windows
       - run: bun run test:windows
 
