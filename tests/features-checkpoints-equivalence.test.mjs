@@ -152,3 +152,53 @@ test('optimized checkpoints match the d0c6d2b reference over seeded random sessi
   const outcomes = await Promise.allSettled(cases.map(([seed, limits]) => session(t, seed, limits).catch(error => { error.message = `seed ${seed}: ${error.message}`; throw error; })));
   for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
 });
+
+async function directories(root) {
+  const out = [root];
+  for (const entry of await readdir(root, { withFileTypes: true })) if (entry.isDirectory()) out.push(...await directories(path.join(root, entry.name)));
+  return out;
+}
+test('store walks stop at the same first unsafe entry, entry cap or byte cap as the reference', { skip: !posix && 'Requires POSIX FIFOs' }, async t => {
+  // Both modules probe one shared store. Every scenario plants an unsafe entry, so neither call gets past the walks;
+  // a crowd of plain files and a large file compete to trip the entry cap (1,200 here) or the byte cap first.
+  const limits = { maxFiles: 50, maxCheckpoints: 1, maxStoredBytes: 3000000 };
+  const root = await mkdtemp(path.join(process.cwd(), 'tests/.checkpoint-fixture-eq-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await git(root, ['init', '--template=', '-q']);
+  await writeFile(path.join(root, '.gitignore'), '.apex/\n');
+  for (let i = 0; i < 8; i++) await writeFile(path.join(root, `file-${i}.txt`), `content ${i}\n`);
+  await git(root, ['add', '-A']); await git(root, ['commit', '-qm', 'fixture']);
+  const managers = [createCheckpointManager({ cwd: root, sessionId: SESSION, limits }), createReference({ cwd: root, sessionId: SESSION, limits })];
+  t.after(() => Promise.all(managers.map(manager => manager.shutdown())));
+  await managers[0].capture('base'); await writeFile(path.join(root, 'file-0.txt'), 'agent'); await managers[0].finish('base');
+  const store = path.join(root, '.apex/checkpoints', hash(SESSION));
+  const metadata = await directories(path.join(store, 'shadow/.git'));
+  const gen = generator(97); const seen = new Set();
+  for (let scenario = 0; scenario < 24; scenario++) {
+    const recovery = path.join(store, `restore-${scenario}`); await mkdir(recovery); await writeFile(path.join(recovery, 'before-0'), 'backup');
+    // The unsafe entry cycles through the zones; the crowd and the large file usually share its zone, so they compete.
+    const kind = gen.pick(['symlink', 'hardlink', 'fifo']); const zone = scenario % 4 === 3 && kind !== 'symlink' ? 2 : scenario % 4;
+    const place = () => [() => gen.pick(metadata), () => store, () => recovery, () => path.join(store, 'shadow')][gen.rand() < 0.75 ? zone : gen.int(0, 2)]();
+    const planted = [recovery];
+    if (gen.rand() < 0.6) {
+      const crowd = path.join(zone === 3 ? store : place(), `crowd-${scenario}`); await mkdir(crowd); planted.push(crowd);
+      await Promise.all(Array.from({ length: gen.int(1000, 1600) }, (_, i) => writeFile(path.join(crowd, `entry-${i}`), '')));
+    }
+    if (gen.rand() < 0.5) { const large = path.join(zone === 3 ? store : place(), `large-${scenario}`); await writeFile(large, Buffer.alloc(gen.int(1500, 4000) * 1000)); planted.push(large); }
+    const unsafe = path.join(place(), `unsafe-${scenario}`);
+    if (kind === 'symlink') await symlink(path.join(root, 'file-1.txt'), unsafe);
+    else if (kind === 'fifo') await exec('mkfifo', [unsafe]);
+    else { await writeFile(unsafe, 'twin'); await link(unsafe, `${unsafe}-twin`); planted.push(`${unsafe}-twin`); }
+    planted.push(unsafe);
+    const outcomes = [];
+    for (const manager of managers) outcomes.push(await settled(manager.capture(`probe-${scenario}`)).then(({ error }) => error ? { code: error.code, message: error.message } : 'accepted'));
+    assert.deepEqual(outcomes[0], outcomes[1], `scenario ${scenario}`);
+    assert.notEqual(outcomes[0], 'accepted');
+    seen.add(`${outcomes[0].code}: ${outcomes[0].message}`);
+    for (const file of planted.reverse()) await rm(file, { recursive: true, force: true });
+  }
+  // On ext4 this seed reaches all six stops (unsafe entry in either walk or the shadow worktree, either entry cap, the
+  // byte cap); readdir order differs between filesystems, so only a floor is asserted.
+  assert.ok(seen.size >= 4, [...seen].join('\n'));
+  assert.deepEqual((await managers[1].list()).map(entry => entry.turnId), ['base']);
+});

@@ -52,6 +52,18 @@ function validTurn(value) {
   if (typeof value !== 'string' || !value || value.length > 256 || /[\x00-\x1f\x7f]/.test(value)) throw fail('invalid-turn', 'Checkpoint turn ID is invalid');
   return value;
 }
+// Entries in readdir order, lstat'ed through the pool up to WALK ahead. Callers still check them one by one in order, so
+// the first offending entry and the entry-cap point match a sequential walk, and a huge planted directory costs at most
+// WALK lstats past the cap.
+const WALK = 1024;
+async function* listing(directory) {
+  const names = await readdir(directory);
+  for (let start = 0; start < names.length; start += WALK) {
+    const chunk = names.slice(start, start + WALK);
+    const stats = await pool(chunk, POOL, name => settle(lstat(path.join(directory, name))));
+    for (let index = 0; index < chunk.length; index++) yield [chunk[index], stats[index]];
+  }
+}
 async function maybeStat(file) { try { return await lstat(file); } catch (error) { if (error.code === 'ENOENT') return null; throw error; } }
 async function boundedRead(handle, initialSize, maxBytes, signal) {
   const buffer = Buffer.alloc(Math.min(Number(initialSize) + 1, maxBytes + 1));
@@ -325,10 +337,10 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (!await ensureDir(`.apex/checkpoints/${sessionKey}/shadow/.git`)) throw fail('metadata', 'Checkpoint shadow Git metadata is missing');
     let entries = 0;
     async function checkTree(directory) {
-      for (const name of await readdir(directory)) {
+      for await (const [name, stat] of listing(directory)) {
         cancelled(signal);
         if (++entries > limits.maxFiles * limits.maxCheckpoints * 4 + 1000) throw fail('cap', 'Checkpoint shadow metadata entry cap exceeded');
-        const file = path.join(directory, name); const info = await lstat(file);
+        const file = path.join(directory, name); if (stat.error) throw stat.error; const info = stat.value;
         if (info.isSymbolicLink() || !info.isDirectory() && (!info.isFile() || info.nlink !== 1)) throw fail('symlink', 'Checkpoint shadow Git metadata contains an unsafe link or file');
         if (info.isDirectory()) await checkTree(file);
       }
@@ -339,10 +351,10 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   async function storageBudget(reserve, signal) {
     let bytes = 0; let entries = 0;
     async function visit(directory) {
-      for (const name of await readdir(directory)) {
+      for await (const [name, stat] of listing(directory)) {
         cancelled(signal);
         if (++entries > limits.maxFiles * limits.maxCheckpoints * 4 + 1000) throw fail('cap', 'Checkpoint private storage entry cap exceeded');
-        const file = path.join(directory, name); const info = await lstat(file);
+        const file = path.join(directory, name); if (stat.error) throw stat.error; const info = stat.value;
         if (info.isSymbolicLink() || !info.isDirectory() && (!info.isFile() || info.nlink !== 1)) throw fail('symlink', 'Checkpoint private storage contains an unsafe link or file');
         if (info.isDirectory()) await visit(file);
         else bytes += info.size;
