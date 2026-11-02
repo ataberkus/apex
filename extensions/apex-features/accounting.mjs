@@ -15,23 +15,30 @@ const fingerprint = (value, depth = 0) => {
   return JSON.stringify(value);
 };
 
-function uniqueEntries(entries) {
-  if (!Array.isArray(entries) || entries.length > 100000) throw new Error('Session entries exceed the supported limit.');
-  const byId = new Map(); const unique = []; let duplicateEntries = 0;
-  for (const entry of entries) {
+const checkEntries = entries => {if (!Array.isArray(entries) || entries.length > 100000) throw new Error('Session entries exceed the supported limit.');};
+const checkLeaf = (state, activeLeaf) => {
+  if (activeLeaf !== undefined && activeLeaf !== null && (!id(activeLeaf) || !state.byId.has(activeLeaf))) throw new Error('Unknown active session leaf.');
+};
+
+/** Unique entries of entries[from..], admitted into state; null when one is a parent an earlier task walk found absent. */
+function admit(state, entries, from) {
+  const unique = [];
+  for (let index = from; index < entries.length; index++) {
+    const entry = entries[index];
     if (!object(entry) || !id(entry.type)) throw new Error('Invalid session entry.');
     if (entry.type === 'session') continue;
     if (entry.id !== undefined) {
       if (!id(entry.id)) throw new Error('Invalid session entry identity.');
-      if (byId.has(entry.id)) {
-        if (fingerprint(byId.get(entry.id)) !== fingerprint(entry)) throw new Error('Conflicting session entry identity.');
-        duplicateEntries++; continue;
+      if (state.byId.has(entry.id)) {
+        if (fingerprint(state.byId.get(entry.id)) !== fingerprint(entry)) throw new Error('Conflicting session entry identity.');
+        state.duplicateEntries++; continue;
       }
-      byId.set(entry.id, entry);
+      if (state.missingParents.has(entry.id)) return null;
+      state.byId.set(entry.id, entry);
     }
     unique.push(entry);
   }
-  return {unique, byId, duplicateEntries};
+  return unique;
 }
 
 function selectBranch(unique, byId, branch) {
@@ -76,7 +83,7 @@ function incurredExtractionTask(entry) {
   return null;
 }
 
-function taskResolver(byId) {
+function taskResolver(byId, missingParents) {
   const cache = new Map();
   return entry => {
     const seen = new Set(); const path = []; let current = entry; let task = null;
@@ -85,7 +92,9 @@ function taskResolver(byId) {
       seen.add(current.id); path.push(current);
       if (cache.has(current.id)) {task = cache.get(current.id); break;}
       task = explicitTask(current); if (task !== null) break;
-      current = byId.get(current.parentId);
+      const parentId = current.parentId; current = byId.get(parentId);
+      // The cached attribution of this path holds only until that parent arrives.
+      if (!current && id(parentId)) missingParents.add(parentId);
     }
     for (const value of path) if (value.id !== undefined) cache.set(value.id, task);
     return task;
@@ -171,6 +180,7 @@ function bucket() {
   return {knownTotals: empty(), allKnown: new Set([...COMPONENTS, 'totalTokens', ...SUBSETS]),
     usage: true, nativeCost: true, pricedCost: true, knownNativeEstimateUsd: 0, knownPricingEstimateUsd: 0, records: 0, issues: new Set()};
 }
+const cloneBucket = value => ({...value, knownTotals: {...value.knownTotals}, allKnown: new Set(value.allKnown), issues: new Set(value.issues)});
 function accumulate(target, parsed, priced) {
   target.records++;
   for (const key of Object.keys(target.knownTotals)) {
@@ -225,68 +235,126 @@ function categorySizes(entry) {
   return sizes;
 }
 
-/** Native usage excludes cached tokens from input. Thinking is an output subset. */
-export function summarizeSession(entries, {branch, activeLeaf, context, model, pricing} = {}) {
-  const {unique, byId, duplicateEntries} = uniqueEntries(entries);
-  if (activeLeaf !== undefined && activeLeaf !== null && (!id(activeLeaf) || !byId.has(activeLeaf))) throw new Error('Unknown active session leaf.');
-  const selected = selectBranch(unique, byId, branch); const resolveTask = taskResolver(byId);
-  const total = bucket(); const tasks = new Map(); const seenRequests = new Map();
-  const incurredTasks = new Set(); const accountedExtractionTasks = new Set();
-  const sizes = Object.fromEntries(CATEGORY_NAMES.map(key => [key, 0])); const consumers = [];
-  let duplicateRequests = 0; let lastModel = null;
+function newState(key) {
+  const byId = new Map(); const missingParents = new Set();
+  return {key, count: 0, last: undefined, byId, missingParents, resolveTask: taskResolver(byId, missingParents), duplicateEntries: 0,
+    selected: 0, total: bucket(), tasks: new Map(), seenRequests: new Map(), incurredTasks: new Set(), accountedExtractionTasks: new Set(),
+    sizes: Object.fromEntries(CATEGORY_NAMES.map(key => [key, 0])), topConsumers: [], duplicateRequests: 0, lastModel: null};
+}
+
+function account(state, selected, model, pricing) {
+  state.selected += selected.length;
   for (const entry of selected) {
-    const incurredTask = incurredExtractionTask(entry); if (incurredTask !== null) incurredTasks.add(incurredTask);
-    if (entry.type === 'custom' && entry.customType === 'apex-helper-usage' && entry.data?.kind === 'contract' && id(entry.data?.taskId)) accountedExtractionTasks.add(entry.data.taskId);
-    if (entry.type === 'model_change' && id(entry.provider) && id(entry.modelId)) lastModel = {provider: entry.provider, id: entry.modelId};
-    if (entry.message?.role === 'assistant' && id(entry.message.provider) && id(entry.message.model)) lastModel = {provider: entry.message.provider, id: entry.message.model};
+    const incurredTask = incurredExtractionTask(entry); if (incurredTask !== null) state.incurredTasks.add(incurredTask);
+    if (entry.type === 'custom' && entry.customType === 'apex-helper-usage' && entry.data?.kind === 'contract' && id(entry.data?.taskId)) state.accountedExtractionTasks.add(entry.data.taskId);
+    if (entry.type === 'model_change' && id(entry.provider) && id(entry.modelId)) state.lastModel = {provider: entry.provider, id: entry.modelId};
+    if (entry.message?.role === 'assistant' && id(entry.message.provider) && id(entry.message.model)) state.lastModel = {provider: entry.message.provider, id: entry.message.model};
     const record = usageRecord(entry);
     // Pi 1.4.0 writes native compaction and branch-summary usage without the model; it runs them on the session model.
     if (record && ['compaction', 'branch_summary'].includes(record.kind) && entry.fromHook !== true &&
-      !id(record.provider) && !id(record.model) && lastModel) Object.assign(record, {provider: lastModel.provider, model: lastModel.id});
+      !id(record.provider) && !id(record.model) && state.lastModel) Object.assign(record, {provider: state.lastModel.provider, model: state.lastModel.id});
     if (record) {
       const key = id(record.requestId) ? `${record.kind}:${record.provider}:${record.model}:${record.requestId}` : null;
-      if (key && seenRequests.has(key)) {
-        if (seenRequests.get(key) !== fingerprint(record)) throw new Error('Conflicting request usage identity.');
-        duplicateRequests++; continue;
+      if (key && state.seenRequests.has(key)) {
+        if (state.seenRequests.get(key) !== fingerprint(record)) throw new Error('Conflicting request usage identity.');
+        state.duplicateRequests++; continue;
       }
-      if (key) seenRequests.set(key, fingerprint(record));
+      if (key) state.seenRequests.set(key, fingerprint(record));
       const parsed = inspectUsage(record.usage, record.complete);
       const selectedModel = id(model?.provider) && id(model?.id) ? model : null;
       const priced = pricedUsage(parsed, findRates(pricing, record.provider, record.model, selectedModel));
       if (!id(record.provider) || !id(record.model)) parsed.issues.push('unattributed_model');
       if (priced === null) parsed.issues.push('unknown_pricing');
-      accumulate(total, parsed, priced);
-      const taskId = record.taskId ?? resolveTask(entry);
-      if (!tasks.has(taskId)) tasks.set(taskId, bucket());
-      accumulate(tasks.get(taskId), parsed, priced);
+      accumulate(state.total, parsed, priced);
+      const taskId = record.taskId ?? state.resolveTask(entry);
+      if (!state.tasks.has(taskId)) state.tasks.set(taskId, bucket());
+      accumulate(state.tasks.get(taskId), parsed, priced);
     }
     const entrySizes = categorySizes(entry); let bytes = 0;
-    for (const key of CATEGORY_NAMES) {sizes[key] += entrySizes[key]; bytes += entrySizes[key];}
-    if (bytes > 0) consumers.push({entryId: id(entry.id) ? entry.id : null,
-      type: ['message', 'compaction', 'branch_summary', 'custom_message'].includes(entry.type) ? entry.type : 'other',
-      bytes, estimatedTokens: bytes / 4});
+    for (const key of CATEGORY_NAMES) {state.sizes[key] += entrySizes[key]; bytes += entrySizes[key];}
+    if (bytes > 0) {
+      // Keeps the stable descending sort's first ten: an entry ranks after earlier ones of equal size.
+      const top = state.topConsumers; let at = top.findIndex(value => value.bytes < bytes); if (at === -1) at = top.length;
+      if (at < 10) top.splice(at, 0, {entryId: id(entry.id) ? entry.id : null,
+        type: ['message', 'compaction', 'branch_summary', 'custom_message'].includes(entry.type) ? entry.type : 'other',
+        bytes, estimatedTokens: bytes / 4});
+      if (top.length > 10) top.pop();
+    }
   }
+}
+
+// Reads state without changing its totals, so an incremental summarizer can keep accounting after it.
+function output(state, entries, activeLeaf, context, model, branch, selected) {
+  const total = cloneBucket(state.total); const tasks = new Map(state.tasks);
   let missingHelperRecords = 0;
-  for (const taskId of incurredTasks) if (!accountedExtractionTasks.has(taskId)) {
+  for (const taskId of state.incurredTasks) if (!state.accountedExtractionTasks.has(taskId)) {
     missingHelperRecords++; total.usage = false; total.issues.add('missing_helper_record');
-    if (!tasks.has(taskId)) tasks.set(taskId, bucket());
-    tasks.get(taskId).usage = false; tasks.get(taskId).issues.add('missing_helper_record');
+    const task = tasks.has(taskId) ? cloneBucket(tasks.get(taskId)) : bucket(); tasks.set(taskId, task);
+    task.usage = false; task.issues.add('missing_helper_record');
   }
-  const currentModel = id(model?.provider) && id(model?.id) ? {provider: model.provider, id: model.id} : lastModel;
+  const currentModel = id(model?.provider) && id(model?.id) ? {provider: model.provider, id: model.id} : state.lastModel && {...state.lastModel};
   const windowValue = context?.contextWindow ?? context?.window ?? model?.contextWindow;
   const window = number(windowValue) && windowValue > 0 ? windowValue : null;
   const tokens = token(context?.tokens) ? context.tokens : null;
   const percent = tokens !== null && window !== null ? round(tokens / window * 100) : null;
   const categories = {estimateMethod: 'utf8-bytes/4', label: 'stored content proxy, not exact input attribution'};
-  for (const key of CATEGORY_NAMES) categories[key] = {bytes: sizes[key], estimatedTokens: sizes[key] / 4};
-  const leaf = activeLeaf === null ? null : activeLeaf !== undefined ? byId.get(activeLeaf) :
+  for (const key of CATEGORY_NAMES) categories[key] = {bytes: state.sizes[key], estimatedTokens: state.sizes[key] / 4};
+  const leaf = activeLeaf === null ? null : activeLeaf !== undefined ? state.byId.get(activeLeaf) :
     branch === undefined ? entries.findLast(entry => entry.type !== 'session') : selected.at(-1);
-  const currentTaskId = leaf ? resolveTask(leaf) : null;
+  const currentTaskId = leaf ? state.resolveTask(leaf) : null;
   return {...finish(total), scope: branch === undefined ? 'session' : 'branch', model: currentModel,
     currentTaskId, context: {tokens, window, percent}, categories,
-    topConsumers: consumers.sort((a, b) => b.bytes - a.bytes).slice(0, 10),
+    topConsumers: state.topConsumers.map(value => ({...value})),
     tasks: [...tasks].map(([taskId, value]) => ({taskId, ...finish(value)})),
-    counts: {entries: selected.length, usageRecords: total.records, duplicateEntries, duplicateRequests, missingHelperRecords}};
+    counts: {entries: state.selected, usageRecords: total.records, duplicateEntries: state.duplicateEntries,
+      duplicateRequests: state.duplicateRequests, missingHelperRecords}};
+}
+
+/** Native usage excludes cached tokens from input. Thinking is an output subset. */
+export function summarizeSession(entries, {branch, activeLeaf, context, model, pricing} = {}) {
+  checkEntries(entries);
+  const state = newState(); const unique = admit(state, entries, 0);
+  checkLeaf(state, activeLeaf);
+  const selected = selectBranch(unique, state.byId, branch);
+  account(state, selected, model, pricing);
+  return output(state, entries, activeLeaf, context, model, branch, selected);
+}
+
+// Only plain JSON pricing keys the incremental cache: its fingerprint then tells apart every value findRates can.
+const plain = (value, depth = 0) => {
+  if (depth > 32) return false;
+  if (value === null || value === undefined || typeof value === 'string' || typeof value === 'boolean') return true;
+  if (typeof value === 'number') return Number.isFinite(value) && !Object.is(value, -0);
+  if (typeof value !== 'object') return false;
+  const array = Array.isArray(value); const prototype = Object.getPrototypeOf(value);
+  if (prototype !== (array ? Array.prototype : Object.prototype) && (array || prototype !== null)) return false;
+  return Reflect.ownKeys(value).every(key => {
+    if (array && key === 'length') return true;
+    const property = Object.getOwnPropertyDescriptor(value, key);
+    return typeof key === 'string' && property.enumerable && 'value' in property && plain(property.value, depth + 1);
+  });
+};
+
+/** summarizeSession for the whole session, accounting only the entries appended since the previous call. */
+export function createSessionSummarizer() {
+  let state = null;
+  return {summarize(entries, {branch, activeLeaf, context, model, pricing} = {}) {
+    try {
+      if (branch !== undefined) {state = null; return summarizeSession(entries, {branch, activeLeaf, context, model, pricing});}
+      checkEntries(entries);
+      // Prices are fixed per record, so other pricing or another selected model reprices from scratch.
+      const key = plain(pricing) ? fingerprint([id(model?.provider) && id(model?.id) ? [model.provider, model.id] : null, pricing ?? null]) : null;
+      if (key === null) {state = null; return summarizeSession(entries, {activeLeaf, context, model, pricing});}
+      // Pi only appends, reusing its entry objects: a shorter list or another object at the last processed index is another history.
+      if (state?.key !== key || entries.length < state.count || state.count > 0 && entries[state.count - 1] !== state.last) state = newState(key);
+      let unique = admit(state, entries, state.count);
+      if (unique === null) {state = newState(key); unique = admit(state, entries, 0);}
+      checkLeaf(state, activeLeaf);
+      account(state, unique, model, pricing);
+      state.count = entries.length; state.last = entries[entries.length - 1];
+      return output(state, entries, activeLeaf, context, model);
+    } catch (error) {state = null; throw error;}
+  }};
 }
 
 /** Compact footer retains usage, routing, active task and honest estimate labels. */
