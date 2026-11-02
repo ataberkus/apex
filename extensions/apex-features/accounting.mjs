@@ -321,8 +321,10 @@ export function summarizeSession(entries, {branch, activeLeaf, context, model, p
 }
 
 // Only plain JSON pricing keys the incremental cache: its fingerprint then tells apart every value findRates can.
-const plain = (value, depth = 0) => {
-  if (depth > 32) return false;
+// The walk visits every path, so a small object that reuses one child many times could take exponential time; past
+// 1,000 visited values the pricing counts as not plain and takes the full path (Pi's catalog costs are flat).
+const plain = (value, depth = 0, budget = {visits: 1000}) => {
+  if (depth > 32 || --budget.visits < 0) return false;
   if (value === null || value === undefined || typeof value === 'string' || typeof value === 'boolean') return true;
   if (typeof value === 'number') return Number.isFinite(value) && !Object.is(value, -0);
   if (typeof value !== 'object') return false;
@@ -331,7 +333,7 @@ const plain = (value, depth = 0) => {
   return Reflect.ownKeys(value).every(key => {
     if (array && key === 'length') return true;
     const property = Object.getOwnPropertyDescriptor(value, key);
-    return typeof key === 'string' && property.enumerable && 'value' in property && plain(property.value, depth + 1);
+    return typeof key === 'string' && property.enumerable && 'value' in property && plain(property.value, depth + 1, budget);
   });
 };
 

@@ -16,7 +16,8 @@ test('the frozen reference is the accounting module this refactor started from',
   assert.equal(createHash('sha256').update(source).digest('hex'), ORIGINAL_SHA256);
 });
 
-test('incremental, refactored and original session summaries agree on every prefix, errors included', () => {
+// About 4 s alone; an explicit timeout keeps a plain `bun test` (5 s default) from failing on a loaded machine.
+test('incremental, refactored and original session summaries agree on every prefix, errors included', {timeout: 60000}, () => {
   const rnd = random(20261102); const variants = pricingVariants();
   const refused = new Set(); let compared = 0; let priced = 0; let partial = 0;
   for (let session = 0; session < 120; session++) {
@@ -79,6 +80,18 @@ test('pricing a fingerprint cannot tell apart is repriced on every call', () => 
     const opts = {model, pricing: variants[index % variants.length]};
     assert.deepEqual(summarizer.summarize([...entries], opts), summarizeSession(entries, opts));
   }
+});
+
+test('pricing that reuses one child many times takes the full path instead of an exponential walk', () => {
+  // 21 levels, each holding the next level twice: 2^21 paths through 22 objects (seconds without the cap).
+  let pricing = {input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75};
+  for (let level = 0; level < 21; level++) pricing = {input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75, left: pricing, right: pricing};
+  const model = {provider: 'fixture', id: 'model'}; const summarizer = createSessionSummarizer();
+  const entries = [{type: 'message', id: 'a0', parentId: null,
+    message: {role: 'assistant', provider: 'fixture', model: 'model', usage: {input: 10, output: 4, cacheRead: 2, cacheWrite: 1, totalTokens: 17}, stopReason: 'stop'}}];
+  const started = performance.now();
+  assert.deepEqual(summarizer.summarize(entries, {model, pricing}), summarizeSession(entries, {model, pricing}));
+  assert.ok(performance.now() - started < 2000, `${Math.round(performance.now() - started)} ms`);
 });
 
 test('another history as long as or longer than the last one is summarized from scratch', () => {
