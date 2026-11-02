@@ -48,11 +48,7 @@ jobs:
         run: bun run preflight:windows
         continue-on-error: true
       - run: bun run check:windows
-      # The default TEMP is C:/Users/RUNNER~1/..., and checkpoints reject a short path as a symlinked working directory.
       - run: bun run test:windows
-        env:
-          TEMP: ${{ runner.temp }}
-          TMP: ${{ runner.temp }}
 
   release:
     needs: verify
