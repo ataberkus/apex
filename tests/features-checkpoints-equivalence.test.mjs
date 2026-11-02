@@ -197,6 +197,38 @@ test('files named like Object.prototype members undo exactly as the reference af
   assert.ok(seen.some(outcome => outcome.error), JSON.stringify(seen));
 });
 
+test('instances with different limits on one session answer repeat captures as the reference does', async t => {
+  // Every reference job loads and validates state.json under its own instance's limits, so a repeat capture answered
+  // for one instance must never stand in for an instance whose stricter limits that state breaks.
+  const roots = await Promise.all([0, 1].map(() => mkdtemp(path.join(process.cwd(), 'tests/.checkpoint-fixture-eq-'))));
+  t.after(() => Promise.all(roots.map(root => rm(root, { recursive: true, force: true }))));
+  const variants = [{}, { maxFileBytes: 64 }, { maxMetadataBytes: 256 }, {}];
+  const managers = roots.map((root, index) => variants.map(limits => index ? createReference({ cwd: root, sessionId: SESSION, limits }) : createCheckpointManager({ cwd: root, sessionId: SESSION, limits, statWindowMs: WINDOW })));
+  t.after(() => Promise.all(managers.flat().map(manager => manager.shutdown())));
+  for (const root of roots) {
+    await git(root, ['init', '--template=', '-q']);
+    for (const [name, text] of [['.gitignore', '.apex/\n'], ['large.txt', 'x'.repeat(100)], ['plain.txt', 'plain\n']]) await writeFile(path.join(root, name), text);
+    await git(root, ['add', '-A']); await git(root, ['commit', '-qm', 'fixture']);
+  }
+  const both = async (instance, call) => {
+    const outcomes = [];
+    for (const [index, root] of roots.entries()) outcomes.push(await view(root, await settled(call(managers[index][instance]))));
+    assert.deepEqual(outcomes[0], outcomes[1]);
+    assert.equal(await stateView(roots[0]), await stateView(roots[1]));
+    return outcomes[0];
+  };
+  const LAX = 0; const STRICT = 1; const SMALL = 2; const SAME = 3;
+  const steps = [[LAX, 'capture', 't1'], [STRICT, 'capture', 't1'], [STRICT, 'list'], [LAX, 'capture', 't1'], [STRICT, 'capture', 't1'], [LAX, 'capture', 't1'], [SMALL, 'capture', 't1'], [LAX, 'capture', 't1'], [SAME, 'capture', 't1'], [STRICT, 'capture', 't1'], [LAX, 'edit'], [LAX, 'finish', 't1'], [STRICT, 'capture', 't2'], [LAX, 'capture', 't2'], [STRICT, 'capture', 't2'], [SAME, 'capture', 't2']];
+  const seen = [];
+  for (const [instance, method, turnId] of steps) {
+    if (method === 'edit') { for (const root of roots) await writeFile(path.join(root, 'plain.txt'), 'agent\n'); continue; }
+    const outcome = await both(instance, manager => manager[method](turnId));
+    seen.push(outcome.error?.code ?? (Array.isArray(outcome) ? 'list' : outcome.status));
+  }
+  // Pins the scenario's reach; the per-step comparison above is what matters.
+  assert.deepEqual(seen, ['captured', 'metadata', 'metadata', 'captured', 'metadata', 'captured', 'metadata', 'captured', 'captured', 'metadata', 'finished', 'metadata', 'captured', 'metadata', 'captured']);
+});
+
 async function directories(root) {
   const out = [root];
   for (const entry of await readdir(root, { withFileTypes: true })) if (entry.isDirectory()) out.push(...await directories(path.join(root, entry.name)));

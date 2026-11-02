@@ -22,10 +22,11 @@ const POOL = 32;
 const settle = promise => promise.then(value => ({ value }), error => ({ error }));
 // Results keep input order. After a failure no further item starts and the call waits for the ones in flight, so no
 // filesystem work outlives the serialized job that started it (cancellation, shutdown, the next job on the session).
+// Every item before a failed one has started, so throwing the lowest-index failure gives the error a loop would.
 async function pool(items, width, fn) {
   const out = new Array(items.length); let next = 0; let failed;
   await Promise.all(Array.from({ length: Math.min(width, items.length) }, async () => {
-    while (next < items.length && !failed) { const index = next++; try { out[index] = await fn(items[index], index); } catch (error) { failed ??= { error }; } }
+    while (next < items.length && !failed) { const index = next++; try { out[index] = await fn(items[index], index); } catch (error) { if (!failed || index < failed.index) failed = { error, index }; } }
   }));
   if (failed) throw failed.error;
   return out;
@@ -41,8 +42,9 @@ const FOREGROUND_GC = Object.freeze({ GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: '
 const states = new Map();
 // Records that passed full validation, with the limits they passed under; save revalidates only the record it changed.
 const validated = new WeakMap();
-// Per session: jobs scheduled so far, and the last capture's result with the count it was taken at. While no other job
-// is scheduled the store holds what that capture left, so each extra mutating tool call of the turn skips a full load.
+// Per session: jobs scheduled so far, and the last capture's result with the count and limits it was taken at. While no
+// other job is scheduled the store holds what that capture left, so each extra mutating tool call of the turn skips a
+// full load. Load's caps and validation depend on the limits, so an instance with other limits still loads.
 const scheduled = new Map(); const memos = new Map();
 // Per session: the shadow mirror as the last verified snapshot wrote it, by opaque name: the file's descriptor, its
 // verified blob id, and the lstat identity (dev, ino, size, mtime, ctime) it had right after it was written.
@@ -260,8 +262,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     // A stat error sorts the path first and leaves sourceFile to report it as before.
     const sized = await pool(candidates.filter(relative => !excluded.has(relative)), POOL, async relative => { cancelled(signal); const info = await lstat(path.join(root, relative), { bigint: true }).catch(() => undefined); return [relative, info ? Number(info.size) : 0, info]; });
     sized.sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1));
-    // A failed collect leaves no stat cache behind. An unchanged file with a trusted entry is not read: its ancestors are
-    // still checked as sourceFile would, and snapshot reads it only if the mirror needs its bytes.
+    // A collect that fails from here on leaves no stat cache behind (earlier steps read none, so it stays accurate). An
+    // unchanged file with a trusted entry is not read: its ancestors are still checked as sourceFile would, and snapshot
+    // reads it only if the mirror needs its bytes.
     const cache = process.platform === 'win32' ? undefined : statCaches.get(lockKey) ?? new Map(); statCaches.delete(lockKey);
     const racy = BigInt(statWindowMs) * 1000000n;
     const obtain = async (relative, info) => {
@@ -439,7 +442,8 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       if (entry.name === '.git') continue;
       // This is owned private scratch only, never the user's worktree.
       if (entry.isSymbolicLink()) throw fail('symlink', 'Checkpoint shadow worktree contains a symlink');
-      if (known && entry.name === 'payload' && entry.isDirectory()) { reuse = true; continue; }
+      // With nothing to write, nothing can be kept: remove it as before rather than leave an empty directory behind.
+      if (known && entry.name === 'payload' && entry.isDirectory() && collected.contents.size) { reuse = true; continue; }
       await rm(path.join(shadow, entry.name), { recursive: true });
     }
     const desired = new Map([...collected.contents.keys()].map(relative => [sha(relative), relative]));
@@ -527,9 +531,9 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     try { validTurn(turnId); cancelled(options.signal); } catch (error) { return Promise.reject(error); }
     if (captures.has(turnId)) return captures.get(turnId);
     const memo = memos.get(lockKey);
-    if (!closed && memo?.turnId === turnId && memo.at === scheduled.get(lockKey)) return Promise.resolve(structuredClone(memo.result));
+    if (!closed && memo?.turnId === turnId && memo.at === scheduled.get(lockKey) && memo.limits === limitsKey) return Promise.resolve(structuredClone(memo.result));
     let at;
-    const remember = value => { memos.set(lockKey, { turnId, at, result: structuredClone(value) }); return value; };
+    const remember = value => { memos.set(lockKey, { turnId, at, limits: limitsKey, result: structuredClone(value) }); return value; };
     const job = schedule(options, async signal => {
       const state = await load(signal); const existing = state.records.find(record => record.turnId === turnId);
       if (existing) return remember(result(existing));

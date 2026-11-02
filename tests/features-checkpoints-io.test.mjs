@@ -140,6 +140,25 @@ test('reused state is revalidated for a manager instance with stricter limits', 
   assert.equal((await manager.restore('limits')).status, 'restored');
 });
 
+test('a repeat capture is answered from memory only for a manager instance with the same limits', async t => {
+  const { cwd, manager } = await fixture(t);
+  await writeFile(path.join(cwd, 'large.txt'), 'x'.repeat(100));
+  const strict = createCheckpointManager({ cwd, sessionId: 'session-a', limits: { maxFileBytes: 64 } });
+  const small = createCheckpointManager({ cwd, sessionId: 'session-a', limits: { maxMetadataBytes: 256 } });
+  const same = createCheckpointManager({ cwd, sessionId: 'session-a' });
+  t.after(() => Promise.all([manager, strict, small, same].map(instance => instance.shutdown())));
+  const first = await manager.capture('limits');
+  // Right after the default instance's capture: the state it left breaks the stricter instance's limits.
+  await assert.rejects(strict.capture('limits'), { code: 'metadata', message: 'Checkpoint file metadata is invalid' });
+  await assert.rejects(strict.list(), { code: 'metadata' });
+  assert.deepEqual(await manager.capture('limits'), first);
+  await assert.rejects(strict.capture('limits'), { code: 'metadata', message: 'Checkpoint file metadata is invalid' });
+  assert.deepEqual(await manager.capture('limits'), first);
+  await assert.rejects(small.capture('limits'), { code: 'metadata', message: 'Checkpoint private file is unsafe or exceeds its cap' });
+  assert.deepEqual(await manager.capture('limits'), first);
+  assert.deepEqual(await same.capture('limits'), first);
+});
+
 test('a failed state save leaves no phantom record or status behind in the reused state', async t => {
   const { cwd } = await fixture(t);
   const report = await child(t, cwd, `
@@ -324,6 +343,37 @@ test('a written mirror file whose stored blob does not match its bytes is rewrit
   assert.equal((await recordOf(cwd, 'one')).after['stable.txt'].blob, truth);
 });
 
+test('a snapshot whose mirror writes fail for several files reports the first in order, as a sequential write did', async t => {
+  const { cwd } = await fixture(t);
+  await writeFile(path.join(cwd, 'a.txt'), 'a'); await writeFile(path.join(cwd, 'b.txt'), 'bb');
+  const report = await child(t, cwd, `
+    const { createHash } = await import('node:crypto');
+    const sha256 = value => createHash('sha256').update(value).digest('hex');
+    const payload = relative => path.join(cwd, '.apex/checkpoints', sha256('session-a'), 'shadow/payload', sha256(relative));
+    // a.txt is written first (smallest file) but fails after b.txt has.
+    const originalWriteFile = fs.promises.writeFile;
+    fs.promises.writeFile = async (file, ...rest) => {
+      if (file === payload('a.txt')) { await new Promise(resolve => setTimeout(resolve, 100)); throw Object.assign(Error('a.txt write failed'), { code: 'EIO' }); }
+      if (file === payload('b.txt')) throw Object.assign(Error('b.txt write failed'), { code: 'EIO' });
+      return originalWriteFile(file, ...rest);
+    };
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });
+    process.stdout.write(JSON.stringify({ error: await manager.capture('one').then(() => null, error => error.message) }));
+  `);
+  assert.deepEqual(report, { error: 'a.txt write failed' });
+});
+
+test('a snapshot with nothing to store leaves no payload directory behind', async t => {
+  const { cwd, manager } = await fixture(t);
+  await manager.capture('empty');
+  await lstat(path.join(storeOf(cwd), 'shadow/payload'));
+  // Everything is now ignored, .gitignore included, so the after snapshot holds no file while the mirror is known.
+  await writeFile(path.join(cwd, '.gitignore'), '*\n');
+  const finished = await manager.finish('empty');
+  assert.deepEqual(finished.changedPaths, ['.gitignore', 'tracked.txt']);
+  await assert.rejects(lstat(path.join(storeOf(cwd), 'shadow/payload')), { code: 'ENOENT' });
+});
+
 test('two manager instances alternating on one session share the mirror and restore every turn', async t => {
   const { cwd, manager } = await fixture(t);
   const second = createCheckpointManager({ cwd, sessionId: 'session-a' });
@@ -370,7 +420,7 @@ test('auto-gc triggered by a shadow commit finishes inside the job instead of ra
 
 // Stat-cache tests shorten the racy window (statWindowMs) and wait past it, so files are trusted once unchanged.
 const settle = ms => new Promise(resolve => setTimeout(resolve, ms));
-test('the stat cache notices same-size rewrites with restored mtime, rename replacements and symlinked ancestors', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+test('the stat cache notices same-size rewrites with restored mtime, and rename replacements', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
   const { cwd, manager } = await fixture(t, { statWindowMs: 10 });
   const { rename } = await import('node:fs/promises');
   // Whole-second mtimes, so putting one back below is exact to the nanosecond.
@@ -411,17 +461,46 @@ test('a cache-hit file whose directory turns into a symlink after check-ignore i
   assert.deepEqual(report, { swapped: true, error: { code: 'symlink', message: 'Checkpoint path has a symlink ancestor' } });
 });
 
+test('the stat cache reads a file again when only its inode or device number differs', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+  const { cwd } = await fixture(t);
+  await writeFile(path.join(cwd, 'same.txt'), 'same before\n');
+  await settle(40);
+  // A real replacement also bumps the change time, which alone forces a read; fake the one field instead.
+  const report = await child(t, cwd, `
+    const target = path.join(cwd, 'same.txt'); const originalLstat = fs.promises.lstat; let field;
+    fs.promises.lstat = async (...args) => {
+      const info = await originalLstat(...args);
+      if (!field || args[0] !== target || !args[1]?.bigint) return info;
+      const faked = field; field = undefined;
+      return new Proxy(info, { get: (stats, key) => key === faked ? stats[key] + 1n : typeof stats[key] === 'function' ? stats[key].bind(stats) : stats[key] });
+    };
+    const originalOpen = fs.promises.open; let opened = [];
+    fs.promises.open = async (...args) => { const file = String(args[0]); if (file.startsWith(cwd + path.sep) && !file.includes(path.sep + '.apex' + path.sep)) opened.push(path.relative(cwd, file)); return originalOpen(...args); };
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 10 });
+    const out = {};
+    for (const [index, name] of ['ino', 'dev'].entries()) {
+      await manager.capture('turn-' + index); opened = [];
+      field = name; const status = (await manager.finish('turn-' + index)).status;
+      out[name] = { faked: !field, status, opened: [...opened].sort() };
+    }
+    process.stdout.write(JSON.stringify(out));
+  `);
+  for (const name of ['ino', 'dev']) assert.deepEqual(report[name], { faked: true, status: 'unchanged', opened: ['same.txt'] }, name);
+});
+
 test('an unchanged file is not read again until its times leave the racy window, mtime and ctime both', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
   const { cwd } = await fixture(t);
   for (const name of ['a.txt', 'b.txt', 'touched.txt']) await writeFile(path.join(cwd, name), `${name}\n`);
-  await settle(600);
+  // The window must outlast the gap between touching touched.txt and the child's first read of it (a few process
+  // spawns), even on a loaded machine.
+  await settle(1700);
   const report = await child(t, cwd, `
     const originalOpen = fs.promises.open; let opened = [];
     fs.promises.open = async (...args) => { const file = String(args[0]); if (file.startsWith(cwd + path.sep) && !file.includes(path.sep + '.apex' + path.sep)) opened.push(path.relative(cwd, file)); return originalOpen(...args); };
     const take = () => { const names = [...opened].sort(); opened = []; return names; };
     // An old mtime but a fresh ctime (utimes itself changes the ctime) keeps this file racy for the next read.
     fs.utimesSync(path.join(cwd, 'touched.txt'), new Date('2020-01-01'), new Date('2020-01-01'));
-    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 500 });
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 1500 });
     await manager.capture('one'); const first = take();
     const unchanged = (await manager.finish('one')).status; const second = take();
     await manager.capture('two'); const third = take();
