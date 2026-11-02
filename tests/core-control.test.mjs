@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {chmod, mkdtemp, mkdir, readFile, rm, stat, writeFile} from 'node:fs/promises';
+import {chmod, mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {createEditToolDefinition} from '@earendil-works/pi-coding-agent';
-import {directoryLink, fileLink} from './fixtures/filesystem.mjs';
+import {directoryLink, fileLink, shortPath} from './fixtures/filesystem.mjs';
 
+const windowsOnly = process.platform !== 'win32' && 'Windows 8.3 names';
 const load = () => import('../extensions/apex-core/control.mjs').catch(() => ({}));
 async function moduleApi() {
   const api = await load();
@@ -16,6 +18,18 @@ async function fixture(t) {
   const cwd = await mkdtemp(path.join(process.cwd(), '.core-control-'));
   t.after(() => rm(cwd, {recursive: true, force: true}));
   return cwd;
+}
+// The names run past eight characters so a volume with 8.3 names gives each its own short alias.
+async function spellings(t) {
+  const base = await realpath(await mkdtemp(path.join(tmpdir(), 'apex-core-control-')));
+  t.after(() => rm(base, {recursive: true, force: true}));
+  const cwd = path.join(base, 'a-long-project-directory'), outside = path.join(base, 'a-long-outside-directory');
+  await Promise.all([mkdir(cwd), mkdir(outside)]);
+  await writeFile(path.join(cwd, 'a-long-file-name.txt'), 'inside');
+  await writeFile(path.join(outside, 'a-long-file-name.txt'), 'outside');
+  const short = shortPath(cwd);
+  if (short === cwd) t.skip('This volume has no 8.3 names; the short spelling is unexercised');
+  return {base, cwd, outside, short: short === cwd ? undefined : short};
 }
 const call = (toolName, input, id = 'call') => ({type: 'tool_call', toolName, input, toolCallId: id});
 const result = (toolName, input, text, isError = false, id = 'result') =>
@@ -115,6 +129,80 @@ test('confinement lets read, and only read, reach the packaged Apex skills outsi
     assert.equal(blocked?.block, true);
     assert.match(blocked.reason, /outside|confined/);
   }
+});
+
+test('confinement accepts either Windows spelling of a path inside cwd, existing or not', {skip: windowsOnly}, async t => {
+  const {cwd, short} = await spellings(t);
+  if (!short) return;
+  const {correctToolCall} = await moduleApi();
+  const file = path.join(cwd, 'a-long-file-name.txt');
+  for (const [root, other] of [[short, cwd], [cwd, short]]) {
+    for (const [value, expected] of [
+      [path.join(other, 'a-long-file-name.txt'), file],
+      [path.join(other, 'a-new-directory', 'a-new-file.txt'), path.join(cwd, 'a-new-directory', 'a-new-file.txt')],
+      [shortPath(file), file],
+    ]) {
+      const write = call('write', {path: value, content: 'x'});
+      assert.equal(await correctToolCall(write, {cwd: root}), undefined, `${value} under ${root}`);
+      assert.equal(write.input.path, expected);
+    }
+    const list = call('ls', {path: other});
+    assert.equal(await correctToolCall(list, {cwd: root}), undefined);
+    assert.equal(list.input.path, cwd);
+  }
+  assert.equal(await readFile(file, 'utf8'), 'inside');
+});
+
+test('confinement refuses a junction alias into cwd and outside paths under either spelling', {skip: windowsOnly}, async t => {
+  const {base, cwd, outside, short} = await spellings(t);
+  if (!short) return;
+  const alias = path.join(base, 'a-long-junction-name');
+  await directoryLink(cwd, alias);
+  const through = path.join(alias, 'a-long-file-name.txt'), outsideFile = path.join(outside, 'a-long-file-name.txt');
+  assert.notEqual(shortPath(through), through);
+  const {correctToolCall} = await moduleApi();
+  for (const value of [through, shortPath(through), path.join(alias, 'a-new-file.txt'), path.join(shortPath(alias), 'a-new-file.txt'),
+    outsideFile, shortPath(outsideFile), path.join(outside, 'a-new-file.txt'), path.join(shortPath(outside), 'a-new-file.txt'),
+    `${cwd}-sibling`, `${short}-sibling`]) {
+    for (const root of [cwd, short]) {
+      const input = {path: value, content: 'x'};
+      const blocked = await correctToolCall(call('write', input), {cwd: root});
+      assert.equal(blocked?.block, true, `${value} under ${root}`);
+      assert.match(blocked.reason, /outside|confined/);
+      assert.equal(input.path, value);
+    }
+  }
+  assert.equal(await readFile(path.join(cwd, 'a-long-file-name.txt'), 'utf8'), 'inside');
+  assert.equal(await readFile(outsideFile, 'utf8'), 'outside');
+});
+
+test('another spelling of cwd does not reach through a junction inside it, dangling or not', {skip: windowsOnly}, async t => {
+  const {cwd, outside, short} = await spellings(t);
+  if (!short) return;
+  await directoryLink(outside, path.join(cwd, 'a-long-external-link'));
+  await directoryLink(path.join(outside, 'a-missing-directory'), path.join(cwd, 'a-long-dangling-link'));
+  const {correctToolCall} = await moduleApi();
+  for (const [root, other] of [[short, cwd], [cwd, short]]) {
+    for (const name of ['a-long-external-link/a-long-file-name.txt', 'a-long-external-link/a-new-file.txt', 'a-long-dangling-link/a-new-file.txt']) {
+      const blocked = await correctToolCall(call('write', {path: path.join(other, name), content: 'x'}), {cwd: root});
+      assert.equal(blocked?.block, true, `${name} under ${root}`);
+      assert.match(blocked.reason, /outside|confined/);
+    }
+  }
+});
+
+test('a linked cwd stays lexical: its canonical spelling is refused and a relative path is corrected', async t => {
+  const cwd = await realpath(await fixture(t));
+  const link = path.join(await fixture(t), 'linked-cwd');
+  await directoryLink(cwd, link);
+  await writeFile(path.join(cwd, 'file.txt'), 'x');
+  const {correctToolCall} = await moduleApi();
+  const relative = call('write', {path: 'file.txt', content: 'y'});
+  assert.equal(await correctToolCall(relative, {cwd: link}), undefined);
+  assert.equal(relative.input.path, path.join(cwd, 'file.txt'));
+  const blocked = await correctToolCall(call('write', {path: path.join(cwd, 'file.txt'), content: 'y'}), {cwd: link});
+  assert.equal(blocked?.block, true);
+  assert.match(blocked.reason, /outside|confined/);
 });
 
 test('edit precondition accepts native multi-edit and native whitespace/BOM/CRLF modes without writing', async t => {
@@ -536,6 +624,58 @@ test('diagnostics choose Go and Cargo through their real version syntax with off
   }});
   assert.equal((await diagnostics.before(call('write', {path: 'file.go'}, 'go'))).checker, 'go');
   assert.equal((await diagnostics.before(call('write', {path: 'src/lib.rs'}, 'rust'))).checker, 'cargo');
+});
+
+test('correction then diagnostics keep a baseline and report new errors under a short cwd', {skip: windowsOnly}, async t => {
+  const {cwd, short} = await spellings(t);
+  if (!short) return;
+  await mkdir(path.join(cwd, 'src'));
+  const file = path.join(cwd, 'src', 'a-long-module-name.py');
+  await writeFile(file, 'old');
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  const checked = [];
+  const diagnostics = createDiagnostics({cwd: short, runCommand: async (command, args, options) => {
+    if (args[0] === '--version') return {code: command === 'ruff' ? 0 : 127, stdout: '', stderr: ''};
+    assert.equal(options.cwd, short);
+    checked.push(args.at(-1));
+    const changed = await readFile(file, 'utf8') === 'new';
+    return {code: changed ? 1 : 0, stdout: changed ? 'module.py:1:1: F821 introduced problem\n' : '', stderr: ''};
+  }});
+  const event = call('write', {path: 'src/a-long-module-name.py', content: 'new'}, 'short');
+  assert.equal(await correctToolCall(event, {cwd: short}), undefined);
+  assert.equal(event.input.path, file);
+  const baseline = await diagnostics.before(event);
+  assert.equal(baseline.status, 'baseline', baseline.reason);
+  await writeFile(file, 'new');
+  const after = await diagnostics.after(result('write', event.input, 'written', false, 'short'));
+  assert.equal(after.status, 'diagnostics', after.reason);
+  assert.deepEqual(after.newErrors, ['module.py:1:1: F821 introduced problem']);
+  assert.deepEqual(checked, Array(2).fill(path.join('src', 'a-long-module-name.py')));
+});
+
+test('diagnostics find a Cargo manifest under a short cwd and stop at the cwd', {skip: windowsOnly}, async t => {
+  const {base, cwd, short} = await spellings(t);
+  if (!short) return;
+  await mkdir(path.join(cwd, 'src'));
+  await writeFile(path.join(cwd, 'src', 'lib.rs'), 'pub fn value() {}');
+  await writeFile(path.join(base, 'Cargo.toml'), '[package]\n');
+  const {correctToolCall, createDiagnostics} = await moduleApi();
+  let cargo;
+  const diagnostics = createDiagnostics({cwd: short, runCommand: async (command, args) => {
+    if (args[0] === '--version') return {code: command === 'cargo' ? 0 : 127, stdout: '', stderr: ''};
+    cargo = args;
+    return {code: 0, stdout: '', stderr: ''};
+  }});
+  const above = call('write', {path: 'src/lib.rs', content: 'new'}, 'above');
+  assert.equal(await correctToolCall(above, {cwd: short}), undefined);
+  assert.match((await diagnostics.before(above)).reason, /available|installed/);
+  await writeFile(path.join(cwd, 'Cargo.toml'), '[package]\n');
+  const event = call('write', {path: 'src/lib.rs', content: 'new'}, 'rust');
+  assert.equal(await correctToolCall(event, {cwd: short}), undefined);
+  const baseline = await diagnostics.before(event);
+  assert.equal(baseline.checker, 'cargo', baseline.reason);
+  assert.equal(cargo[cargo.indexOf('--manifest-path') + 1], path.join(cwd, 'Cargo.toml'));
+  assert.equal(cargo[cargo.indexOf('--target-dir') + 1], path.join(short, '.apex', 'diagnostics-target'));
 });
 
 test('diagnostics do not label moved pre-existing errors as newly introduced errors', async t => {
