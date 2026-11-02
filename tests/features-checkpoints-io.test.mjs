@@ -391,9 +391,18 @@ test('two manager instances alternating on one session share the mirror and rest
   }
 });
 
+// Newer Git (Git for Windows 2.56 here) runs a geometric repack as its default auto maintenance: it ignores gc.auto's
+// loose-object estimate and packs instead of pruning. The fixture enables the gc task and disables that one, after the
+// module's own two settings, so this stays the gc scenario on every Git; the module's environment is recorded unchanged.
+const classicAutoGc = env => ({ ...env, GIT_CONFIG_COUNT: String(Number(env.GIT_CONFIG_COUNT) + 2),
+  [`GIT_CONFIG_KEY_${env.GIT_CONFIG_COUNT}`]: 'maintenance.gc.enabled', [`GIT_CONFIG_VALUE_${env.GIT_CONFIG_COUNT}`]: 'true',
+  [`GIT_CONFIG_KEY_${Number(env.GIT_CONFIG_COUNT) + 1}`]: 'maintenance.geometric-repack.enabled', [`GIT_CONFIG_VALUE_${Number(env.GIT_CONFIG_COUNT) + 1}`]: 'false' });
 test('auto-gc triggered by a shadow commit finishes inside the job instead of racing later store walks', async t => {
   const commits = [];
-  const { cwd, manager } = await fixture(t, { runGit: (args, opts) => { if (args.includes('commit')) commits.push(opts.env); return runGitCommand(args, opts); } });
+  const { cwd, manager } = await fixture(t, { runGit: (args, opts) => {
+    if (!args.includes('commit')) return runGitCommand(args, opts);
+    commits.push(opts.env); return runGitCommand(args, { ...opts, env: classicAutoGc(opts.env) });
+  } });
   await manager.capture('gc');
   // Git estimates loose objects from objects/17 alone (more than 27 there means past gc.auto's 6,700). These are
   // unreachable and old, so a completed gc prunes them.
