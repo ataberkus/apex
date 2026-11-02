@@ -191,3 +191,38 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: diag-results, path: results }
+
+  microsmoke:
+    name: micro + package smoke with stock Defender (off)
+    if: contains(github.event.head_commit.message, '[wv:all]') || contains(github.event.head_commit.message, '[wv:microsmoke]')
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults: { run: { shell: pwsh } }
+    env: { APEX_STOCK_DEFENDER: '1' }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine and tools
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Worktrees and install
+        run: |
+          git -C branch worktree add ../base $env:BASE_SHA
+          foreach ($d in 'base', 'branch') { Push-Location $d; bun install --frozen-lockfile --ignore-scripts; if ($LASTEXITCODE) { exit 1 }; Pop-Location }
+      - name: Windows PowerShell probe timing
+        run: bun branch/.github/windows-validation/ps-probe.mjs branch | Tee-Object -Append results/ps.jsonl
+      - name: check, micro and smoke (branch, then base; up to 3 attempts while BLOCKED)
+        run: |
+          foreach ($d in 'branch', 'base') { Push-Location $d
+            foreach ($script in 'check:windows', 'micro:windows', 'smoke:windows-package') {
+              foreach ($attempt in 1..3) { bun run $script; $rc = $LASTEXITCODE; "RUN $d $script attempt=$attempt exit=$rc" | Tee-Object -Append ../results/micro-smoke.txt; if ($rc -ne 2) { break } }
+            }
+            Pop-Location }
+          exit 0
+      - name: Summary
+        if: always()
+        run: bun branch/.github/windows-validation/summarize.mjs results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: microsmoke-results, path: results }

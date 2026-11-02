@@ -4,11 +4,11 @@ $ErrorActionPreference = 'Continue'
 New-Item -ItemType Directory -Force results | Out-Null
 choco install ripgrep fd -y --no-progress | Select-Object -Last 2
 $before = try { (Get-MpPreference).ExclusionPath } catch { @() }
-try {
+if ($env:APEX_STOCK_DEFENDER -eq '1') { 'defender: left as the hosted image ships it' } else { try {
   if ($before) { Remove-MpPreference -ExclusionPath $before -ErrorAction Stop }
   Set-MpPreference -DisableRealtimeMonitoring $false -ErrorAction Stop
   'defender: real-time monitoring requested on, exclusions removed'
-} catch { "defender: could not change: $($_.Exception.Message)" }
+} catch { "defender: could not change: $($_.Exception.Message)" } }
 Start-Sleep -Seconds 5
 # The first Windows PowerShell start on a fresh runner outlasts the preflight's 5 s probe; warm it up once and time it.
 foreach ($i in 1, 2) { $t = Measure-Command { powershell.exe -NoLogo -NoProfile -NonInteractive -Command "[void](Get-ExecutionPolicy); [void][System.Security.AccessControl.DirectorySecurity]" }; "powershell warm-up ${i}: $([int]$t.TotalMilliseconds) ms" }
