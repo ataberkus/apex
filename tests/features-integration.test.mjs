@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
+import os from 'node:os';
+import {existsSync,mkdtempSync,rmSync} from 'node:fs';
 import {createApexFeatures} from '../extensions/apex-features/index.mjs';
 import {createApexCore} from '../extensions/apex-core/index.mjs';
 function fixture(flags='',evalMode=false){
@@ -164,4 +166,70 @@ test('autocompact compacts at a custom threshold and keeps the model-window rule
  assert.equal(calls.length,0);
  h.ctx.getContextUsage=()=>({tokens:200_001,contextWindow:272_000});await h.emit('agent_settled');
  assert.equal(calls.length,1,'below the 300k default, past the custom threshold');
+});
+
+// A UI session, so the safety gate is live and notifications are the channel a failure reports through.
+const interactive=h=>{const notes=[];h.ctx.mode='tui';h.ctx.hasUI=true;h.ctx.ui.notify=(message,level)=>notes.push({message,level});return notes;};
+const refused=()=>{throw Error('refused helper');};
+const brokenCheckpoints={
+ 'its factory throws':()=>({checkpointFactory:refused,shutdowns:0}),
+ 'list() rejects':events=>({checkpointFactory:()=>({list:async()=>refused(),capture:async()=>events.push('capture'),finish:async()=>events.push('finish'),shutdown:async()=>events.push('shutdown')}),shutdowns:1}),
+};
+for(const [cause,fault] of Object.entries(brokenCheckpoints))test(`a checkpoint setup where ${cause} leaves later features registered and mutations blocked`,async()=>{
+ const h=fixture('cost,checkpoints,remember,plan,review,safety,resume');const notes=interactive(h);const events=[];let confirmations=0;h.ctx.ui.confirm=async()=>{confirmations++;return true;};
+ const {checkpointFactory,shutdowns}=fault(events);createApexFeatures({checkpointFactory})(h.pi);await h.emit('session_start');
+ assert.equal(notes.length,1);assert.equal(notes[0].level,'error');assert.match(notes[0].message,/checkpoints.*refused helper/);
+ assert.deepEqual(['cost','undo','plan','review','resume-info'].filter(name=>!h.commands.has(name)),[]);assert.ok(h.tools.some(tool=>tool.name==='remember'));
+ await h.emit('turn_start');const blocked=await h.emit('tool_call',{toolName:'write',input:{}});
+ assert.equal(blocked.block,true);assert.equal(blocked.reason,'Checkpoint failed; mutation blocked: refused helper');assert.equal(confirmations,1,'the safety gate decides first');
+ assert.equal(await h.emit('tool_call',{toolName:'read',input:{}}),undefined);
+ await h.emit('turn_end');await h.emit('agent_settled');
+ const undo=await h.commands.get('undo').handler('',h.ctx);assert.equal(undo.ok,false);assert.equal(undo.reason,'refused helper');
+ await h.emit('session_shutdown');assert.deepEqual(events,Array(shutdowns).fill('shutdown'),'the half-made manager is only released');
+});
+test('a session without UI hears of a failed feature from Pi, after later features registered',async()=>{
+ const h=fixture('checkpoints,plan,resume');createApexFeatures({checkpointFactory:refused})(h.pi);
+ await assert.rejects(h.emit('session_start'),/checkpoints.*refused helper/);
+ assert.ok(h.commands.has('plan'));assert.ok(h.commands.has('resume-info'));assert.equal((await h.emit('tool_call',{toolName:'write',input:{}})).block,true);
+});
+test('tree navigation retries a failed checkpoint setup',async()=>{
+ const h=fixture('checkpoints');const notes=interactive(h);const events=[];let broken=true;
+ createApexFeatures({checkpointFactory:()=>{if(broken)refused();return {list:async()=>[],capture:async id=>events.push('capture:'+id),finish:async id=>events.push('finish:'+id),shutdown:async()=>{}};}})(h.pi);
+ await h.emit('session_start');assert.equal((await h.emit('tool_call',{toolName:'write',input:{}})).block,true);assert.equal(notes.length,1);
+ broken=false;await h.emit('session_tree');await h.emit('turn_start');assert.equal(await h.emit('tool_call',{toolName:'write',input:{}}),undefined);await h.emit('turn_end');
+ assert.equal(notes.length,1);assert.equal(events.length,2);assert.match(events[0],/^capture:/);assert.match(events[1],/^finish:/);
+});
+test('a failed checkpoint setup refuses a plan write and leaves the plan cancellable',async()=>{
+ const dir=mkdtempSync(path.join(os.tmpdir(),'apex-failed-checkpoints-'));
+ try{
+  const h=fixture('checkpoints,plan');interactive(h);h.ctx.cwd=dir;createApexFeatures({checkpointFactory:refused})(h.pi);await h.emit('session_start');
+  await h.commands.get('plan').handler('inspect',h.ctx);const saved=await h.commands.get('plan').handler('save # Plan',h.ctx);
+  assert.equal(saved.ok,false);assert.equal(saved.reason,'refused helper');
+  await assert.rejects(h.emit('agent_before_settle',{outcome:'completed',entries:[],context:{pendingMessages:[]}}),/refused helper/);
+  assert.equal(existsSync(path.join(dir,'PLAN.md')),false);assert.equal((await h.commands.get('plan').handler('cancel',h.ctx)).canceled,true);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+for(const flags of ['safety','safety,resume'])test(`a safety gate that cannot start blocks every tool with flags ${flags}`,async()=>{
+ const h=fixture(flags);const notes=interactive(h);createApexFeatures({safetyFactory:()=>{throw Error('gate missing');}})(h.pi);await h.emit('session_start');
+ assert.equal(notes.length,1);assert.equal(notes[0].level,'error');assert.match(notes[0].message,/safety.*gate missing/);
+ for(const toolName of ['read','write','bash','codemode']){const r=await h.emit('tool_call',{toolName,input:{}});assert.equal(r.block,true);assert.match(r.reason,/gate missing/);}
+ assert.equal(h.commands.has('resume-info'),flags.includes('resume'));
+});
+test('a failed cost status costs only the status: later features, turn hooks and autocompact keep working',async()=>{
+ const h=fixture('cost,report,autocompact,plan');const notes=interactive(h);const compactions=[];h.ctx.compact=options=>compactions.push(options);let failing=true;
+ h.ctx.getContextUsage=()=>{if(failing)throw Error('usage unavailable');return {tokens:300_001,contextWindow:1_000_000};};
+ createApexFeatures()(h.pi);await h.emit('session_start');
+ assert.equal(notes.length,1);assert.match(notes[0].message,/cost.*usage unavailable/);assert.ok(h.commands.has('report'));assert.ok(h.commands.has('plan'));
+ await h.emit('turn_end');failing=false;await h.emit('agent_settled');assert.equal(compactions.length,1);
+});
+test('an invalid autocompact threshold costs only autocompact',async()=>{
+ const h=fixture('autocompact,safety');const notes=interactive(h);h.values['apex-autocompact-tokens']='many';h.ctx.ui.confirm=async()=>false;h.ctx.compact=()=>assert.fail('off');
+ h.ctx.getContextUsage=()=>({tokens:900_000,contextWindow:1_000_000});createApexFeatures()(h.pi);await h.emit('session_start');
+ assert.equal(notes.length,1);assert.match(notes[0].message,/autocompact.*whole number/);
+ assert.equal((await h.emit('tool_call',{toolName:'write',input:{}})).reason,'Tool action was not confirmed.');await h.emit('agent_settled');
+});
+test('a failed remember leaves planning and prompt assembly working',async()=>{
+ const h=fixture('remember,plan');const notes=interactive(h);h.pi.registerTool=()=>{throw Error('tool rejected');};createApexFeatures()(h.pi);await h.emit('session_start');
+ assert.equal(notes.length,1);assert.match(notes[0].message,/remember.*tool rejected/);assert.ok(h.commands.has('plan'));
+ const event={systemPromptOptions:{contextFiles:[]}};await h.emit('before_agent_start',event);assert.deepEqual(event.systemPromptOptions.contextFiles,[]);
 });

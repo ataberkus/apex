@@ -8,13 +8,17 @@ const NO_CAPTURE=new Set(['read','grep','find','ls','tool_search','codemode','to
 const SKILLS=['debugging','test-writing','profiling','build-systems','python-packaging','numerics','http','databases','git-surgery','security-hardening'];
 const STATE='apex-features-state';
 const reason=error=>String(error?.message??error).slice(0,1000);
-const notify=(ctx,message)=>{if(typeof ctx.ui?.notify==='function')ctx.ui.notify(message,'info');};
+const notify=(ctx,message,level='info')=>{if(typeof ctx.ui?.notify==='function')ctx.ui.notify(message,level);};
 const latest=(branch,type)=>{let value;for(const entry of branch){if(entry.type==='custom'&&entry.customType===type)value=entry.data;else if(entry.type==='compaction'&&entry.details?.apexState?.[type])value=entry.details.apexState[type];}return value;};
 // Message entries of the active branch: the source Pi 1.4.0 replays tool loadouts from on resume and /tree.
 const branchMessages=ctx=>ctx.sessionManager.getBranch?.().flatMap(entry=>entry.type==='message'?[entry.message]:[]);
+// Stand-ins for a safeguard that could not start, so the hooks' ordinary paths stay fail-closed: a rejected capture blocks the
+// mutation, closeTurn never finishes what was not captured, and /undo and /plan save report the setup error.
+const refusingCheckpoints=error=>{const refuse=async()=>{throw error;};return {capture:refuse,finish:refuse,restore:refuse,list:refuse,shutdown:async()=>{}};};
+const refusingSafety=error=>({check:async()=>({block:true,reason:'Safety gate failed; tool blocked: '+reason(error)})});
 
 /** Hooks and flags only at construction. Every capability defaults off. */
-export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}){
+export function createApexFeatures({policy=runtimePolicy(),checkpointFactory,safetyFactory}={}){
  return pi=>{
   pi.registerFlag('apex-feature-flags',{type:'string',default:'',description:'Opt-in daily-driver features; every feature defaults off.'});
   pi.registerFlag('apex-eval',{type:'boolean',default:false,description:'Explicit eval isolation: disables project learnings and interactive safety prompts.'});
@@ -42,24 +46,32 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    if(plan?.isActive()&&baseTools&&!workflows.recordedToolNames(branchMessages(ctx)))pi.setActiveTools(baseTools);
    checkpoints=plan=learnings=safety=workflows=accounting=summarizer=undefined;turnId=undefined;captured=false;
    flags=new Set(parseFeatureFlags(pi.getFlag('apex-feature-flags')));evalMode=pi.getFlag('apex-eval')===true;
-   if(flags.has('autocompact'))autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));
    meta={version:1,turnCounter:0,checkpointIds:[]};baseTools=undefined;
    if(!flags.size&&!evalMode)return;
    releaseMode=markFeatureMode(ctx,{owner,safety:flags.has('safety'),evalMode});
    if(!flags.size)return;
+   // Pi's runner reports a rejected session_start and carries on, so a feature that throws must not cost the ones after it.
+   // A safeguard installs a refusing stand-in and keeps its flag (tool_call skips everything without flags); others just drop theirs.
+   const failures=[];
+   const setup=async(name,run,refuse)=>{
+    if(!flags.has(name))return;
+    try{await run();}catch(error){
+     let effect='it is off for this session';
+     if(refuse)effect=refuse(error);else flags.delete(name);
+     const message=`Apex feature ${name} failed to start; ${effect}: ${reason(error)}`;
+     failures.push(message);notify(ctx,message,'error');
+    }
+   };
+   // First: core stands down its own prompts once safety is marked above, and this depends on nothing below.
+   await setup('safety',async()=>{safety=(safetyFactory??(await import('./safety.mjs')).createSafetyGate)({pi,evalMode});},error=>{safety=refusingSafety(error);return 'every tool call is blocked';});
+   await setup('autocompact',()=>{autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));});
    const branch=ctx.sessionManager.getBranch();const stored=latest(branch,STATE);
    if(stored?.version===1&&Number.isSafeInteger(stored.turnCounter)&&stored.turnCounter>=0)meta={version:1,turnCounter:stored.turnCounter,checkpointIds:Array.isArray(stored.checkpointIds)?stored.checkpointIds.filter(id=>typeof id==='string'&&/^\d+$/.test(id)).slice(-50):[]};
-   if(flags.has('cost')||flags.has('report')){
-    accounting=await import('./accounting.mjs');summarizer=accounting.createSessionSummarizer();
-    if(flags.has('cost'))command('cost','Show Apex token and estimated cost totals',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,accounting.formatCost(r));return r;});
-    if(flags.has('report'))command('report','Show this session token categories and largest consumers',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,JSON.stringify({totals:r.totals,cost:r.cost,categories:r.categories,topConsumers:r.topConsumers,completeness:r.completeness}));return r;});
-    updateCost(ctx);
-   }
-   if(flags.has('checkpoints')){
-    const factory=checkpointFactory??(await import('./checkpoints.mjs')).createCheckpointManager;
-    checkpoints=factory({cwd:ctx.cwd,sessionId:ctx.sessionManager.getSessionId()});
-    for(const entry of ctx.sessionManager.getEntries()){const state=entry.type==='custom'&&entry.customType===STATE?entry.data:entry.type==='compaction'?entry.details?.apexState?.[STATE]:undefined;if(Number.isSafeInteger(state?.turnCounter)&&state.turnCounter>=0)meta.turnCounter=Math.max(meta.turnCounter,state.turnCounter);}
-    for(const entry of await checkpoints.list()){if(/^\d+$/.test(entry.turnId)&&Number.isSafeInteger(Number(entry.turnId)))meta.turnCounter=Math.max(meta.turnCounter,Number(entry.turnId));}
+   const loadAccounting=async()=>{accounting??=await import('./accounting.mjs');summarizer??=accounting.createSessionSummarizer();};
+   await setup('cost',async()=>{await loadAccounting();command('cost','Show Apex token and estimated cost totals',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,accounting.formatCost(r));return r;});updateCost(ctx);});
+   await setup('report',async()=>{await loadAccounting();command('report','Show this session token categories and largest consumers',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,JSON.stringify({totals:r.totals,cost:r.cost,categories:r.categories,topConsumers:r.topConsumers,completeness:r.completeness}));return r;});});
+   await setup('checkpoints',async()=>{
+    // Registered first, so a failed setup still answers /undo with its reason.
     command('undo','Restore a completed Apex turn (optional turn ID)',async(args,ctx)=>{
      if(plan?.isActive()){const r={ok:false,reason:'Cancel or save the active plan before undo.'};notify(ctx,r.reason);return r;}
      await ctx.waitForIdle();await closeTurn();
@@ -68,13 +80,20 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      if(!id||!entries.some(entry=>entry.turnId===id)){const r={ok:false,reason:'No finished checkpoint is available on the active branch.'};notify(ctx,r.reason);return r;}
      const r=await checkpoints.restore(id,{signal:ctx.signal});notify(ctx,`Turn ${id}: ${r.status}; ${r.changedPaths.length} paths.${r.skippedPaths?.length?` ${r.skippedPaths.length} files over the checkpoint size caps were not tracked and are unchanged.`:''}`);return r;
     });
-   }
-   if(flags.has('remember')&&!evalMode){
+    const factory=checkpointFactory??(await import('./checkpoints.mjs')).createCheckpointManager;
+    const manager=factory({cwd:ctx.cwd,sessionId:ctx.sessionManager.getSessionId()});
+    try{
+     for(const entry of ctx.sessionManager.getEntries()){const state=entry.type==='custom'&&entry.customType===STATE?entry.data:entry.type==='compaction'?entry.details?.apexState?.[STATE]:undefined;if(Number.isSafeInteger(state?.turnCounter)&&state.turnCounter>=0)meta.turnCounter=Math.max(meta.turnCounter,state.turnCounter);}
+     for(const entry of await manager.list()){if(/^\d+$/.test(entry.turnId)&&Number.isSafeInteger(Number(entry.turnId)))meta.turnCounter=Math.max(meta.turnCounter,Number(entry.turnId));}
+    }catch(error){await manager.shutdown();throw error;}
+    checkpoints=manager;
+   },error=>{checkpoints=refusingCheckpoints(error);return 'mutating tools are blocked';});
+   if(!evalMode)await setup('remember',async()=>{
     // Register before plan restoration so a restored prior loadout can include this tool.
-    const {createLearnings}=await import('./learnings.mjs');learnings=createLearnings({cwd:ctx.cwd,evalMode:false});pi.registerTool(learnings.tool());
-   }
-   if(flags.has('plan')||flags.has('review'))workflows=await import('./workflows.mjs');
-   if(flags.has('plan')){
+    const {createLearnings}=await import('./learnings.mjs');const created=createLearnings({cwd:ctx.cwd,evalMode:false});pi.registerTool(created.tool());learnings=created;
+   });
+   await setup('plan',async()=>{
+    workflows=await import('./workflows.mjs');
     baseTools=latest(branch,'apex-plan-state')?.tools??pi.getActiveTools();
     plan=workflows.createPlanManager({cwd:ctx.cwd,pi,policy,branch,recordedTools:workflows.recordedToolNames(branchMessages(ctx)),
      persist:entry=>pi.appendEntry(entry.customType,entry.data)});
@@ -86,18 +105,22 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
      else r=await plan.start(args.trim()||'Inspect the current project and write a concrete implementation plan.',ctx);
      notify(ctx,r.reason??(r.path?'Plan saved to PLAN.md; prior tools restored.':r.canceled?'Plan canceled; prior tools restored.':r.canceled===false?'Plan mode is not active.':'Plan mode updated.'));return r;
     });
-   }
-   if(flags.has('review'))command('review','Independently verify the current diff',async(args,ctx)=>{
-    await ctx.waitForIdle();const r=await workflows.runReview({cwd:ctx.cwd,task:args.trim()||'Verify the current changes against their requirements and check for regressions.',policy},ctx);
-    notify(ctx,r.reason??r.result?.content?.filter(part=>part.type==='text').map(part=>part.text).join('\n')??'Review completed.');return r;
    });
-   if(flags.has('safety'))safety=(await import('./safety.mjs')).createSafetyGate({pi,evalMode});
-   if(flags.has('resume'))command('resume-info','Inspect the current session without replaying tools',async(args,ctx)=>{
+   await setup('review',async()=>{
+    workflows=await import('./workflows.mjs');
+    command('review','Independently verify the current diff',async(args,ctx)=>{
+     await ctx.waitForIdle();const r=await workflows.runReview({cwd:ctx.cwd,task:args.trim()||'Verify the current changes against their requirements and check for regressions.',policy},ctx);
+     notify(ctx,r.reason??r.result?.content?.filter(part=>part.type==='text').map(part=>part.text).join('\n')??'Review completed.');return r;
+    });
+   });
+   await setup('resume',()=>command('resume-info','Inspect the current session without replaying tools',async(args,ctx)=>{
     const file=args.trim()||ctx.sessionManager.getSessionFile?.();
     if(!file){const r={ok:false,replayPerformed:false,reason:'This in-memory session has no file to inspect.'};notify(ctx,r.reason);return r;}
     const {inspectResume}=await import('../../lib/session-report.mjs');const r=await inspectResume(file);
     notify(ctx,`${r.branchIds.length} entries; ${r.pendingTools.length} pending calls; inspection never replays tool side effects.`);return r;
-   });
+   }));
+   // Without a UI notify is a no-op: Pi's own error report (stderr in print mode) is the only way this reaches anyone.
+   if(failures.length&&!ctx.hasUI)throw Error(failures.join('\n'));
   };
   pi.on('session_start',initialize);pi.on('session_tree',initialize);pi.on('session_fork',initialize);
   pi.on('resources_discover',()=>flags.has('skills')?{skillPaths:SKILLS.map(name=>fileURLToPath(new URL(`../../skills/${name}/SKILL.md`,import.meta.url)))}:undefined);
