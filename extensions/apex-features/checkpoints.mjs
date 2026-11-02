@@ -47,6 +47,11 @@ const scheduled = new Map(); const memos = new Map();
 // Per session: the shadow mirror as the last verified snapshot wrote it, by opaque name: the file's descriptor, its
 // verified blob id, and the lstat identity (dev, ino, size, mtime, ctime) it had right after it was written.
 const mirrors = new Map();
+// Per session, by path: what collect last read from a source file (lstat identity, mode, SHA-256) and when that read
+// began. Like Git's index it trusts a file whose lstat is unchanged, but only once its mtime and ctime are statWindowMs
+// older than that read, so a write landing in the same coarse timestamp tick is never missed. Off on Windows, where a
+// file's change time can be set from user space.
+const statCaches = new Map();
 // gitTimeoutMs guards against hung Git, not slow Git: a session's first capture runs `git add --all` over the whole
 // tree into an empty shadow store. On Windows, 660 files / 37 MB took 8.9–38.3 s across fresh copies.
 const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 120000 });
@@ -97,9 +102,11 @@ async function boundedRead(handle, initialSize, maxBytes, signal) {
 }
 
 /** Factory is inert. Only explicit methods perform bounded local I/O. */
-export function createCheckpointManager({ cwd, sessionId, runGit, limits: configured = {} } = {}) {
+export function createCheckpointManager({ cwd, sessionId, runGit, limits: configured = {}, statWindowMs = 2000 } = {}) {
   if (typeof cwd !== 'string' || !cwd || typeof sessionId !== 'string' || !sessionId || sessionId.length > 4096) throw fail('invalid-options', 'Checkpoint cwd and stable sessionId are required');
   if (runGit !== undefined && typeof runGit !== 'function') throw fail('invalid-options', 'runGit must be a function');
+  // Internal: tests shorten the stat cache's racy window instead of waiting out the default 2 s.
+  if (!Number.isSafeInteger(statWindowMs) || statWindowMs < 0) throw fail('invalid-options', 'Checkpoint statWindowMs is invalid');
   const limits = { ...DEFAULTS, ...configured };
   for (const [name, value] of Object.entries(limits)) if (!Object.hasOwn(DEFAULTS, name) || !Number.isSafeInteger(value) || value < 1 || value > DEFAULTS[name]) throw fail('invalid-options', `Checkpoint limit ${name} is invalid or exceeds the hard cap`);
   const root = path.resolve(cwd);
@@ -218,7 +225,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       const after = await handle.stat({ bigint: true });
       cancelled(signal);
       if (before.ino !== after.ino || before.dev !== after.dev || before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs || bytes.length !== Number(before.size)) throw fail('conflict', 'Checkpoint source changed during snapshot');
-      return { descriptor: { hash: sha(bytes), size: bytes.length, mode: Number(after.mode & 0o777n) }, bytes };
+      return { descriptor: { hash: sha(bytes), size: bytes.length, mode: Number(after.mode & 0o777n) }, bytes, stat: after };
     } finally { await handle.close(); }
   }
   async function ignored(paths, repo, signal) {
@@ -251,29 +258,44 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     const excluded = await ignored(candidates, repo, signal);
     // Smallest first, so past maxBytes the large files (assets, datasets) are the ones left out, not source code.
     // A stat error sorts the path first and leaves sourceFile to report it as before.
-    const sized = await pool(candidates.filter(relative => !excluded.has(relative)), POOL, async relative => { cancelled(signal); return [relative, await lstat(path.join(root, relative)).then(info => info.size, () => 0)]; });
+    const sized = await pool(candidates.filter(relative => !excluded.has(relative)), POOL, async relative => { cancelled(signal); const info = await lstat(path.join(root, relative), { bigint: true }).catch(() => undefined); return [relative, info ? Number(info.size) : 0, info]; });
     sized.sort((a, b) => a[1] - b[1] || (a[0] < b[0] ? -1 : 1));
+    // A failed collect leaves no stat cache behind. An unchanged file with a trusted entry is not read: its ancestors are
+    // still checked as sourceFile would, and snapshot reads it only if the mirror needs its bytes.
+    const cache = process.platform === 'win32' ? undefined : statCaches.get(lockKey) ?? new Map(); statCaches.delete(lockKey);
+    const racy = BigInt(statWindowMs) * 1000000n;
+    const obtain = async (relative, info) => {
+      const entry = cache?.get(relative);
+      if (entry && info?.isFile() && info.nlink === 1n && info.ino !== 0n && info.size <= BigInt(limits.maxFileBytes) && info.dev === entry.dev && info.ino === entry.ino && info.size === entry.size && info.mtimeNs === entry.mtimeNs && info.ctimeNs === entry.ctimeNs && Number(info.mode & 0o777n) === entry.mode && entry.mtimeNs + racy < entry.seenAtNs && entry.ctimeNs + racy < entry.seenAtNs) {
+        cancelled(signal);
+        if (await checkedParents(relative)) return { descriptor: { hash: entry.hash, size: Number(info.size), mode: entry.mode }, bytes: null };
+      }
+      const seenAtNs = BigInt(Date.now()) * 1000000n; const file = await sourceFile(relative, signal);
+      return file && { ...file, seenAtNs };
+    };
     // Read ahead through the pool what the loop below will read if sizes hold. The loop still makes every budget, skip
     // and error decision in sorted order; a file it reaches unexpectedly is read there. The read-ahead stops once it
     // holds maxBytes (files that grew after their lstat), so memory stays bounded as before.
     const prefetched = new Map(); const wanted = []; let predicted = 0; let held = 0;
-    for (const [relative, size] of sized) { if (predicted + size > limits.maxBytes) continue; predicted += size; wanted.push(relative); }
-    await pool(wanted, POOL, async relative => {
+    for (const entry of sized) { if (predicted + entry[1] > limits.maxBytes) continue; predicted += entry[1]; wanted.push(entry); }
+    await pool(wanted, POOL, async ([relative, , info]) => {
       if (held > limits.maxBytes) return;
-      const read = await settle(sourceFile(relative, signal)); held += read.value?.bytes.length ?? 0; prefetched.set(relative, read);
+      const read = await settle(obtain(relative, info)); held += read.value?.bytes?.length ?? 0; prefetched.set(relative, read);
     });
     const files = Object.create(null); const contents = new Map(); const skipped = []; let bytes = 0;
-    for (const [relative, size] of sized) {
+    for (const [relative, size, info] of sized) {
       // A file that does not fit is skipped unread: a large repository must not block every mutation, nor be read in full per capture.
       if (bytes + size > limits.maxBytes) { skipped.push(relative); continue; }
       let file;
       // One oversized file (a dataset, a build artifact) must not block every mutation: leave it out and record it.
-      try { const read = prefetched.get(relative) ?? await settle(sourceFile(relative, signal)); prefetched.delete(relative); if (read.error) throw read.error; file = read.value; } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
+      try { const read = prefetched.get(relative) ?? await settle(obtain(relative, info)); prefetched.delete(relative); if (read.error) throw read.error; file = read.value; } catch (error) { if (error.code !== 'cap') throw error; skipped.push(relative); continue; }
       if (!file) continue;
-      if (bytes + file.bytes.length > limits.maxBytes) { skipped.push(relative); continue; }
-      bytes += file.bytes.length;
+      if (bytes + file.descriptor.size > limits.maxBytes) { skipped.push(relative); continue; }
+      bytes += file.descriptor.size;
       files[relative] = file.descriptor; contents.set(relative, file.bytes);
+      if (cache && file.stat?.ino) cache.set(relative, { dev: file.stat.dev, ino: file.stat.ino, size: file.stat.size, mtimeNs: file.stat.mtimeNs, ctimeNs: file.stat.ctimeNs, mode: file.descriptor.mode, hash: file.descriptor.hash, seenAtNs: file.seenAtNs });
     }
+    if (cache) { const live = new Set(sized.map(entry => entry[0])); for (const relative of cache.keys()) if (!live.has(relative)) cache.delete(relative); statCaches.set(lockKey, cache); }
     return { files, contents, bytes, repo, skipped: skipped.sort() };
   }
   const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
@@ -435,13 +457,19 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     // abandoned snapshots/retained recovery backups in the existing budget. The previous mirror is cleared (or, kept,
     // left uncounted) first: counting it too failed the second snapshot of a project with 64 MiB of incompressible kept files.
     await storageBudget(collected.bytes * 2 + collected.contents.size * 1024 + 65536, signal, reuse ? payload : undefined);
-    const names = new Map(); const written = new Map();
+    const names = new Map(); const written = new Map(); const read = new Map();
     if (collected.contents.size) await mkdir(payload, { recursive: true, mode: 0o700 });
     await pool([...collected.contents], POOL, async ([relative, bytes]) => {
       cancelled(signal);
       // Opaque payload names keep source .gitattributes and .gitignore inert.
       const name = sha(relative); names.set(`payload/${name}`, relative);
       if (kept.has(name)) return;
+      // Collect skipped reading this unchanged file; it must still be exactly what collect described.
+      if (bytes === null) {
+        const current = await sourceFile(relative, signal);
+        if (!current || !equal(current.descriptor, collected.files[relative])) throw fail('conflict', 'Checkpoint source changed during snapshot');
+        bytes = current.bytes; read.set(relative, bytes);
+      }
       const file = path.join(payload, name); const { mode } = collected.files[relative];
       // Everything not kept was removed above, so 'wx' refuses an entry raced in since instead of writing through it.
       await writeFile(file, bytes, { mode, flag: 'wx' });
@@ -463,7 +491,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       const name = match[3].slice('payload/'.length); const previous = kept.get(name);
       if (previous) { if (previous.blob !== match[2]) stale = true; next.set(name, previous); continue; }
       const info = written.get(name);
-      if (blobId(collected.contents.get(relative), match[2].length) === match[2]) next.set(name, { ...collected.files[relative], blob: match[2], dev: info.dev, ino: info.ino, length: info.size, mtimeNs: info.mtimeNs, ctimeNs: info.ctimeNs });
+      if (blobId(collected.contents.get(relative) ?? read.get(relative), match[2].length) === match[2]) next.set(name, { ...collected.files[relative], blob: match[2], dev: info.dev, ino: info.ino, length: info.size, mtimeNs: info.mtimeNs, ctimeNs: info.ctimeNs });
     }
     if (Object.keys(files).length !== Object.keys(collected.files).length || !hex(commit, [40, 64])) throw fail('metadata', 'Checkpoint shadow Git snapshot is incomplete');
     // The commit just made may hold a wrong blob: rewrite the whole mirror and commit again, as every snapshot used to.
@@ -623,6 +651,6 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     capture, finish, restore,
     list: (options = {}) => schedule(options, async signal => (await load(signal)).records.map(result)),
     // The session's caches only save work; drop them so a long-lived process does not keep closed sessions' state.
-    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); states.delete(stateFile); memos.delete(lockKey); mirrors.delete(lockKey); },
+    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); states.delete(stateFile); memos.delete(lockKey); mirrors.delete(lockKey); statCaches.delete(lockKey); },
   };
 }

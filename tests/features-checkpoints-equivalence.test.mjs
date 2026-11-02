@@ -18,6 +18,9 @@ const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const SESSION = 'equivalence';
 const shadowOf = cwd => path.join(cwd, '.apex/checkpoints', hash(SESSION), 'shadow');
 const posix = process.platform !== 'win32';
+// The optimized module trusts unchanged files once they are this much older than their last read (2 s by default), so
+// most collects here run from its stat cache; edits land tens of milliseconds after any read, outside the window.
+const WINDOW = 20;
 
 function prng(seed) {
   return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -114,7 +117,7 @@ async function session(t, seed, limits) {
   }
   const dirty = mutations(generator(seed + 1), await walk(roots[0]));
   for (const root of roots) await apply(root, dirty);
-  const managers = [createCheckpointManager({ cwd: roots[0], sessionId: SESSION, limits }), createReference({ cwd: roots[1], sessionId: SESSION, limits })];
+  const managers = [createCheckpointManager({ cwd: roots[0], sessionId: SESSION, limits, statWindowMs: WINDOW }), createReference({ cwd: roots[1], sessionId: SESSION, limits })];
   t.after(() => Promise.all(managers.map(manager => manager.shutdown())));
   const both = async call => {
     const outcomes = [];
@@ -129,6 +132,8 @@ async function session(t, seed, limits) {
     const fault = gen.rand(); const live = files.filter(entry => entry.info.isFile());
     const faults = fault < 0.2 && live.length ? [{ type: 'link', path: `hard-${turn}.txt`, target: gen.pick(live).name }] : fault < 0.3 && posix ? [{ type: 'symlink', path: `soft-${turn}.txt`, target: 'ignored/outside.txt' }] : [];
     await everywhere(faults);
+    // Mirror files the optimized module must rewrite although collect did not read them (stat-cache hits).
+    if (gen.rand() < 0.5) for (const name of await readdir(path.join(shadowOf(roots[0]), 'payload')).catch(() => [])) if (gen.rand() < 0.3) await rm(path.join(shadowOf(roots[0]), 'payload', name));
     let captured = await both(manager => manager.capture(id));
     if (faults.length) { await everywhere(faults.map(op => ({ type: 'rm', path: op.path }))); if (captured.error) captured = await both(manager => manager.capture(id)); }
     await both(manager => manager.capture(id));
@@ -160,7 +165,7 @@ test('files named like Object.prototype members undo exactly as the reference af
   // "hasOwnProperty" meets an inherited member there; a reused state object must behave the same.
   const roots = await Promise.all([0, 1].map(() => mkdtemp(path.join(process.cwd(), 'tests/.checkpoint-fixture-eq-'))));
   t.after(() => Promise.all(roots.map(root => rm(root, { recursive: true, force: true }))));
-  const managers = [createCheckpointManager({ cwd: roots[0], sessionId: SESSION }), createReference({ cwd: roots[1], sessionId: SESSION })];
+  const managers = [createCheckpointManager({ cwd: roots[0], sessionId: SESSION, statWindowMs: WINDOW }), createReference({ cwd: roots[1], sessionId: SESSION })];
   t.after(() => Promise.all(managers.map(manager => manager.shutdown())));
   for (const root of roots) {
     await git(root, ['init', '--template=', '-q']);
@@ -207,7 +212,7 @@ test('store walks stop at the same first unsafe entry, entry cap or byte cap as 
   await writeFile(path.join(root, '.gitignore'), '.apex/\n');
   for (let i = 0; i < 8; i++) await writeFile(path.join(root, `file-${i}.txt`), `content ${i}\n`);
   await git(root, ['add', '-A']); await git(root, ['commit', '-qm', 'fixture']);
-  const managers = [createCheckpointManager({ cwd: root, sessionId: SESSION, limits }), createReference({ cwd: root, sessionId: SESSION, limits })];
+  const managers = [createCheckpointManager({ cwd: root, sessionId: SESSION, limits, statWindowMs: WINDOW }), createReference({ cwd: root, sessionId: SESSION, limits })];
   t.after(() => Promise.all(managers.map(manager => manager.shutdown())));
   await managers[0].capture('base'); await writeFile(path.join(root, 'file-0.txt'), 'agent'); await managers[0].finish('base');
   const store = path.join(root, '.apex/checkpoints', hash(SESSION));

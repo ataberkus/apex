@@ -367,3 +367,98 @@ test('auto-gc triggered by a shadow commit finishes inside the job instead of ra
   assert.equal((await manager.restore('gc')).status, 'restored');
   assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'committed\n');
 });
+
+// Stat-cache tests shorten the racy window (statWindowMs) and wait past it, so files are trusted once unchanged.
+const settle = ms => new Promise(resolve => setTimeout(resolve, ms));
+test('the stat cache notices same-size rewrites with restored mtime, rename replacements and symlinked ancestors', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+  const { cwd, manager } = await fixture(t, { statWindowMs: 10 });
+  const { rename } = await import('node:fs/promises');
+  // Whole-second mtimes, so putting one back below is exact to the nanosecond.
+  const second = new Date('2020-01-01T00:00:00Z');
+  for (const name of ['same.txt', 'renamed.txt']) { await writeFile(path.join(cwd, name), `${name} before\n`); await utimes(path.join(cwd, name), second, second); }
+  await settle(40);
+  await manager.capture('stat');
+  // Same length, same mtime: only the change time tells.
+  await writeFile(path.join(cwd, 'same.txt'), 'same.txt AFTER!\n'); await utimes(path.join(cwd, 'same.txt'), second, second);
+  // Same length and mtime, new inode.
+  await writeFile(path.join(cwd, 'replacement'), 'renamed.txt AFTER!\n'); await utimes(path.join(cwd, 'replacement'), second, second);
+  await rename(path.join(cwd, 'replacement'), path.join(cwd, 'renamed.txt'));
+  assert.deepEqual((await manager.finish('stat')).changedPaths, ['renamed.txt', 'same.txt']);
+  assert.equal((await manager.restore('stat')).status, 'restored');
+  for (const name of ['same.txt', 'renamed.txt']) assert.equal(await readFile(path.join(cwd, name), 'utf8'), `${name} before\n`);
+});
+
+test('a cache-hit file whose directory turns into a symlink after check-ignore is refused as sourceFile would', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+  const { cwd } = await fixture(t);
+  await mkdir(path.join(cwd, 'dir')); await mkdir(path.join(cwd, 'ignored'));
+  await writeFile(path.join(cwd, 'dir/file.txt'), 'file before\n');
+  await settle(40);
+  // check-ignore itself refuses a path beyond a symlink, so the swap lands right after the file's sizing lstat. The file
+  // keeps its inode and times when its directory moves, so only the ancestor check can tell.
+  const report = await child(t, cwd, `
+    const target = path.join(cwd, 'dir/file.txt'); const originalLstat = fs.promises.lstat; let armed = false;
+    fs.promises.lstat = async (...args) => {
+      const info = await originalLstat(...args);
+      if (armed && args[0] === target && args[1]?.bigint) { armed = false; fs.renameSync(path.join(cwd, 'dir'), path.join(cwd, 'ignored/moved')); fs.symlinkSync(path.join(cwd, 'ignored/moved'), path.join(cwd, 'dir')); }
+      return info;
+    };
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 10 });
+    await manager.capture('one'); fs.writeFileSync(path.join(cwd, 'tracked.txt'), 'agent'); await manager.finish('one');
+    armed = true;
+    const error = await manager.capture('two').then(() => null, error => ({ code: error.code, message: error.message }));
+    process.stdout.write(JSON.stringify({ swapped: !armed, error }));
+  `);
+  assert.deepEqual(report, { swapped: true, error: { code: 'symlink', message: 'Checkpoint path has a symlink ancestor' } });
+});
+
+test('an unchanged file is not read again until its times leave the racy window, mtime and ctime both', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+  const { cwd } = await fixture(t);
+  for (const name of ['a.txt', 'b.txt', 'touched.txt']) await writeFile(path.join(cwd, name), `${name}\n`);
+  await settle(600);
+  const report = await child(t, cwd, `
+    const originalOpen = fs.promises.open; let opened = [];
+    fs.promises.open = async (...args) => { const file = String(args[0]); if (file.startsWith(cwd + path.sep) && !file.includes(path.sep + '.apex' + path.sep)) opened.push(path.relative(cwd, file)); return originalOpen(...args); };
+    const take = () => { const names = [...opened].sort(); opened = []; return names; };
+    // An old mtime but a fresh ctime (utimes itself changes the ctime) keeps this file racy for the next read.
+    fs.utimesSync(path.join(cwd, 'touched.txt'), new Date('2020-01-01'), new Date('2020-01-01'));
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 500 });
+    await manager.capture('one'); const first = take();
+    const unchanged = (await manager.finish('one')).status; const second = take();
+    await manager.capture('two'); const third = take();
+    fs.writeFileSync(path.join(cwd, 'a.txt'), 'a.txt edited\\n');
+    const changed = (await manager.finish('two')).changedPaths; const fourth = take();
+    process.stdout.write(JSON.stringify({ first, unchanged, second, third, changed, fourth }));
+  `);
+  assert.deepEqual(report.first, ['.gitignore', 'a.txt', 'b.txt', 'touched.txt', 'tracked.txt']);
+  assert.equal(report.unchanged, 'unchanged');
+  assert.deepEqual(report.second, ['touched.txt']);
+  assert.deepEqual(report.third.filter(name => name !== 'touched.txt'), []);
+  assert.deepEqual(report.changed, ['a.txt']);
+  assert.deepEqual(report.fourth.filter(name => name !== 'touched.txt'), ['a.txt']);
+});
+
+test('a cache-hit file the mirror must rewrite is read then and refused if it changed since collect', { skip: process.platform === 'win32' && 'The stat cache is off on Windows' }, async t => {
+  const { cwd } = await fixture(t);
+  await writeFile(path.join(cwd, 'stable.txt'), 'stable before\n');
+  await settle(40);
+  const report = await child(t, cwd, `
+    const { createHash } = await import('node:crypto');
+    const sha256 = value => createHash('sha256').update(value).digest('hex');
+    const shadow = path.join(cwd, '.apex/checkpoints', sha256('session-a'), 'shadow');
+    const originalReaddir = fs.promises.readdir; let armed = false;
+    // Snapshot starts by listing the shadow worktree: change the source after collect described it.
+    fs.promises.readdir = async (...args) => {
+      if (armed && args[0] === shadow && args[1]?.withFileTypes) { armed = false; fs.writeFileSync(path.join(cwd, 'stable.txt'), 'stable AFTER!\\n'); }
+      return originalReaddir(...args);
+    };
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a', statWindowMs: 10 });
+    await manager.capture('one'); fs.writeFileSync(path.join(cwd, 'tracked.txt'), 'agent'); await manager.finish('one');
+    // The mirror lost the file, so the next snapshot must write it although collect trusted its cached hash.
+    fs.rmSync(path.join(shadow, 'payload', sha256('stable.txt')));
+    armed = true;
+    const error = await manager.capture('two').then(() => null, error => ({ code: error.code, message: error.message }));
+    const retried = (await manager.capture('two')).status;
+    process.stdout.write(JSON.stringify({ error, retried, records: (await manager.list()).map(record => record.turnId) }));
+  `);
+  assert.deepEqual(report, { error: { code: 'conflict', message: 'Checkpoint source changed during snapshot' }, retried: 'captured', records: ['one', 'two'] });
+});
