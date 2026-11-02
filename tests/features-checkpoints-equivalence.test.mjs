@@ -65,11 +65,13 @@ async function stateView(cwd) {
 const DIRS = ['', 'src/', 'src/lib/', 'docs/', 'a b/', 'µ/', 'deep/er/est/', 'ignored/'];
 const STEMS = ['f', 'n ', 'Ü', 'x-'];
 const EXTS = ['.txt', '.md', '.bin', '.log', ''];
+// Root files named like Object.prototype members: record file maps parsed from state.json inherit them.
+const INHERITED = ['constructor', 'toString', '__proto__', 'hasOwnProperty'];
 function generator(seed) {
   const rand = prng(seed); const int = (lo, hi) => lo + Math.floor(rand() * (hi - lo + 1)); const pick = list => list[int(0, list.length - 1)];
   const size = () => { const r = rand(); return r < 0.6 ? int(0, 200) : r < 0.85 ? int(300, 3000) : r < 0.95 ? int(3000, 4096) : int(4097, 6000); };
   const bytes = length => Buffer.from(Array.from({ length }, () => int(0, 255)));
-  const name = () => `${pick(DIRS)}${pick(STEMS)}${int(0, 999)}${pick(EXTS)}`;
+  const name = () => rand() < 0.08 ? pick(INHERITED) : `${pick(DIRS)}${pick(STEMS)}${int(0, 999)}${pick(EXTS)}`;
   return { rand, int, pick, size, bytes, name, mode: () => pick([0o644, 0o644, 0o755, 0o600]) };
 }
 
@@ -151,6 +153,43 @@ test('optimized checkpoints match the d0c6d2b reference over seeded random sessi
   // allSettled: cleanup must not start while another session is still writing its worktrees.
   const outcomes = await Promise.allSettled(cases.map(([seed, limits]) => session(t, seed, limits).catch(error => { error.message = `seed ${seed}: ${error.message}`; throw error; })));
   for (const outcome of outcomes) if (outcome.status === 'rejected') throw outcome.reason;
+});
+
+test('files named like Object.prototype members undo exactly as the reference after state reuse in one process', async t => {
+  // The reference parses state.json for every job, so a deleted or added root file named "constructor" or
+  // "hasOwnProperty" meets an inherited member there; a reused state object must behave the same.
+  const roots = await Promise.all([0, 1].map(() => mkdtemp(path.join(process.cwd(), 'tests/.checkpoint-fixture-eq-'))));
+  t.after(() => Promise.all(roots.map(root => rm(root, { recursive: true, force: true }))));
+  const managers = [createCheckpointManager({ cwd: roots[0], sessionId: SESSION }), createReference({ cwd: roots[1], sessionId: SESSION })];
+  t.after(() => Promise.all(managers.map(manager => manager.shutdown())));
+  for (const root of roots) {
+    await git(root, ['init', '--template=', '-q']);
+    for (const name of ['.gitignore', 'constructor', 'toString', '__proto__', 'plain.txt']) await writeFile(path.join(root, name), name === '.gitignore' ? '.apex/\n' : `${name}\n`);
+    await git(root, ['add', '-A']); await git(root, ['commit', '-qm', 'fixture']);
+  }
+  const both = async call => {
+    const outcomes = [];
+    for (const [index, manager] of managers.entries()) outcomes.push(await view(roots[index], await settled(call(manager))));
+    assert.deepEqual(outcomes[0], outcomes[1]);
+    assert.equal(await stateView(roots[0]), await stateView(roots[1]));
+    return outcomes[0];
+  };
+  const turns = [
+    root => Promise.all([rm(path.join(root, 'constructor')), writeFile(path.join(root, 'plain.txt'), 'agent')]),
+    root => Promise.all([writeFile(path.join(root, 'hasOwnProperty'), 'agent'), writeFile(path.join(root, 'toString'), 'agent')]),
+    root => Promise.all([rm(path.join(root, '__proto__')), writeFile(path.join(root, 'constructor'), 'agent again')]),
+  ];
+  const seen = [];
+  for (const [index, edit] of turns.entries()) {
+    await both(manager => manager.capture(`proto-${index}`));
+    for (const root of roots) await edit(root);
+    await both(manager => manager.finish(`proto-${index}`));
+    seen.push(await both(manager => manager.restore(`proto-${index}`)));
+    assert.deepEqual(await worktree(roots[0]), await worktree(roots[1]));
+  }
+  await both(manager => manager.list());
+  // The reference refuses the first two undos; the comparison above is what matters, this pins the scenario's reach.
+  assert.ok(seen.some(outcome => outcome.error), JSON.stringify(seen));
 });
 
 async function directories(root) {

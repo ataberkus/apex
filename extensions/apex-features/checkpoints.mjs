@@ -31,6 +31,15 @@ async function pool(items, width, fn) {
   return out;
 }
 const queues = new Map();
+// state.json as last validated or written per state file: the SHA-256 of those exact bytes, the limits it was validated
+// under, and the parsed object. Jobs on a session are serialized and any failed job drops its entry, so a load whose
+// bytes hash the same can reuse the object instead of parsing and validating up to 16 MB again.
+const states = new Map();
+// Records that passed full validation, with the limits they passed under; save revalidates only the record it changed.
+const validated = new WeakMap();
+// Per session: jobs scheduled so far, and the last capture's result with the count it was taken at. While no other job
+// is scheduled the store holds what that capture left, so each extra mutating tool call of the turn skips a full load.
+const scheduled = new Map(); const memos = new Map();
 // gitTimeoutMs guards against hung Git, not slow Git: a session's first capture runs `git add --all` over the whole
 // tree into an empty shadow store. On Windows, 660 files / 37 MB took 8.9–38.3 s across fresh copies.
 const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 120000 });
@@ -93,6 +102,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   const lifecycle = new AbortController();
   const pending = new Set();
   const captures = new Map();
+  const limitsKey = JSON.stringify(limits);
   let closed = false;
 
   const cleanEnv = () => ({ ...Object.fromEntries(['PATH', 'LANG', 'LC_ALL'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]])), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
@@ -258,11 +268,15 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     return { files, contents, bytes, repo, skipped: skipped.sort() };
   }
   const blank = () => ({ version: 1, sessionKey, cwd: root, storedBytes: 0, records: [] });
-  function validateState(state) {
+  function validateState(state, keep) {
     // maxCheckpoints + 1: save exempts the turn being captured until finish knows whether it changed anything.
     if (!state || state.version !== 1 || state.sessionKey !== sessionKey || state.cwd !== root || !Array.isArray(state.records) || state.records.length > limits.maxCheckpoints + 1 || !Number.isSafeInteger(state.storedBytes) || state.storedBytes < 0 || state.storedBytes > limits.maxStoredBytes) throw fail('metadata', 'Checkpoint metadata is invalid or foreign');
     const ids = new Set();
     for (const record of state.records) {
+      if (record !== keep && validated.get(record) === limitsKey) {
+        if (ids.has(record.turnId)) throw fail('metadata', 'Checkpoint record metadata is invalid');
+        ids.add(record.turnId); continue;
+      }
       validTurn(record.turnId);
       if (ids.has(record.turnId) || !['captured', 'finished', 'restored'].includes(record.status) || !hex(record.beforeCommit, [40, 64]) || !Array.isArray(record.changedPaths) || record.skippedPaths !== undefined && (!Array.isArray(record.skippedPaths) || record.skippedPaths.length > limits.maxFiles * 2)) throw fail('metadata', 'Checkpoint record metadata is invalid');
       ids.add(record.turnId);
@@ -281,6 +295,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
         if (!hex(record.afterCommit, [40, 64])) throw fail('metadata', 'Checkpoint post-turn commit metadata is invalid');
         if (JSON.stringify(changes(record)) !== JSON.stringify(record.changedPaths)) throw fail('metadata', 'Checkpoint changed path metadata is inconsistent');
       }
+      validated.set(record, limitsKey);
     }
     return state;
   }
@@ -306,7 +321,12 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (!await ensureDir(`.apex/checkpoints/${sessionKey}`)) return blank();
     const bytes = await privateFile(stateFile, limits.maxMetadataBytes, signal);
     if (!bytes) return blank();
-    try { return validateState(JSON.parse(bytes.toString('utf8'))); } catch (error) { if (error.name === 'CheckpointError') throw error; throw fail('metadata', 'Checkpoint metadata is malformed'); }
+    const digest = sha(bytes); const cached = states.get(stateFile);
+    if (cached?.digest === digest && cached.limits === limitsKey) return cached.state;
+    let state;
+    try { state = validateState(JSON.parse(bytes.toString('utf8'))); } catch (error) { if (error.name === 'CheckpointError') throw error; throw fail('metadata', 'Checkpoint metadata is malformed'); }
+    states.set(stateFile, { digest, limits: limitsKey, state });
+    return state;
   }
   async function save(state, keep) {
     // Drop the oldest records instead of failing: a long session must keep capturing, and only their undo is lost.
@@ -321,12 +341,16 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
       if (state.records.length < 2) throw fail('cap', 'Checkpoint metadata byte cap exceeded');
       state.records.splice(state.records[0] === keep ? 1 : 0, 1);
     }
-    validateState(state);
+    validateState(state, keep);
     await ensureDir(`.apex/checkpoints/${sessionKey}`, true);
     const temporary = path.join(store, `state-${randomUUID()}.tmp`);
     const handle = await open(temporary, 'wx', 0o600);
     try { await handle.writeFile(data); await handle.sync(); } finally { await handle.close(); }
     try { await renameRetrying(temporary, stateFile); } catch (error) { await unlink(temporary); throw error; }
+    // Snapshot file maps have no prototype, JSON.parse gives Object.prototype: match it, so the cached state behaves as
+    // the parse of these bytes would, down to lookups of names such as "constructor".
+    for (const record of state.records) for (const files of [record.before, record.after]) if (files && Object.getPrototypeOf(files) === null) Object.setPrototypeOf(files, Object.prototype);
+    states.set(stateFile, { digest: sha(data), limits: limitsKey, state });
   }
   async function shadowReady(signal) {
     await ensureDir(`.apex/checkpoints/${sessionKey}`, true);
@@ -411,6 +435,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (closed) return Promise.reject(fail('closed', 'Checkpoint manager is closed after shutdown'));
     const signal = options?.signal ? AbortSignal.any([lifecycle.signal, options.signal]) : lifecycle.signal;
     try { cancelled(signal); } catch (error) { return Promise.reject(error); }
+    scheduled.set(lockKey, (scheduled.get(lockKey) ?? 0) + 1);
     const previous = queues.get(lockKey) ?? Promise.resolve();
     const job = previous.catch(() => {}).then(async () => {
       cancelled(signal);
@@ -421,7 +446,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
         if (apex?.isDirectory() && !apex.isSymbolicLink()) await ensureWindowsPrivateApex(root, signal);
       }
       cancelled(signal); return work(signal);
-    });
+    }).catch(error => { states.delete(stateFile); throw error; });
     const tail = job.catch(() => {});
     queues.set(lockKey, tail); pending.add(job);
     job.finally(() => { pending.delete(job); if (queues.get(lockKey) === tail) queues.delete(lockKey); }).catch(() => {});
@@ -431,17 +456,22 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   function capture(turnId, options = {}) {
     try { validTurn(turnId); cancelled(options.signal); } catch (error) { return Promise.reject(error); }
     if (captures.has(turnId)) return captures.get(turnId);
+    const memo = memos.get(lockKey);
+    if (!closed && memo?.turnId === turnId && memo.at === scheduled.get(lockKey)) return Promise.resolve(structuredClone(memo.result));
+    let at;
+    const remember = value => { memos.set(lockKey, { turnId, at, result: structuredClone(value) }); return value; };
     const job = schedule(options, async signal => {
       const state = await load(signal); const existing = state.records.find(record => record.turnId === turnId);
-      if (existing) return result(existing);
+      if (existing) return remember(result(existing));
       const collected = await collect(signal);
       const before = await snapshot(collected, state, turnId, 'before', signal);
       cancelled(signal);
       const record = { turnId, status: 'captured', beforeCommit: before.commit, before: before.files, changedPaths: [], skippedPaths: collected.skipped, capturedAt: new Date().toISOString() };
       state.records.push(record);
       await save(state, record);
-      return result(record);
+      return remember(result(record));
     });
+    at = scheduled.get(lockKey);
     captures.set(turnId, job); job.finally(() => captures.delete(turnId)).catch(() => {});
     return job;
   }
@@ -550,6 +580,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
   return {
     capture, finish, restore,
     list: (options = {}) => schedule(options, async signal => (await load(signal)).records.map(result)),
-    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); },
+    // The session's caches only save work; drop them so a long-lived process does not keep closed sessions' state.
+    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); states.delete(stateFile); memos.delete(lockKey); },
   };
 }

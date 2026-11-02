@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCheckpointManager } from '../extensions/apex-features/checkpoints.mjs';
@@ -102,4 +102,87 @@ test('cancelling mid-collect rejects only after every pooled source read has set
   assert.equal(report.activeAtRejection, 0);
   assert.equal(report.late, 0);
   assert.equal(report.records, 0);
+});
+
+test('state.json rewritten in place with the same length is reparsed and revalidated', async t => {
+  const { cwd, manager } = await fixture(t);
+  await manager.capture('abcd'); await writeFile(path.join(cwd, 'tracked.txt'), 'agent'); await manager.finish('abcd');
+  const [session] = await readdir(path.join(cwd, '.apex/checkpoints'));
+  const manifest = path.join(cwd, '.apex/checkpoints', session, 'state.json');
+  const original = await readFile(manifest, 'utf8');
+  assert.deepEqual((await manager.list()).map(record => record.turnId), ['abcd']);
+  await writeFile(manifest, original.replaceAll('"abcd"', '"wxyz"'));
+  assert.deepEqual((await manager.list()).map(record => record.turnId), ['wxyz']);
+  await writeFile(manifest, original.replace('"version":1', '"version":2'));
+  await assert.rejects(manager.list(), { code: 'metadata' });
+  await writeFile(manifest, original);
+  assert.equal((await manager.restore('abcd')).status, 'restored');
+});
+
+test('reused state is revalidated for a manager instance with stricter limits', async t => {
+  const { cwd, manager } = await fixture(t);
+  await writeFile(path.join(cwd, 'large.txt'), 'x'.repeat(100));
+  await manager.capture('limits'); await writeFile(path.join(cwd, 'tracked.txt'), 'agent'); await manager.finish('limits');
+  const strict = createCheckpointManager({ cwd, sessionId: 'session-a', limits: { maxFileBytes: 64 } });
+  await assert.rejects(strict.list(), { code: 'metadata' });
+  assert.deepEqual((await manager.list()).map(record => record.turnId), ['limits']);
+  await assert.rejects(strict.restore('limits'), { code: 'metadata' });
+  assert.equal((await manager.restore('limits')).status, 'restored');
+});
+
+test('a failed state save leaves no phantom record or status behind in the reused state', async t => {
+  const { cwd } = await fixture(t);
+  const report = await child(t, cwd, `
+    const { createHash } = await import('node:crypto');
+    const stateFile = path.join(cwd, '.apex/checkpoints', createHash('sha256').update('session-a').digest('hex'), 'state.json');
+    const originalRename = fs.promises.rename; let failNext = false;
+    fs.promises.rename = async (from, to) => {
+      if (failNext && to === stateFile) { failNext = false; throw Object.assign(Error('injected rename failure'), { code: 'EIO' }); }
+      return originalRename(from, to);
+    };
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });
+    const statuses = async () => (await manager.list()).map(record => record.turnId + ':' + record.status);
+    await manager.capture('kept');
+    fs.writeFileSync(path.join(cwd, 'tracked.txt'), 'agent');
+    failNext = true; const finishError = await manager.finish('kept').then(() => null, error => error.message);
+    const afterFinish = await statuses();
+    failNext = true; const captureError = await manager.capture('phantom').then(() => null, error => error.message);
+    const afterCapture = await statuses();
+    const retried = (await manager.finish('kept')).status;
+    process.stdout.write(JSON.stringify({ finishError, afterFinish, captureError, afterCapture, retried, final: await statuses() }));
+  `);
+  assert.deepEqual(report, { finishError: 'injected rename failure', afterFinish: ['kept:captured'], captureError: 'injected rename failure', afterCapture: ['kept:captured'], retried: 'finished', final: ['kept:finished'] });
+});
+
+test('a repeat capture in the same turn reads no state until another job runs, and never outlives finish or shutdown', async t => {
+  const { cwd } = await fixture(t);
+  const report = await child(t, cwd, `
+    const { createHash } = await import('node:crypto');
+    const stateFile = path.join(cwd, '.apex/checkpoints', createHash('sha256').update('session-a').digest('hex'), 'state.json');
+    let touches = 0;
+    for (const name of ['open', 'lstat']) { const original = fs.promises[name]; fs.promises[name] = async (...args) => { if (args[0] === stateFile) touches++; return original(...args); }; }
+    const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });
+    const first = await manager.capture('memo'); const afterFirst = touches;
+    const repeats = []; for (let i = 0; i < 3; i++) repeats.push(await manager.capture('memo'));
+    (await manager.capture('memo')).changedPaths.push('changed by a caller');
+    const untouched = await manager.capture('memo'); const afterRepeats = touches;
+    await manager.list(); const afterList = touches;
+    const reloaded = await manager.capture('memo'); const afterReload = touches;
+    // Another instance on the same session finishes the turn; the original instance must not answer from its memo.
+    fs.writeFileSync(path.join(cwd, 'tracked.txt'), 'agent');
+    const finished = await createCheckpointManager({ cwd, sessionId: 'session-a' }).finish('memo');
+    const afterFinish = await manager.capture('memo');
+    await manager.shutdown();
+    const closed = await manager.capture('memo').then(() => 'resolved', error => error.code);
+    process.stdout.write(JSON.stringify({ first, repeats, untouched, reloaded, afterFirst, afterRepeats, afterList, afterReload, finished, afterFinish, closed }));
+  `);
+  assert.equal(report.afterRepeats, report.afterFirst);
+  for (const repeat of report.repeats) assert.deepEqual(repeat, report.first);
+  assert.deepEqual(report.untouched, report.first);
+  assert.ok(report.afterList > report.afterRepeats);
+  assert.ok(report.afterReload > report.afterList);
+  assert.deepEqual(report.reloaded, report.first);
+  assert.equal(report.finished.status, 'finished');
+  assert.deepEqual(report.afterFinish, report.finished);
+  assert.equal(report.closed, 'closed');
 });
