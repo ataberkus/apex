@@ -531,7 +531,14 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     try { validTurn(turnId); cancelled(options.signal); } catch (error) { return Promise.reject(error); }
     if (captures.has(turnId)) return captures.get(turnId);
     const memo = memos.get(lockKey);
-    if (!closed && memo?.turnId === turnId && memo.at === scheduled.get(lockKey) && memo.limits === limitsKey) return Promise.resolve(structuredClone(memo.result));
+    if (!closed && memo?.turnId === turnId && memo.at === scheduled.get(lockKey) && memo.limits === limitsKey) {
+      // Behave like the queued job it replaces: later concurrent captures of this turn join it, and an abort or
+      // shutdown issued right after the call still cancels it.
+      const signal = options.signal ? AbortSignal.any([lifecycle.signal, options.signal]) : lifecycle.signal;
+      const hit = Promise.resolve().then(() => { cancelled(signal); return structuredClone(memo.result); });
+      captures.set(turnId, hit); hit.finally(() => captures.delete(turnId)).catch(() => {});
+      return hit;
+    }
     let at;
     const remember = value => { memos.set(lockKey, { turnId, at, limits: limitsKey, result: structuredClone(value) }); return value; };
     const job = schedule(options, async signal => {

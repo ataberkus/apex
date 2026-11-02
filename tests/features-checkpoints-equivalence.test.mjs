@@ -229,6 +229,41 @@ test('instances with different limits on one session answer repeat captures as t
   assert.deepEqual(seen, ['captured', 'metadata', 'metadata', 'captured', 'metadata', 'captured', 'metadata', 'captured', 'captured', 'metadata', 'finished', 'metadata', 'captured', 'metadata', 'captured']);
 });
 
+test('a repeat capture answered from memory joins later captures and honours a prompt abort or shutdown as the reference does', async t => {
+  // The reference always queues a job: a capture made while it is pending returns that same job even across a finish
+  // or restore, and an abort or shutdown issued right after the call cancels it when it starts.
+  const bursts = {
+    'finish changed': [manager => [manager.capture('t1'), manager.finish('t1'), manager.capture('t1')], true],
+    'finish unchanged': [manager => [manager.capture('t1'), manager.finish('t1'), manager.capture('t1')], false],
+    restore: [manager => [manager.capture('t1'), manager.restore('t1'), manager.capture('t1')], false],
+    list: [manager => [manager.capture('t1'), manager.list(), manager.capture('t1')], false],
+    abort: [manager => { const controller = new AbortController(); const pending = manager.capture('t1', { signal: controller.signal }); controller.abort(); return [pending]; }, false],
+    shutdown: [manager => { const pending = manager.capture('t1'); manager.shutdown(); return [pending]; }, false],
+  };
+  for (const [label, [burst, edit]] of Object.entries(bursts)) {
+    const roots = await Promise.all([0, 1].map(() => mkdtemp(path.join(process.cwd(), 'tests/.checkpoint-fixture-eq-'))));
+    const managers = roots.map((root, index) => index ? createReference({ cwd: root, sessionId: SESSION }) : createCheckpointManager({ cwd: root, sessionId: SESSION, statWindowMs: WINDOW }));
+    try {
+      const outcomes = [];
+      for (const [index, root] of roots.entries()) {
+        await git(root, ['init', '--template=', '-q']);
+        for (const [name, text] of [['.gitignore', '.apex/\n'], ['a.txt', 'a\n']]) await writeFile(path.join(root, name), text);
+        await git(root, ['add', '-A']); await git(root, ['commit', '-qm', 'fixture']);
+        const manager = managers[index];
+        if (label === 'restore') { await manager.capture('t1'); await writeFile(path.join(root, 'a.txt'), 'b\n'); await manager.finish('t1'); }
+        await manager.capture('t1');
+        if (edit) await writeFile(path.join(root, 'a.txt'), 'edited\n');
+        const results = await Promise.all(burst(manager).map(settled));
+        outcomes.push({ results: await Promise.all(results.map(outcome => view(root, outcome))), state: await stateView(root), files: await worktree(root) });
+      }
+      assert.deepEqual(outcomes[0], outcomes[1], label);
+    } finally {
+      await Promise.all(managers.map(manager => manager.shutdown()));
+      await Promise.all(roots.map(root => rm(root, { recursive: true, force: true })));
+    }
+  }
+});
+
 async function directories(root) {
   const out = [root];
   for (const entry of await readdir(root, { withFileTypes: true })) if (entry.isDirectory()) out.push(...await directories(path.join(root, entry.name)));
