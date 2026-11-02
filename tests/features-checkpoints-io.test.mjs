@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, lstat, symlink, link, utimes, open } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCheckpointManager } from '../extensions/apex-features/checkpoints.mjs';
@@ -27,6 +28,14 @@ async function fixture(t, options = {}) {
   await git(cwd, ['commit', '-qm', 'fixture']);
   return { cwd, manager: createCheckpointManager({ cwd, sessionId: 'session-a', ...options }) };
 }
+const sha256 = value => createHash('sha256').update(value).digest('hex');
+const storeOf = cwd => path.join(cwd, '.apex/checkpoints', sha256('session-a'));
+const payloadOf = (cwd, relative) => path.join(storeOf(cwd), 'shadow/payload', sha256(relative));
+const blobOf = bytes => createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+const recordOf = async (cwd, turnId) => JSON.parse(await readFile(path.join(storeOf(cwd), 'state.json'), 'utf8')).records.find(record => record.turnId === turnId);
+const treeOf = async (cwd, commit) => (await git(path.join(storeOf(cwd), 'shadow'), ['rev-parse', `${commit}^{tree}`])).stdout.trim();
+// Holds a file open, so if it is removed and rewritten the new file cannot get the same inode number back.
+async function pinned(t, file) { const handle = await open(file, 'r'); t.after(() => handle.close()); return (await handle.stat()).ino; }
 // Runs `body` in a child Bun with live-builtins, so it can patch fs functions the checkpoint module imports by name.
 async function child(t, cwd, body) {
   const script = `
@@ -185,4 +194,148 @@ test('a repeat capture in the same turn reads no state until another job runs, a
   assert.equal(report.finished.status, 'finished');
   assert.deepEqual(report.afterFinish, report.finished);
   assert.equal(report.closed, 'closed');
+});
+
+test('snapshots keep unchanged mirror files, and a forced full rewrite of the same files yields the same tree', async t => {
+  const { cwd, manager } = await fixture(t);
+  for (const name of ['stable.txt', 'edited.txt']) await writeFile(path.join(cwd, name), `${name} original\n`);
+  const inode = async relative => (await lstat(payloadOf(cwd, relative))).ino;
+  await manager.capture('one');
+  const stable = await pinned(t, payloadOf(cwd, 'stable.txt')); const edited = await pinned(t, payloadOf(cwd, 'edited.txt'));
+  await writeFile(path.join(cwd, 'edited.txt'), 'edited by the agent\n');
+  await manager.finish('one');
+  assert.equal(await inode('stable.txt'), stable);
+  assert.notEqual(await inode('edited.txt'), edited);
+  const incremental = await treeOf(cwd, (await manager.capture('two')).beforeCommit);
+  assert.equal(await inode('stable.txt'), stable);
+  // shutdown drops the session's mirror map, so the next instance rewrites every file.
+  await manager.shutdown();
+  const reopened = createCheckpointManager({ cwd, sessionId: 'session-a' });
+  const rewritten = await treeOf(cwd, (await reopened.capture('three')).beforeCommit);
+  assert.notEqual(await inode('stable.txt'), stable);
+  assert.equal(rewritten, incremental);
+  for (const turn of ['one', 'two', 'three']) {
+    for (const [name, file] of Object.entries((await recordOf(cwd, turn)).before)) {
+      const bytes = turn === 'one' && name === 'edited.txt' ? Buffer.from('edited.txt original\n') : await readFile(path.join(cwd, name));
+      assert.equal(file.blob, blobOf(bytes), `${turn} ${name}`);
+    }
+  }
+  await reopened.shutdown();
+});
+
+test('mirror strays, links, directories and edits are removed or replaced without writing through them', { skip: process.platform === 'win32' && 'POSIX links' }, async t => {
+  const { cwd, manager } = await fixture(t);
+  const names = ['same-size.txt', 'removed.txt', 'symlinked.txt', 'hardlinked.txt', 'directory.txt', 'aliased.txt', 'kept.txt'];
+  for (const name of names) await writeFile(path.join(cwd, name), `${name} content\n`);
+  await mkdir(path.join(cwd, 'ignored'));
+  for (const name of ['outside-a.txt', 'outside-b.txt']) await writeFile(path.join(cwd, 'ignored', name), `${name} must stay\n`);
+  await manager.capture('one'); await writeFile(path.join(cwd, 'tracked.txt'), 'agent'); await manager.finish('one');
+  const payload = path.join(storeOf(cwd), 'shadow/payload');
+  const kept = await pinned(t, payloadOf(cwd, 'kept.txt'));
+  await writeFile(payloadOf(cwd, 'same-size.txt'), 'XXXX-XXXX.txt content\n');
+  await rm(payloadOf(cwd, 'removed.txt'));
+  await rm(payloadOf(cwd, 'symlinked.txt')); await symlink(path.join(cwd, 'ignored/outside-a.txt'), payloadOf(cwd, 'symlinked.txt'));
+  await rm(payloadOf(cwd, 'hardlinked.txt')); await link(path.join(cwd, 'ignored/outside-b.txt'), payloadOf(cwd, 'hardlinked.txt'));
+  await rm(payloadOf(cwd, 'directory.txt')); await mkdir(payloadOf(cwd, 'directory.txt')); await writeFile(path.join(payloadOf(cwd, 'directory.txt'), 'inner'), 'inner');
+  // A hard link made from outside to a mirror file shares its inode: the snapshot must replace the file, not write the alias.
+  await link(payloadOf(cwd, 'aliased.txt'), path.join(cwd, 'ignored/alias'));
+  await writeFile(path.join(payload, sha256('stray')), 'stray'); await mkdir(path.join(payload, 'stray-directory'));
+  await manager.capture('two');
+  assert.equal((await lstat(payloadOf(cwd, 'kept.txt'))).ino, kept);
+  assert.deepEqual((await readdir(payload)).sort(), [...names, '.gitignore', 'tracked.txt'].map(sha256).sort());
+  for (const name of ['outside-a.txt', 'outside-b.txt']) assert.equal(await readFile(path.join(cwd, 'ignored', name), 'utf8'), `${name} must stay\n`);
+  assert.equal(await readFile(path.join(cwd, 'ignored/alias'), 'utf8'), 'aliased.txt content\n');
+  const record = await recordOf(cwd, 'two');
+  for (const name of names) {
+    assert.equal(record.before[name].blob, blobOf(Buffer.from(`${name} content\n`)), name);
+    const info = await lstat(payloadOf(cwd, name));
+    assert.ok(info.isFile() && info.nlink === 1, name);
+    assert.equal(await readFile(payloadOf(cwd, name), 'utf8'), `${name} content\n`);
+  }
+  for (const name of names) await writeFile(path.join(cwd, name), 'agent');
+  await manager.finish('two');
+  assert.equal((await manager.restore('two')).status, 'restored');
+  for (const name of names) assert.equal(await readFile(path.join(cwd, name), 'utf8'), `${name} content\n`);
+});
+
+// Points a shadow index entry at another blob while keeping its stat data current, the way a tampered index would
+// make `git add` trust it. Extensions (the cached tree) are dropped so the commit rebuilds trees from the entries.
+async function misdirectIndex(shadow, entryName, blob, file) {
+  const index = path.join(shadow, '.git/index');
+  const data = await readFile(index);
+  assert.equal(data.toString('latin1', 0, 4), 'DIRC'); assert.equal(data.readUInt32BE(4), 2);
+  let offset = 12; let found = false;
+  for (let i = 0, count = data.readUInt32BE(8); i < count; i++) {
+    const end = data.indexOf(0, offset + 62);
+    if (data.toString('utf8', offset + 62, end) === entryName) {
+      const info = await lstat(file, { bigint: true }); const seconds = ns => Number(ns / 1000000000n) >>> 0; const nanos = ns => Number(ns % 1000000000n);
+      [seconds(info.ctimeNs), nanos(info.ctimeNs), seconds(info.mtimeNs), nanos(info.mtimeNs), Number(info.dev & 0xffffffffn), Number(info.ino & 0xffffffffn)].forEach((value, k) => data.writeUInt32BE(value, offset + k * 4));
+      [Number(info.uid), Number(info.gid), Number(info.size)].forEach((value, k) => data.writeUInt32BE(value >>> 0, offset + 28 + k * 4));
+      Buffer.from(blob, 'hex').copy(data, offset + 40); found = true;
+    }
+    offset += (Math.floor((end - offset) / 8) + 1) * 8;
+  }
+  assert.ok(found);
+  const entries = data.subarray(0, offset);
+  await writeFile(index, Buffer.concat([entries, createHash('sha1').update(entries).digest()]));
+  // An index newer than the file makes the entry not racily clean, so Git trusts its stat data instead of rehashing.
+  const later = new Date(Date.now() + 60000); await utimes(index, later, later);
+}
+
+test('a kept mirror file that Git maps to the wrong blob falls back to a full rewrite with the true blob', async t => {
+  const { cwd, manager } = await fixture(t);
+  await writeFile(path.join(cwd, 'stable.txt'), 'stable content\n');
+  await manager.capture('one');
+  const shadow = path.join(storeOf(cwd), 'shadow');
+  const stable = await pinned(t, payloadOf(cwd, 'stable.txt'));
+  const wrong = blobOf(Buffer.from('committed\n'));
+  await misdirectIndex(shadow, `payload/${sha256('stable.txt')}`, wrong, payloadOf(cwd, 'stable.txt'));
+  await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
+  const finished = await manager.finish('one');
+  // The incremental attempt kept the file and Git reused the misdirected entry; the fallback rewrote the mirror.
+  assert.notEqual((await lstat(payloadOf(cwd, 'stable.txt'))).ino, stable);
+  assert.notEqual((await treeOf(cwd, `${finished.afterCommit}~1`)), await treeOf(cwd, finished.afterCommit));
+  assert.match((await git(shadow, ['ls-tree', `${finished.afterCommit}~1`, `payload/${sha256('stable.txt')}`])).stdout, new RegExp(wrong));
+  const record = await recordOf(cwd, 'one');
+  assert.equal(record.after['stable.txt'].blob, blobOf(Buffer.from('stable content\n')));
+  assert.equal((await manager.restore('one')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'committed\n');
+});
+
+test('a written mirror file whose stored blob does not match its bytes is rewritten next time, not kept', async t => {
+  // Git reporting another blob for freshly written bytes means they changed before `git add` read them. The record
+  // keeps what Git stored, as before; the file must not be trusted as kept by the next snapshot.
+  const truth = blobOf(Buffer.from('stable content\n')); const other = blobOf(Buffer.from('committed\n'));
+  let lie = true;
+  const { cwd, manager } = await fixture(t, { runGit: async (args, opts) => {
+    const result = await runGitCommand(args, opts);
+    if (lie && args.includes('ls-tree')) { lie = false; return { ...result, stdout: result.stdout.replace(truth, other) }; }
+    return result;
+  } });
+  await writeFile(path.join(cwd, 'stable.txt'), 'stable content\n');
+  await manager.capture('one');
+  assert.equal((await recordOf(cwd, 'one')).before['stable.txt'].blob, other);
+  const stable = await pinned(t, payloadOf(cwd, 'stable.txt')); const tracked = await pinned(t, payloadOf(cwd, 'tracked.txt'));
+  await writeFile(path.join(cwd, '.gitignore'), 'ignored/\n.apex/\n# agent\n');
+  await manager.finish('one');
+  assert.notEqual((await lstat(payloadOf(cwd, 'stable.txt'))).ino, stable);
+  assert.equal((await lstat(payloadOf(cwd, 'tracked.txt'))).ino, tracked);
+  assert.equal((await recordOf(cwd, 'one')).after['stable.txt'].blob, truth);
+});
+
+test('two manager instances alternating on one session share the mirror and restore every turn', async t => {
+  const { cwd, manager } = await fixture(t);
+  const second = createCheckpointManager({ cwd, sessionId: 'session-a' });
+  t.after(() => second.shutdown());
+  const instances = [manager, second];
+  for (let turn = 1; turn <= 4; turn++) {
+    await instances[turn % 2].capture(`turn-${turn}`);
+    await writeFile(path.join(cwd, 'tracked.txt'), `agent ${turn}`); await writeFile(path.join(cwd, `added-${turn}.txt`), `${turn}`);
+    assert.deepEqual((await instances[(turn + 1) % 2].finish(`turn-${turn}`)).changedPaths, [`added-${turn}.txt`, 'tracked.txt']);
+  }
+  for (let turn = 4; turn >= 1; turn--) {
+    assert.equal((await instances[turn % 2].restore(`turn-${turn}`)).status, 'restored');
+    assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), turn === 1 ? 'committed\n' : `agent ${turn - 1}`);
+    await assert.rejects(readFile(path.join(cwd, `added-${turn}.txt`)), { code: 'ENOENT' });
+  }
 });

@@ -40,10 +40,15 @@ const validated = new WeakMap();
 // Per session: jobs scheduled so far, and the last capture's result with the count it was taken at. While no other job
 // is scheduled the store holds what that capture left, so each extra mutating tool call of the turn skips a full load.
 const scheduled = new Map(); const memos = new Map();
+// Per session: the shadow mirror as the last verified snapshot wrote it, by opaque name: the file's descriptor, its
+// verified blob id, and the lstat identity (dev, ino, size, mtime, ctime) it had right after it was written.
+const mirrors = new Map();
 // gitTimeoutMs guards against hung Git, not slow Git: a session's first capture runs `git add --all` over the whole
 // tree into an empty shadow store. On Windows, 660 files / 37 MB took 8.9–38.3 s across fresh copies.
 const DEFAULTS = Object.freeze({ maxFiles: 5000, maxBytes: 64 * 1024 * 1024, maxFileBytes: 8 * 1024 * 1024, maxCheckpoints: 50, maxStoredBytes: 256 * 1024 * 1024, maxMetadataBytes: 16 * 1024 * 1024, maxGitOutputBytes: 4 * 1024 * 1024, gitTimeoutMs: 120000 });
 const sha = value => createHash('sha256').update(value).digest('hex');
+// Git's object id for a blob of these bytes, in the object format a 40- or 64-hex id implies.
+const blobId = (bytes, length) => length === 40 || length === 64 ? createHash(length === 40 ? 'sha1' : 'sha256').update(`blob ${bytes.length}\0`).update(bytes).digest('hex') : undefined;
 const fail = (code, message, details) => Object.assign(new Error(message), { name: 'CheckpointError', code, ...(details ? { details } : {}) });
 const cancelled = signal => { if (signal?.aborted) throw fail('cancelled', 'Checkpoint operation cancelled'); };
 const equal = (a, b) => (!a && !b) || Boolean(a && b && a.hash === b.hash && a.size === b.size && a.mode === b.mode);
@@ -372,13 +377,17 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     await checkTree(path.join(shadow, '.git'));
     for (const filename of ['commondir', 'gitdir', 'objects/info/alternates', 'info/attributes']) if (await maybeStat(path.join(shadow, '.git', filename))) throw fail('metadata', 'Checkpoint shadow Git external indirection or custom attributes are unsupported');
   }
-  async function storageBudget(reserve, signal) {
+  async function storageBudget(reserve, signal, kept) {
     let bytes = 0; let entries = 0;
     async function visit(directory) {
       for await (const [name, stat] of listing(directory)) {
+        const file = path.join(directory, name);
+        // A kept mirror was checked entry by entry and is neither counted nor charged, so the walk sees exactly what it
+        // saw when every snapshot cleared the mirror first.
+        if (file === kept && stat.value?.isDirectory()) continue;
         cancelled(signal);
         if (++entries > limits.maxFiles * limits.maxCheckpoints * 4 + 1000) throw fail('cap', 'Checkpoint private storage entry cap exceeded');
-        const file = path.join(directory, name); if (stat.error) throw stat.error; const info = stat.value;
+        if (stat.error) throw stat.error; const info = stat.value;
         if (info.isSymbolicLink() || !info.isDirectory() && (!info.isFile() || info.nlink !== 1)) throw fail('symlink', 'Checkpoint private storage contains an unsafe link or file');
         if (info.isDirectory()) await visit(file);
         else bytes += info.size;
@@ -388,7 +397,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     if (reserve > limits.maxStoredBytes) throw fail('cap', 'Checkpoint private storage byte cap exceeded');
     await visit(store);
   }
-  async function snapshot(collected, state, turnId, stage, signal) {
+  async function snapshot(collected, state, turnId, stage, signal, full = false) {
     // Git stores identical content once, so history is charged only for content no record already holds;
     // charging every full snapshot blocked a 37 MB project after three turns. storageBudget still bounds real disk use.
     const held = new Set(state.records.flatMap(record => [...Object.values(record.before), ...Object.values(record.after ?? {})].map(file => file.hash)));
@@ -396,38 +405,67 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     for (const file of Object.values(collected.files)) if (!held.has(file.hash)) { held.add(file.hash); added += file.size; }
     if (state.storedBytes + added > limits.maxStoredBytes) throw fail('cap', 'Checkpoint history byte cap exceeded');
     await shadowReady(signal);
+    // Rewriting the whole mirror made Git rehash every file on every snapshot. Files this module wrote and verified last
+    // time stay if unchanged since and still wanted; a failed snapshot leaves no map, so the next one rewrites them all.
+    const known = full ? undefined : mirrors.get(lockKey); mirrors.delete(lockKey);
+    const payload = path.join(shadow, 'payload'); let reuse = false;
     for (const entry of await readdir(shadow, { withFileTypes: true })) {
       if (entry.name === '.git') continue;
       // This is owned private scratch only, never the user's worktree.
       if (entry.isSymbolicLink()) throw fail('symlink', 'Checkpoint shadow worktree contains a symlink');
+      if (known && entry.name === 'payload' && entry.isDirectory()) { reuse = true; continue; }
       await rm(path.join(shadow, entry.name), { recursive: true });
     }
+    const desired = new Map([...collected.contents.keys()].map(relative => [sha(relative), relative]));
+    const kept = new Map();
+    // A file stays only with the inode, size, mtime and ctime it had right after it was written, one link, and the
+    // descriptor still wanted; anything else (stray, link, directory, edited) is removed. rm never follows a link.
+    if (reuse) await pool(await readdir(payload), POOL, async name => {
+      cancelled(signal);
+      const file = path.join(payload, name); const info = await lstat(file, { bigint: true });
+      const previous = known.get(name); const relative = desired.get(name); const wanted = relative !== undefined && collected.files[relative];
+      if (previous && wanted && info.isFile() && info.nlink === 1n && info.dev === previous.dev && info.ino === previous.ino && info.size === previous.length && info.mtimeNs === previous.mtimeNs && info.ctimeNs === previous.ctimeNs && equal(previous, wanted)) kept.set(name, previous);
+      else await rm(file, { recursive: true, force: true });
+    });
     // Reserve a full new mirror and uncompressed object allowance, including
-    // abandoned snapshots/retained recovery backups in the existing budget. The previous mirror is cleared first:
-    // counting it too failed the second snapshot of a project with 64 MiB of incompressible kept files.
-    await storageBudget(collected.bytes * 2 + collected.contents.size * 1024 + 65536, signal);
-    const names = new Map();
-    for (const [relative, bytes] of collected.contents) {
+    // abandoned snapshots/retained recovery backups in the existing budget. The previous mirror is cleared (or, kept,
+    // left uncounted) first: counting it too failed the second snapshot of a project with 64 MiB of incompressible kept files.
+    await storageBudget(collected.bytes * 2 + collected.contents.size * 1024 + 65536, signal, reuse ? payload : undefined);
+    const names = new Map(); const written = new Map();
+    if (collected.contents.size) await mkdir(payload, { recursive: true, mode: 0o700 });
+    await pool([...collected.contents], POOL, async ([relative, bytes]) => {
       cancelled(signal);
       // Opaque payload names keep source .gitattributes and .gitignore inert.
-      const opaque = `payload/${sha(relative)}`; names.set(opaque, relative);
-      const file = path.join(shadow, opaque);
-      await mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
-      await writeFile(file, bytes, { mode: collected.files[relative].mode });
-      await chmod(file, collected.files[relative].mode);
-    }
+      const name = sha(relative); names.set(`payload/${name}`, relative);
+      if (kept.has(name)) return;
+      const file = path.join(payload, name); const { mode } = collected.files[relative];
+      // Everything not kept was removed above, so 'wx' refuses an entry raced in since instead of writing through it.
+      await writeFile(file, bytes, { mode, flag: 'wx' });
+      await chmod(file, mode);
+      written.set(name, await lstat(file, { bigint: true }));
+    });
     await git(['add', '--all', '--', '.'], shadow, signal);
     await git(['commit', '--allow-empty', '--no-verify', '-qm', `apex ${sha(turnId)} ${stage}`], shadow, signal);
     const commit = String(await git(['rev-parse', 'HEAD'], shadow, signal)).trim();
     const tree = String(await git(['ls-tree', '-r', '-z', '--full-tree', commit], shadow, signal));
-    const files = Object.create(null);
+    const files = Object.create(null); const next = new Map(); let stale = false;
     for (const entry of tree.split('\0').filter(Boolean)) {
       const match = /^(100644|100755) blob ([a-f0-9]{40,64})\t([\s\S]+)$/.exec(entry);
       const relative = match && names.get(match[3]);
       if (!match || !relative || !collected.files[relative]) throw fail('metadata', 'Checkpoint shadow Git tree is inconsistent');
       files[relative] = { ...collected.files[relative], blob: match[2] };
+      // Git trusts an index entry whose stat data matches, so a kept file must still map to its verified blob; a
+      // written file is remembered only if Git stored exactly the bytes written, so tampering never carries over.
+      const name = match[3].slice('payload/'.length); const previous = kept.get(name);
+      if (previous) { if (previous.blob !== match[2]) stale = true; next.set(name, previous); continue; }
+      const info = written.get(name);
+      if (blobId(collected.contents.get(relative), match[2].length) === match[2]) next.set(name, { ...collected.files[relative], blob: match[2], dev: info.dev, ino: info.ino, length: info.size, mtimeNs: info.mtimeNs, ctimeNs: info.ctimeNs });
     }
     if (Object.keys(files).length !== Object.keys(collected.files).length || !hex(commit, [40, 64])) throw fail('metadata', 'Checkpoint shadow Git snapshot is incomplete');
+    // The commit just made may hold a wrong blob: rewrite the whole mirror and commit again, as every snapshot used to.
+    if (stale) return snapshot(collected, state, turnId, stage, signal, true);
+    // Without inode numbers files cannot be told apart, so such filesystems keep rewriting the whole mirror.
+    if (![...next.values()].some(value => value.ino === 0n)) mirrors.set(lockKey, next);
     return { commit, files };
   }
   const result = record => structuredClone({ turnId: record.turnId, status: record.status, beforeCommit: record.beforeCommit, ...(record.afterCommit ? { afterCommit: record.afterCommit } : {}), changedPaths: record.changedPaths, skippedPaths: record.skippedPaths ?? [], capturedAt: record.capturedAt, ...(record.finishedAt ? { finishedAt: record.finishedAt } : {}) });
@@ -581,6 +619,6 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     capture, finish, restore,
     list: (options = {}) => schedule(options, async signal => (await load(signal)).records.map(result)),
     // The session's caches only save work; drop them so a long-lived process does not keep closed sessions' state.
-    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); states.delete(stateFile); memos.delete(lockKey); },
+    shutdown: async () => { closed = true; lifecycle.abort(); await Promise.allSettled([...pending]); states.delete(stateFile); memos.delete(lockKey); mirrors.delete(lockKey); },
   };
 }
