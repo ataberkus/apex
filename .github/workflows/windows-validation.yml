@@ -1,0 +1,147 @@
+# Temporary: native Windows validation of the performance pass (d0c6d2b vs this branch). Remove after the report.
+name: Windows validation
+on:
+  push:
+    branches: [claude/compassionate-franklin-w43wqb]
+    paths: ['.github/workflows/windows-validation.yml', '.github/windows-validation/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-validation-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  BASE_SHA: d0c6d2b04938156cd64df3963459ff448401ea92
+  BUN_VERSION: 1.4.4
+
+jobs:
+  suite:
+    name: check + test (base vs branch)
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine, tools and Defender
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Worktrees and install
+        run: |
+          git -C branch worktree add ../base $env:BASE_SHA
+          foreach ($d in 'base', 'branch') { Push-Location $d; bun install --frozen-lockfile --ignore-scripts; if ($LASTEXITCODE) { exit 1 }; Pop-Location }
+      - name: check:windows
+        run: |
+          foreach ($d in 'base', 'branch') { Push-Location $d; bun run check:windows; "CHECK-RESULT $d exit=$LASTEXITCODE" | Tee-Object -Append ../results/check.txt; Pop-Location }
+          exit 0
+      - name: test:windows base (default parallel)
+        run: bun branch/.github/windows-validation/run-suite.mjs base base-default results
+      - name: test:windows branch (default parallel)
+        run: bun branch/.github/windows-validation/run-suite.mjs branch branch-default results
+      - name: Summary
+        if: always()
+        run: bun branch/.github/windows-validation/summarize.mjs results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: suite-results, path: results }
+
+  parallel:
+    name: test:windows parallel 2 vs 4
+    runs-on: windows-latest
+    timeout-minutes: 200
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine, tools and Defender
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Install
+        run: Push-Location branch; bun install --frozen-lockfile --ignore-scripts; exit $LASTEXITCODE
+      - name: Interleaved runs (2, 4, 2, 4, 2, 4)
+        run: |
+          foreach ($i in 1..3) { foreach ($p in 2, 4) { bun branch/.github/windows-validation/run-suite.mjs branch "p$p-run$i" results $p } }
+      - name: Summary
+        if: always()
+        run: bun branch/.github/windows-validation/summarize.mjs results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: parallel-results, path: results }
+
+  checkpoints:
+    name: checkpoint timing (base vs branch)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine, tools and Defender
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Base worktree
+        run: git -C branch worktree add ../base $env:BASE_SHA
+      - name: Benchmark (two alternating rounds, 8 turns each)
+        run: |
+          New-Item -ItemType Directory -Force results | Out-Null
+          foreach ($round in 1, 2) { foreach ($d in 'base', 'branch') {
+            $line = bun branch/.github/windows-validation/bench-checkpoints.mjs "$d/extensions/apex-features/checkpoints.mjs" "$d-round$round" 8
+            if ($LASTEXITCODE) { "BENCH-FAILED $d round $round exit=$LASTEXITCODE" }
+            $line | Tee-Object -Append results/checkpoints.jsonl
+          } }
+      - name: Summary
+        if: always()
+        run: bun branch/.github/windows-validation/summarize.mjs results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: checkpoint-results, path: results }
+
+  dashboard:
+    name: dashboard probe, micro, package smoke
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine, tools and Defender
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Worktrees and install
+        run: |
+          git -C branch worktree add ../base $env:BASE_SHA
+          foreach ($d in 'base', 'branch') { Push-Location $d; bun install --frozen-lockfile --ignore-scripts; if ($LASTEXITCODE) { exit 1 }; Pop-Location }
+      - name: Kill semantics
+        run: |
+          New-Item -ItemType Directory -Force results | Out-Null
+          bun branch/.github/windows-validation/kill-semantics.mjs | Tee-Object -Append results/kill.jsonl
+      - name: Dashboard probe (base, branch, base, branch)
+        run: |
+          foreach ($round in 1, 2) { foreach ($d in 'base', 'branch') {
+            $line = bun branch/.github/windows-validation/dashboard-probe.mjs (Resolve-Path $d).Path "$d-round$round"
+            $line | Tee-Object -Append results/dashboard.jsonl
+          } }
+          exit 0
+      - name: micro:windows (branch)
+        run: |
+          Push-Location branch; bun run micro:windows; "MICRO-RESULT exit=$LASTEXITCODE" | Tee-Object -Append ../results/micro.txt; Pop-Location
+          exit 0
+      - name: smoke:windows-package (branch)
+        run: |
+          Push-Location branch; bun run smoke:windows-package; "SMOKE-RESULT exit=$LASTEXITCODE" | Tee-Object -Append ../results/smoke.txt; Pop-Location
+          exit 0
+      - name: micro:windows and smoke:windows-package (base, for reference)
+        run: |
+          Push-Location base; bun run micro:windows; "MICRO-RESULT base exit=$LASTEXITCODE" | Tee-Object -Append ../results/micro.txt
+          bun run smoke:windows-package; "SMOKE-RESULT base exit=$LASTEXITCODE" | Tee-Object -Append ../results/smoke.txt; Pop-Location
+          exit 0
+      - name: Summary
+        if: always()
+        run: bun branch/.github/windows-validation/summarize.mjs results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: dashboard-results, path: results }
