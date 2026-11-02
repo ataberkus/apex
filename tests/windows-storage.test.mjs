@@ -23,6 +23,9 @@ async function git(cwd, args) {
     {cwd, env: {...whitelistedEnvironment(['PATH','SystemRoot','WINDIR']), GIT_CONFIG_NOSYSTEM: '1',
       GIT_CONFIG_GLOBAL: 'NUL', GIT_TERMINAL_PROMPT: '0'}, timeout: 10000});
 }
+// An elevated process creates files owned by Administrators rather than by its user.
+const ownedBySelf = security => [security.Sid, 'S-1-5-32-544'].includes(security.Owner);
+
 async function acl(cwd, relative) {
   const executable = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
   const target = path.join(cwd, relative).replaceAll("'", "''");
@@ -42,7 +45,7 @@ async function shaped(cwd) {
   assert.ok(Buffer.byteLength(result.structuredContent.output) <= 1024);
   const security = await acl(cwd, '.apex');
   assert.equal(security.Protected, true);
-  assert.equal(security.Owner, security.Sid);
+  assert.ok(ownedBySelf(security), security.Owner);
   assert.deepEqual(security.Rules, [security.Sid]);
   return result;
 }
@@ -64,7 +67,7 @@ test('checkpoint-first Windows storage composes with secure shaping and restores
   assert.equal(await readFile(path.join(cwd, 'spaced ü file.txt'), 'utf8'), original);
   assert.deepEqual(await readFile(path.join(cwd, '.git', 'index')), index);
   const security = await acl(cwd, '.apex/checkpoints');
-  assert.equal(security.Owner, security.Sid);
+  assert.ok(ownedBySelf(security), security.Owner);
   assert.ok(security.Rules.every(sid => sid === security.Sid));
 });
 
@@ -75,7 +78,7 @@ test('remember-first Windows storage composes with private spill recovery', nati
   await shaped(cwd);
   assert.match((await store.load()).content, /Keep Unicode paths/);
   const security = await acl(cwd, '.apex/LEARNINGS.md');
-  assert.equal(security.Owner, security.Sid);
+  assert.ok(ownedBySelf(security), security.Owner);
   assert.ok(security.Rules.every(sid => sid === security.Sid));
 });
 
