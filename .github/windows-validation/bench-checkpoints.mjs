@@ -3,6 +3,7 @@
 // an edit to one file and finish(id). Prints one JSON line; medians are over turns 2..N.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
+import { realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -22,7 +23,8 @@ function content(size) {
   return parts.join('').slice(0, size);
 }
 
-const base = mkdtempSync(path.join(os.tmpdir(), 'apex-cp-bench-'));
+// realpath: a Windows TEMP given as an 8.3 short name (RUNNER~1) is refused as a symlink ancestor.
+const base = await realpath(mkdtempSync(path.join(os.tmpdir(), 'apex-cp-bench-'))); // the same realpath validateRoot uses
 const cwd = path.join(base, 'repo');
 mkdirSync(cwd);
 const git = args => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_AUTHOR_NAME: 'bench', GIT_AUTHOR_EMAIL: 'bench@example.invalid', GIT_COMMITTER_NAME: 'bench', GIT_COMMITTER_EMAIL: 'bench@example.invalid' } });

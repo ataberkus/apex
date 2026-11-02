@@ -8,7 +8,7 @@ const jsonl = name => (read(name) ?? '').split(/\r?\n/).map(line => line.trim())
 const out = (tag, value) => console.log(`RESULT ${tag} ${typeof value === 'string' ? value : JSON.stringify(value)}`);
 
 if (read('machine.json')) out('machine', JSON.parse(read('machine.json')));
-for (const name of ['check.txt', 'micro.txt', 'smoke.txt']) if (read(name)) out(name, read(name).trim().split(/\r?\n/).join(' | '));
+for (const name of ['check.txt', 'micro.txt', 'smoke.txt', 'micro-smoke.txt']) if (read(name)) out(name, read(name).trim().split(/\r?\n/).join(' | '));
 
 const suites = readdirSync(dir).filter(name => name.endsWith('.json') && name !== 'machine.json').map(name => JSON.parse(read(name))).filter(entry => entry.cases);
 for (const suite of suites) {
@@ -38,3 +38,5 @@ if (parallel.length) {
 for (const row of jsonl('checkpoints.jsonl')) { const { rows, ...rest } = row; out('checkpoints', { ...rest, perTurn: rows?.map(r => [r.turn, r.capture, r.repeat, r.finish, r.status]) }); }
 for (const row of jsonl('dashboard.jsonl')) out('dashboard', row);
 for (const row of jsonl('kill.jsonl')) out('kill', row);
+for (const row of jsonl('stop.jsonl')) out('stop', row);
+for (const row of jsonl('ps.jsonl')) out('powershell', row);
