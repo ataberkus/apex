@@ -37,11 +37,30 @@ jobs:
       - run: bun install --frozen-lockfile --ignore-scripts
       - name: Install search tools
         run: choco install ripgrep fd --yes --no-progress
-      # Preflight and private storage run Windows PowerShell with PSModulePath stripped, so it reads the machine value;
-      # on GitHub's image Get-ExecutionPolicy then takes over 20 s to autoload, against 0.3 s with PSModulePath set.
-      - name: Trim the machine PowerShell module path
+      - name: TEMP diagnose PowerShell probe
+        shell: bash
         run: |
-          [Environment]::SetEnvironmentVariable('PSModulePath', "$env:SystemRoot\system32\WindowsPowerShell\v1.0\Modules", 'Machine')
+          bun -e "
+          import {spawnSync} from 'node:child_process';
+          import {renameSync} from 'node:fs';
+          import {windowsProbeEnvironment} from './scripts/preflight-windows.mjs';
+          const ps='C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
+          const env=windowsProbeEnvironment(process.cwd());
+          const go=cmd=>'[void](Get-ExecutionPolicy)';
+          const t=(name,cmd,e)=>{const s=Date.now();const r=spawnSync(ps,['-NoLogo','-NoProfile','-NonInteractive','-Command',cmd],{env:e,encoding:'utf8',windowsHide:true,timeout:90000});console.log('DIAG',name,Date.now()-s,'ms',r.status,r.error?.code??'',(r.stdout||'').slice(0,1500),(r.stderr||'').slice(0,300))};
+          const P='[void](Get-ExecutionPolicy)';
+          t('modulepath','\$env:PSModulePath',env);
+          t('module-dirs','\$env:PSModulePath -split [char]59 | % { if(Test-Path \$_){ \"\$_ = \" + @(Get-ChildItem \$_ -ErrorAction SilentlyContinue).Count } }',env);
+          t('baseline',P,env);
+          t('import-first','Import-Module Microsoft.PowerShell.Security; '+P,env);
+          t('psmodulepath-system',P,{...env,PSModulePath:'C:/Windows/system32/WindowsPowerShell/v1.0/Modules'});
+          t('localappdata-1',P,{...env,LOCALAPPDATA:process.env.LOCALAPPDATA});
+          t('localappdata-2',P,{...env,LOCALAPPDATA:process.env.LOCALAPPDATA});
+          t('analysis-cache-1',P,{...env,PSModuleAnalysisCachePath:process.env.RUNNER_TEMP+'/ps.cache'});
+          t('analysis-cache-2',P,{...env,PSModuleAnalysisCachePath:process.env.RUNNER_TEMP+'/ps.cache'});
+          t('fullenv',P,process.env);
+          t('fullenv-no-psmodulepath',P,Object.fromEntries(Object.entries(process.env).filter(([k])=>k.toUpperCase()!=='PSMODULEPATH')));
+          "
       - run: bun run check:windows
       - run: bun run test:windows
 
