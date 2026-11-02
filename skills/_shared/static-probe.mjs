@@ -1,6 +1,7 @@
 import { constants } from 'node:fs';
 import { lstat, open, opendir, realpath } from 'node:fs/promises';
 import { extname, join, relative, resolve, sep } from 'node:path';
+import { linkFreeRealpath } from '../../lib/real-path.mjs';
 
 const LIMITS = Object.freeze({ entries: 1024, directories: 32, depth: 4, files: 128, fileBytes: 65536, totalBytes: 524288, gitHeadBytes: 1024, outputBytes: 16384 });
 const SOURCE = new Set(['.mjs', '.cjs', '.js', '.jsx', '.ts', '.tsx', '.py', '.sql', '.rs', '.c', '.cc', '.cpp', '.h', '.hpp', '.go', '.java', '.kt', '.rb']);
@@ -28,8 +29,8 @@ function knownLibraries(files, names) {
   }));
 }
 
-// No project modules are imported. Public text is read into a bounded buffer;
-// only fixed categories and aggregate counts can reach the JSON response.
+// No module of the scanned project is imported. Public text is read into a bounded
+// buffer; only fixed categories and aggregate counts can reach the JSON response.
 async function boundedRead(path, expected, maxBytes) {
   let handle;
   try {
@@ -195,11 +196,13 @@ export async function runProbe(domain, args = process.argv.slice(2)) {
     const cwd = resolve(args[1]);
     try {
       const stat = await lstat(cwd);
-      if (stat.isSymbolicLink() || await realpath(cwd) !== cwd) result = { ...base, ok: false, error: 'unsafe-root' };
+      // The scan runs on the canonical spelling, so every later realpath comparison holds as written.
+      const root = stat.isSymbolicLink() ? undefined : await linkFreeRealpath(cwd);
+      if (root === undefined) result = { ...base, ok: false, error: 'unsafe-root' };
       else if (!stat.isDirectory()) result = { ...base, ok: false, error: 'unreadable-root' };
       else {
-        const { scan, files } = await scanRoot(cwd);
-        result = { ...base, ok: true, scan, facts: await factsFor(domain, cwd, files) };
+        const { scan, files } = await scanRoot(root);
+        result = { ...base, ok: true, scan, facts: await factsFor(domain, root, files) };
       }
     } catch { result = { ...base, ok: false, error: 'unreadable-root' }; }
   }

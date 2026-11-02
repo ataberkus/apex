@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { link, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {directoryLink, fileLink, unixOnly} from './fixtures/filesystem.mjs';
+import {directoryLink, fileLink, shortPath, unixOnly} from './fixtures/filesystem.mjs';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const skills = join(root, 'skills');
@@ -123,6 +123,48 @@ test('probes refuse root symlinks and do not follow child symlinks or private fi
     await rm(link, { force: true });
     await rm(cwd, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
+  }
+});
+
+test('probes refuse a root reached through a linked ancestor', async () => {
+  const base = await fixture({ 'a-long-project-directory/source.mjs': 'console.error("SECRET_CANARY");\n' });
+  const link = `${base}-link`;
+  try {
+    await directoryLink(base, link);
+    const { status, json, raw } = probe('debugging', ['--cwd', join(link, 'a-long-project-directory')]);
+    assert.equal(status, 1);
+    assert.equal(json.error, 'unsafe-root');
+    assert.equal(raw.includes('SECRET_CANARY'), false);
+  } finally {
+    await rm(link, { force: true });
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test('probes report the same evidence for every Windows spelling of a root and refuse a short alias of a junction', {skip: process.platform !== 'win32' && 'Windows 8.3 names and drive-letter case'}, async t => {
+  const files = { 'a-long-project-directory/src/crash.mjs': 'try { throw new Error("bad"); } catch (error) { console.error(error); }\n', 'a-long-project-directory/.git/HEAD': 'ref: refs/heads/fixture\n' };
+  const base = await fixture(files);
+  const cwd = join(base, 'a-long-project-directory');
+  const link = `${base}-link`;
+  try {
+    const short = shortPath(cwd);
+    if (short === cwd) return t.skip('This volume has no 8.3 names; the short spelling is unexercised');
+    for (const domain of ['debugging', 'git-surgery']) {
+      const expected = probe(domain, ['--cwd', cwd]);
+      assert.equal(expected.json.ok, true);
+      assert.ok(expected.json.scan.directories >= 1);
+      for (const spelling of [short, cwd[0].toLowerCase() + cwd.slice(1), cwd.toUpperCase()]) assert.deepEqual(probe(domain, ['--cwd', spelling]), expected, spelling);
+    }
+    await directoryLink(base, link);
+    const through = join(link, 'a-long-project-directory');
+    const hidden = shortPath(through);
+    assert.notEqual(hidden, through);
+    const { status, json } = probe('debugging', ['--cwd', hidden]);
+    assert.equal(status, 1);
+    assert.equal(json.error, 'unsafe-root');
+  } finally {
+    await rm(link, { force: true });
+    await rm(base, { recursive: true, force: true });
   }
 });
 
