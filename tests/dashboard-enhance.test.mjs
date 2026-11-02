@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
-import {spawn} from 'node:child_process';
 import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {startDashboard} from './fixtures/dashboard-server.mjs';
 
 const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
 const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url);
@@ -27,14 +27,9 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 // The fixture's model echoes the draft as its rewrite, so each draft below is the answer the enhancer gets back.
 test('✨ enhance passes the clipped conversation tail and the image count at the session\'s level, unwraps the rewrite, and never returns a cut-off one', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-enhance-'));
-  const port = 46000 + Math.floor(Math.random() * 1000), inputs = join(home, 'enhance.jsonl');
-  const child = spawn(process.execPath, [...preload, server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port), APEX_FIXTURE_ENHANCE: inputs}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const inputs = join(home, 'enhance.jsonl');
+  const {child, port, token} = await startDashboard({args: [...preload, server], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_FIXTURE_ENHANCE: inputs}});
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', reject);
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const cookie = (await call(port, {path: `/?t=${token}`})).headers['set-cookie'][0].split(';')[0];
     const post = (path, body) => call(port, {method: 'POST', path, headers: {cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
     const project = join(home, 'project'); await mkdir(project);
