@@ -11,7 +11,7 @@ try {
 } catch { "defender: could not change: $($_.Exception.Message)" }
 Start-Sleep -Seconds 5
 # The first Windows PowerShell start on a fresh runner outlasts the preflight's 5 s probe; warm it up once and time it.
-foreach ($i in 1, 2) { $t = Measure-Command { powershell.exe -NoLogo -NoProfile -NonInteractive -Command "[void](Get-ExecutionPolicy); [void][System.Security.AccessControl.DirectorySecurity]" }; "powershell warm-up $i: $([int]$t.TotalMilliseconds) ms" }
+foreach ($i in 1, 2) { $t = Measure-Command { powershell.exe -NoLogo -NoProfile -NonInteractive -Command "[void](Get-ExecutionPolicy); [void][System.Security.AccessControl.DirectorySecurity]" }; "powershell warm-up ${i}: $([int]$t.TotalMilliseconds) ms" }
 $mp =try { Get-MpComputerStatus | Select-Object AMServiceEnabled, AntivirusEnabled, RealTimeProtectionEnabled, OnAccessProtectionEnabled, IsTamperProtected } catch { "Get-MpComputerStatus failed: $($_.Exception.Message)" }
 $info = [ordered]@{
   os = "$((Get-CimInstance Win32_OperatingSystem).Caption) $([Environment]::OSVersion.Version)"
