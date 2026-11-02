@@ -135,6 +135,12 @@ test('a loop escalation lasts for its task and the next user prompt restores the
   level.choose('high');
   await userPrompt(h,'three');
   assert.equal(level.current(),'high');assert.deepEqual(level.calls,['xhigh','medium','xhigh']);
+  // Picking away from the escalated level and back to it is still a hand choice: the restore stays cancelled.
+  for(let i=0;i<3;i++)await failure(h);
+  assert.equal(level.current(),'xhigh');assert.deepEqual(coreControl(h).thinkingRestore,{from:'high',to:'xhigh'});
+  level.choose('high');level.choose('xhigh');
+  await userPrompt(h,'four');
+  assert.equal(level.current(),'xhigh');assert.deepEqual(level.calls,['xhigh','medium','xhigh','xhigh']);
 });
 test('a clamped escalation records the level actually set and a second note keeps the first record',async()=>{
   assert.ok(extension,'Phase 2 coordinator missing');

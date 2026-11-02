@@ -1,4 +1,5 @@
-// Local multi-workspace dashboard: one `apex --mode rpc` child per live session, streamed to the browser over SSE.
+// Local multi-workspace dashboard: one Pi `--mode rpc` child per live session (an `apex` child when recovery is selected),
+// streamed to the browser over SSE.
 // Loopback only. Every request needs the startup token cookie and a loopback Host; writes also need a same-origin Origin.
 import http from 'node:http';
 import {spawn} from 'node:child_process';
