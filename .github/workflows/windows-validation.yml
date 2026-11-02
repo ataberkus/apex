@@ -147,3 +147,47 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: dashboard-results, path: results }
+
+  diag:
+    name: diagnostics (idle timing, auto-gc, isolated branch-only tests)
+    if: contains(github.event.head_commit.message, '[wv:all]') || contains(github.event.head_commit.message, '[wv:diag]')
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults: { run: { shell: pwsh } }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1, path: branch }
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: '${{ env.BUN_VERSION }}' }
+      - name: Machine, tools and Defender
+        run: ./branch/.github/windows-validation/setup.ps1
+      - name: Install
+        run: Push-Location branch; bun install --frozen-lockfile --ignore-scripts; exit $LASTEXITCODE
+      - name: Idle timing (edit pre-check vs d0c6d2b reference, delete check)
+        run: |
+          foreach ($i in 1..2) { bun branch/.github/windows-validation/timing.mjs branch | Tee-Object -Append results/timing.jsonl }
+      - name: Auto-gc probe
+        run: bun branch/.github/windows-validation/gc-probe.mjs branch | Tee-Object -Append results/gc.jsonl
+      - name: Branch-only failures, each alone three times
+        run: |
+          Push-Location branch
+          $tests = @(
+            @('tests/features-checkpoints-io.test.mjs', 'a kept mirror file that Git maps to the wrong blob'),
+            @('tests/features-checkpoints-io.test.mjs', 'auto-gc triggered by a shadow commit'),
+            @('tests/core-control.test.mjs', 'edit precondition stops at the native writer'),
+            @('tests/core-control.test.mjs', 'a 100 KB single-line command is checked'))
+          foreach ($t in $tests) { foreach ($i in 1..3) {
+            $out = bun test --timeout=600000 --preload ./scripts/live-builtins.mjs "./$($t[0])" -t $t[1] 2>&1 | Out-String
+            $fail = ($out -split "`n" | Where-Object { $_ -match '^\s*\d+ fail|^error:|took|median|Expected|!==' } | Select-Object -First 6) -join ' / '
+            "ISOLATED [$($t[1])] run $i : $fail" | Tee-Object -Append ../results/isolated.txt
+          } }
+          Pop-Location
+          exit 0
+      - name: Summary
+        if: always()
+        run: |
+          bun branch/.github/windows-validation/summarize.mjs results
+          Get-Content results/isolated.txt -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: diag-results, path: results }

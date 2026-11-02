@@ -288,9 +288,9 @@ async function misdirectIndex(shadow, entryName, blob, file) {
   for (let i = 0, count = data.readUInt32BE(8); i < count; i++) {
     const end = data.indexOf(0, offset + 62);
     if (data.toString('utf8', offset + 62, end) === entryName) {
-      const info = await lstat(file, { bigint: true }); const seconds = ns => Number(ns / 1000000000n) >>> 0; const nanos = ns => Number(ns % 1000000000n);
-      [seconds(info.ctimeNs), nanos(info.ctimeNs), seconds(info.mtimeNs), nanos(info.mtimeNs), Number(info.dev & 0xffffffffn), Number(info.ino & 0xffffffffn)].forEach((value, k) => data.writeUInt32BE(value, offset + k * 4));
-      [Number(info.uid), Number(info.gid), Number(info.size)].forEach((value, k) => data.writeUInt32BE(value >>> 0, offset + 28 + k * 4));
+      // Only the size: Git zeroes it on a racily clean entry. The other stat fields stay as Git recorded them from its own
+      // lstat, which on Git for Windows differs from Bun's (ctime is the creation time; dev, ino, uid and gid are its own).
+      data.writeUInt32BE(Number((await lstat(file)).size) >>> 0, offset + 36);
       Buffer.from(blob, 'hex').copy(data, offset + 40); found = true;
     }
     offset += (Math.floor((end - offset) / 8) + 1) * 8;

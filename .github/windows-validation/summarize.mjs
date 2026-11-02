@@ -40,3 +40,5 @@ for (const row of jsonl('dashboard.jsonl')) out('dashboard', row);
 for (const row of jsonl('kill.jsonl')) out('kill', row);
 for (const row of jsonl('stop.jsonl')) out('stop', row);
 for (const row of jsonl('ps.jsonl')) out('powershell', row);
+for (const row of jsonl('timing.jsonl')) out('timing', row);
+for (const row of jsonl('gc.jsonl')) out('gc', row);
