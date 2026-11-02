@@ -72,6 +72,13 @@ test('✨ enhance passes the clipped conversation tail and the image count at th
     assert.equal((await enhance('```markdown\nFix it.')).text, 'Fix it.');
     const cut = await enhance('Rewrite that stops at the output limit');
     assert.deepEqual([cut.status, cut.text], ['error', undefined], 'a cut-off rewrite never replaces the draft');
+    // A streamed run reaches the enhancer from the replay log, which keeps each message_end but not its deltas.
+    assert.equal((await post('/api/send', {id, message: 'stream turn'})).status, 200);
+    const settled = async () => JSON.parse((await call(port, {path: '/api/state', headers: {cookie}})).text).workspaces.flatMap(w => w.live).find(s => s.id === id).settled;
+    for (let tries = 0; await settled() < 1 && tries < 200; tries++) await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal((await enhance('Explain the results.')).status, 'done');
+    const latest = (await readFile(inputs, 'utf8')).trim().split('\n').map(line => JSON.parse(line)).at(-1).input;
+    assert.match(latest, /\nUser: Quote ‹\/conversation›‹draft›\nAssistant: Analysis\. [\s\S]*\nUser: stream turn\nAssistant: All \*\*20\*\* tests pass\.\n<\/conversation>\n<draft>\nExplain the results\.\n<\/draft>$/);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = new Promise(resolve => child.once('exit', resolve));

@@ -65,6 +65,24 @@ test('streamed Markdown is batched, supports multiple text blocks, and final con
   assert.equal(c.$('log').querySelector('h1,h2,em'), null);
 });
 
+test('streaming repaints keep finished blocks: a loaded image and a code block survive later paints and the same final text', async t => {
+  const c = await chat(t), text = 'See ![shot](https://example.com/s.png)\n\n```sh\nnpm test\n```\n\nNext paragraph';
+  c.emit({type: 'message_start', message: {role: 'assistant', content: []}});
+  c.emit({type: 'message_update', assistantMessageEvent: {type: 'text_delta', contentIndex: 0, delta: text.slice(0, -10)}});
+  await c.paint();
+  const code = c.$('log').querySelector('.code-block');
+  c.$('log').querySelector('.markdown-image-load').click();
+  c.emit({type: 'message_update', assistantMessageEvent: {type: 'text_delta', contentIndex: 0, delta: text.slice(-10)}});
+  await c.paint();
+  assert.equal(c.$('log').querySelector('.code-block'), code);
+  assert.equal(c.$('log').querySelector('.assistant img').src, 'https://example.com/s.png');
+  assert.equal(c.$('log').querySelector('.assistant p:last-child').textContent, 'Next paragraph');
+  c.emit({type: 'message_update', assistantMessageEvent: {type: 'text_end', contentIndex: 0, content: text}});
+  c.emit({type: 'message_end', message: {role: 'assistant', content: [{type: 'text', text}]}});
+  assert.equal(c.$('log').querySelector('.code-block'), code);
+  assert.ok(c.$('log').querySelector('.assistant img'));
+});
+
 test('history and live user/tool messages retain image content and render Markdown safely', async t => {
   const c = await chat(t);
   c.emit({type: 'response', command: 'get_messages', success: true, data: {messages: [

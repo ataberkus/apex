@@ -6,6 +6,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {createBashToolDefinition} from '@earendil-works/pi-coding-agent';
 import {directoryLink, unixOnly} from './fixtures/filesystem.mjs';
+import * as reference from './fixtures/shaping-d0c6d2b.mjs';
 
 let shaping;
 try { shaping = await import('../extensions/apex-context/shaping.mjs'); }
@@ -396,4 +397,79 @@ test('invalid caps fail before any filesystem mutation', async t => {
     await assert.rejects(() => shape(event(longOutput()),{cwd,...options}), /positive integer/);
   }
   assert.deepEqual(await readdir(cwd), []);
+});
+
+test('non-read results are byte-identical to the d0c6d2b shaper over seeded random outputs and caps', async t => {
+  const cwd = await fixture(t);
+  let seed = 20261102;
+  const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32;
+  const pick = items => items[Math.floor(random() * items.length)];
+  const atoms = ['ok', 'compiled', 'FAIL test', 'Error: boom', '@@ -1,2 +1,3 @@', '+added', '-removed', '  context',
+    'src/a.ts:12:5 warning', 'émoji 😀 multi', '中文字符', '', '   ', 'npm ERR! x', 'not ok 3', 'Traceback (most recent call last):',
+    '[=====>    ] 45%', 'x'.repeat(300), 'y'.repeat(9000), '+++ b/file', 'E   assert 1 == 2', 'fetch 10%\rfetch 100%',
+    'warn\rerror: overwritten', '\u001b[31mred\u001b[0m', `AssertionError: ${'z'.repeat(2500)}`, `+${'q'.repeat(700)}`, `-${'й'.repeat(90)}`];
+  const commands = ['npm test', 'git diff', 'git log -p', 'npm install', 'tsc -p .', 'pytest -x', 'make', 'ls -la'];
+  const capList = [[8192,120],[2000,30],[500,10],[120,3],[60,2],[30,1],[1,1],[200,1],[20000,400],[64,400]];
+  let shaped = 0;
+  for (let index = 0; index < 120; index++) {
+    const lines = Array.from({length:Math.floor(random() ** 2 * 600)}, () => {
+      let line = pick(atoms);
+      if (random() < 0.5) line += ` ${Math.floor(random() * 1e6)}`;
+      return random() < 0.1 ? line + line : line;
+    });
+    const raw = lines.join(random() < 0.1 ? '\r\n' : '\n') + (random() < 0.5 ? '\n' : '');
+    const toolName = pick(['bash', 'bash', 'powershell', 'grep', 'find', 'codemode']);
+    const structured = ['bash', 'powershell'].includes(toolName) && random() < 0.3 ?
+      {structuredContent:{output:raw, truncated:false, exit_code:1, wall_time_seconds:0.5}} : {};
+    const input = event(raw, {toolName, toolCallId:`diff-${index}`, input:{command:pick(commands)}, ...structured});
+    const [maxBytes, maxLines] = random() < 0.7 ? pick(capList) : [1 + Math.floor(random() * 12000), 1 + Math.floor(random() * 200)];
+    const before = await reference.shapeToolResult(structuredClone(input), {cwd, maxBytes, maxLines});
+    const after = await shape(structuredClone(input), {cwd, maxBytes, maxLines});
+    if (!before) { assert.equal(after, undefined, `case ${index}`); continue; }
+    shaped++;
+    // Spill names are random; everything else, including model text and metadata, must match exactly.
+    const expected = JSON.stringify(before).replaceAll(basename(before.details.apexShape.logPath), basename(after.details.apexShape.logPath));
+    assert.equal(JSON.stringify(after), expected, `case ${index}: ${maxBytes} bytes, ${maxLines} lines, ${lines.length} input lines`);
+    // Caps the reference output fills exactly, or misses by one byte or line, probe the acceptance boundary.
+    const {returnedBytes, returnedLines} = before.details.apexShape;
+    for (const [boundBytes, boundLines] of [[returnedBytes, returnedLines], [Math.max(1, returnedBytes - 1), returnedLines],
+      [returnedBytes, Math.max(1, returnedLines - 1)]]) {
+      const bounded = await shape(structuredClone(input), {cwd, maxBytes:boundBytes, maxLines:boundLines});
+      const pointer = `[Apex shaped; hook log .apex/out/${basename(bounded.details.apexShape.logPath)}]`;
+      const text = reference.selectText(reference.cleanText(raw), pointer, input, boundBytes, boundLines);
+      assert.equal(textOf(bounded), text, `case ${index}: ${boundBytes} bytes, ${boundLines} lines`);
+      assert.equal(bounded.details.apexShape.returnedLines, linesOf(text));
+    }
+  }
+  assert.ok(shaped > 80, `only ${shaped} shaped cases`);
+});
+
+test('selection work stays linear: a 1 MB git diff scans a bounded multiple of its input', async t => {
+  const cwd = await fixture(t);
+  const lines = [];
+  for (let index = 0, size = 0; size < 1 << 20; index++) {
+    const line = index % 7 === 0 ? `@@ -${index},7 +${index},8 @@ function f${index}()` :
+      index % 3 ? `+  const v${index} = compute(${index});` : `   unchanged line ${index}`;
+    lines.push(line);
+    size += line.length + 1;
+  }
+  const raw = lines.join('\n') + '\n';
+  // Count characters handed to Buffer.byteLength (shaping and Pi's truncateHead both measure through it).
+  // Re-rendering the selection for every candidate scanned roughly 1900x this input; incremental
+  // accounting scans each candidate line a few times.
+  const byteLength = Buffer.byteLength;
+  let scanned = 0;
+  let result;
+  Buffer.byteLength = function (value, ...rest) {
+    if (typeof value === 'string') scanned += value.length;
+    return byteLength.call(this, value, ...rest);
+  };
+  try { result = await shape(event(raw, {input:{command:'git diff'}}), {cwd}); }
+  finally { Buffer.byteLength = byteLength; }
+  const output = textOf(result);
+  assert.ok(Buffer.byteLength(output) <= 8192 && linesOf(output) <= 120);
+  assert.match(output, /^@@ -0,7 \+0,8 @@ function f0\(\)\n/);
+  // The floor proves the probe saw the work: a runtime that bypassed the patched property would scan 0.
+  assert.ok(scanned >= raw.length, `probe saw only ${scanned} characters`);
+  assert.ok(scanned < 25 * raw.length, `${(scanned / raw.length).toFixed(1)}x input scanned`);
 });

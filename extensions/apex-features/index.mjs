@@ -19,10 +19,10 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   pi.registerFlag('apex-feature-flags',{type:'string',default:'',description:'Opt-in daily-driver features; every feature defaults off.'});
   pi.registerFlag('apex-eval',{type:'boolean',default:false,description:'Explicit eval isolation: disables project learnings and interactive safety prompts.'});
   pi.registerFlag('apex-autocompact-tokens',{type:'string',default:'',description:'Context tokens past which autocompact compacts a settled session; empty means 300000.'});
-  let flags=new Set(),evalMode=false,autocompactTokens,accounting,checkpoints,plan,learnings,safety,workflows;
+  let flags=new Set(),evalMode=false,autocompactTokens,accounting,summarizer,checkpoints,plan,learnings,safety,workflows;
   let meta={version:1,turnCounter:0,checkpointIds:[]},turnId,baseTools,captured=false,releaseMode=()=>{};const owner=Symbol('Apex feature mode');
   const persist=()=>pi.appendEntry(STATE,structuredClone(meta));
-  const summary=ctx=>accounting.summarizeSession(ctx.sessionManager.getEntries(),{context:ctx.getContextUsage?.(),model:ctx.model,pricing:ctx.model?.cost,activeLeaf:ctx.sessionManager.getLeafId?.()??ctx.sessionManager.getBranch().at(-1)?.id??null});
+  const summary=ctx=>summarizer.summarize(ctx.sessionManager.getEntries(),{context:ctx.getContextUsage?.(),model:ctx.model,pricing:ctx.model?.cost,activeLeaf:ctx.sessionManager.getLeafId?.()??ctx.sessionManager.getBranch().at(-1)?.id??null});
   const updateCost=ctx=>{if(flags.has('cost')&&ctx.hasUI&&typeof ctx.ui?.setStatus==='function')ctx.ui.setStatus('apex-cost',accounting.formatCost(summary(ctx)));};
   // A turn that changed nothing leaves no record (checkpoints.finish reports 'unchanged'), so there is nothing to undo.
   const rememberCheckpoint=(id,finished)=>{if(finished?.status==='unchanged')return;if(!meta.checkpointIds.includes(id))meta.checkpointIds=[...meta.checkpointIds,id].slice(-50);persist();};
@@ -40,7 +40,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    // Pi 1.4 restores the target branch's recorded loadout first; only undo our read-only loadout when
    // the target declares none, so Pi left it in place.
    if(plan?.isActive()&&baseTools&&!workflows.recordedToolNames(branchMessages(ctx)))pi.setActiveTools(baseTools);
-   checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;
+   checkpoints=plan=learnings=safety=workflows=accounting=summarizer=undefined;turnId=undefined;captured=false;
    flags=new Set(parseFeatureFlags(pi.getFlag('apex-feature-flags')));evalMode=pi.getFlag('apex-eval')===true;
    if(flags.has('autocompact'))autocompactTokens=parseAutocompactTokens(pi.getFlag('apex-autocompact-tokens'));
    meta={version:1,turnCounter:0,checkpointIds:[]};baseTools=undefined;
@@ -50,7 +50,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
    const branch=ctx.sessionManager.getBranch();const stored=latest(branch,STATE);
    if(stored?.version===1&&Number.isSafeInteger(stored.turnCounter)&&stored.turnCounter>=0)meta={version:1,turnCounter:stored.turnCounter,checkpointIds:Array.isArray(stored.checkpointIds)?stored.checkpointIds.filter(id=>typeof id==='string'&&/^\d+$/.test(id)).slice(-50):[]};
    if(flags.has('cost')||flags.has('report')){
-    accounting=await import('./accounting.mjs');
+    accounting=await import('./accounting.mjs');summarizer=accounting.createSessionSummarizer();
     if(flags.has('cost'))command('cost','Show Apex token and estimated cost totals',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,accounting.formatCost(r));return r;});
     if(flags.has('report'))command('report','Show this session token categories and largest consumers',async(_args,ctx)=>{const r=summary(ctx);notify(ctx,JSON.stringify({totals:r.totals,cost:r.cost,categories:r.categories,topConsumers:r.topConsumers,completeness:r.completeness}));return r;});
     updateCost(ctx);
@@ -139,7 +139,7 @@ export function createApexFeatures({policy=runtimePolicy(),checkpointFactory}={}
   });
   pi.on('session_shutdown',async(_event,ctx)=>{
    try{await closeTurn();await plan?.shutdown(ctx);}finally{releaseMode();await checkpoints?.shutdown();if(flags.has('cost')&&ctx.hasUI)ctx.ui?.setStatus?.('apex-cost',undefined);}
-   flags=new Set();checkpoints=plan=learnings=safety=workflows=accounting=undefined;turnId=undefined;captured=false;
+   flags=new Set();checkpoints=plan=learnings=safety=workflows=accounting=summarizer=undefined;turnId=undefined;captured=false;
   });
  };
 }

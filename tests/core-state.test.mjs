@@ -563,3 +563,140 @@ test('partial error and aborted provider responses retain usage while reporting 
     assert.equal(accounting[0].data.complete, false);
   }
 });
+
+test('a byte-identical state write is skipped: a read start appends nothing and its result one control pair', async t => {
+  const { state, entries } = await fixture(t);
+  // begin's trailing apex-todo would repeat the one saveTodo just wrote.
+  assert.deepEqual(entries.map(e => e.customType), ['apex-contract', 'apex-todo', 'apex-task-state']);
+  for (const id of ['r1', 'r2']) {
+    const before = entries.length;
+    state.observeTool(call(id, 'read', { path: 'a.txt' }));
+    assert.equal(entries.length, before);
+    state.observeTool(result(id, 'read', { path: 'a.txt' }));
+    assert.deepEqual(entries.slice(before).map(e => e.customType), ['apex-task-state', 'apex-todo']);
+    assert.deepEqual(entries.at(-1).data.control, entries.at(-2).data);
+  }
+  const before = entries.length;
+  state.observeTool(call('e1', 'edit', { path: 'a.txt' }));
+  assert.deepEqual(entries.slice(before).map(e => e.customType), ['apex-task-state', 'apex-todo']);
+  assert.deepEqual(entries.at(-2).data.ledger.pending, ['e1']);
+});
+
+test('a todo change appends apex-todo once and a new run still records every state type', async t => {
+  const { state, entries } = await fixture(t, { enforceTodo: true });
+  let before = entries.length;
+  await execute(state.todoTool(), { action: 'add', text: 'step one' });
+  assert.deepEqual(entries.slice(before).map(e => e.customType), ['apex-todo']);
+  assert.deepEqual(entries.at(-1).data.items, [{ id: 'T1', text: 'step one', status: 'pending' }]);
+  assert.deepEqual(entries.at(-1).data.control, entries.findLast(e => e.customType === 'apex-task-state').data);
+  before = entries.length;
+  await execute(state.todoTool(), { action: 'list' });
+  assert.equal(entries.length, before);
+  const previous = state.snapshot().taskId;
+  await state.begin(state.snapshot().task, { newRun: true });
+  assert.deepEqual(entries.slice(before).map(e => e.customType), ['apex-contract', 'apex-todo', 'apex-task-state']);
+  assert.ok(entries.slice(before).every(e => e.data.taskId !== previous));
+});
+
+test('a state write that throws is attempted again by the next identical save', async t => {
+  const cwd = await mkdtemp(path.join(process.cwd(), 'tests/.state-fixture-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const entries = [];
+  let failures = 1;
+  const state = createTaskState({ cwd, policy: offline, persist: (customType, data) => {
+    if (customType === 'apex-task-state' && failures-- > 0) throw new Error('disk full');
+    entries.push({ customType, data: structuredClone(data) });
+  } });
+  await assert.rejects(state.begin('Implement the requested task'), /disk full/);
+  assert.deepEqual(entries.map(e => e.customType), ['apex-contract', 'apex-todo']);
+  state.observeTool(call('r1', 'read', { path: 'a.txt' }));
+  assert.deepEqual(entries.map(e => e.customType), ['apex-contract', 'apex-todo', 'apex-task-state']);
+});
+
+test('deduplicated state entries restore what the d0c6d2b recording restores, at every step and across compaction', async t => {
+  const cwd = await mkdtemp(path.join(process.cwd(), 'tests/.state-fixture-'));
+  t.after(() => rm(cwd, { recursive: true, force: true }));
+  const reference = await import('./fixtures/core-state-d0c6d2b.mjs');
+  const model = { provider: 'openrouter', id: 'meta/muse-spark-1.3-contributor', api: 'openai-completions', reasoning: true };
+  const complete = async () => ({ stopReason: 'stop', content: [{ type: 'text', text: JSON.stringify([criterion]) }], usage });
+  const options = { cwd, policy: authorized, complete, enforceTodo: true, enforceContract: true };
+  const recorder = entries => (customType, data) => { entries.push({ type: 'custom', customType, data: structuredClone(data) }); };
+  const oldEntries = [], newEntries = [];
+  const expected = reference.createTaskState({ ...options, persist: recorder(oldEntries) });
+  const actual = createTaskState({ ...options, persist: recorder(newEntries) });
+  // Task identities are random UUIDs; map the reference instance's onto this instance's before comparing.
+  const ids = [];
+  const old = value => ids.reduce((json, [from, to]) => json.replaceAll(from, to), JSON.stringify(value) ?? 'undefined');
+  const now = value => JSON.stringify(value) ?? 'undefined';
+  const settle = async action => { try { return { value: await action() }; } catch (error) { return { error: error.message }; } };
+  const restore = (factory, branch) => factory({ ...options, branch, persist: () => {} }).snapshot();
+  const compacted = (entries, length) => {
+    const apexState = {};
+    for (const entry of entries.slice(0, length)) if (['apex-contract', 'apex-todo'].includes(entry.customType)) apexState[entry.customType] = entry.data;
+    return [{ type: 'compaction', details: { apexState } }, ...entries.slice(length)];
+  };
+  const random = (seed => n => Math.floor((seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32 * n))(31337);
+  const pick = list => list[random(list.length)];
+  const tasks = ['Implement the requested task', 'Do three things: 1. write a file; 2. verify it; 3. report.', 'Fix the parser'];
+  const tools = [['read', { path: 'a.txt' }], ['grep', { pattern: 'x' }], ['edit', { path: 'a.txt', edits: [] }], ['write', { path: 'b.txt', content: 'x' }],
+    ['bash', { command: 'npm test' }], ['bash', { command: 'git status' }], ['bash', { command: 'rm -f x' }], ['bash', { command: 'npm test && git diff' }]];
+  const lengths = [];
+  let calls = 0;
+  for (let step = 0; step < 400; step++) {
+    const kind = random(12);
+    let action;
+    if (kind === 0) {
+      const task = pick(tasks), newRun = random(2) === 0;
+      action = state => state.begin(task, { newRun });
+    } else if (kind <= 5) {
+      const [name, input] = pick(tools), id = `call-${calls++}`, phase = random(5);
+      const outcome = { isError: random(5) === 0, structuredContent: { exit_code: random(4) === 0 ? 1 : 0 } };
+      action = state => {
+        const started = phase === 4 ? undefined : state.observeTool(call(id, name, input));
+        return phase === 3 ? started : state.observeTool(result(id, name, input, outcome));
+      };
+    } else if (kind <= 7) {
+      const params = pick([{ action: 'add', text: `step ${step}` }, { action: 'list' }, { action: 'done', id: pick(['T1', 'T2', 'R1']) },
+        { action: 'update', id: pick(['T1', 'T2', 'R1']), status: pick(['pending', 'in_progress']) }, { action: 'drop', id: 'T1' },
+        { action: 'drop', id: pick(['T1', 'T2']), reason: 'Not needed' }]);
+      action = state => execute(state.todoTool(), params);
+    } else if (kind === 8) {
+      const params = random(2) ? { action: 'set', criteria: [criterion, { id: 'R2', requirement: `Requirement ${random(3)}`, check: 'npm test' }] } : { action: 'list' };
+      action = state => execute(state.contractTool(), params);
+    } else if (kind === 9) {
+      const event = boundary({ type: 'turn_end', messageEntryId: `turn-${random(6)}`, message: { stopReason: pick(['stop', 'stop', 'aborted']) } });
+      action = state => state.onTurn(event);
+    } else if (kind === 10) {
+      action = state => state.beforeSettle(boundary());
+    } else {
+      action = state => state.extractContract(state.snapshot().task, { modelRegistry: { find: () => model } });
+    }
+    const before = expected.snapshot().taskId;
+    const oldResult = await settle(() => action(expected));
+    const newResult = await settle(() => action(actual));
+    if (expected.snapshot().taskId !== before) ids.push([expected.snapshot().taskId, actual.snapshot().taskId]);
+    assert.equal(now(newResult), old(oldResult), `step ${step}`);
+    assert.equal(now(actual.snapshot()), old(expected.snapshot()), `step ${step}`);
+    assert.equal(now(restore(createTaskState, newEntries)), old(restore(reference.createTaskState, oldEntries)), `restore at step ${step}`);
+    lengths.push([oldEntries.length, newEntries.length]);
+  }
+  for (const [oldLength, newLength] of lengths.filter((_, index) => index % 20 === 0)) {
+    assert.equal(now(restore(createTaskState, compacted(newEntries, newLength))), old(restore(reference.createTaskState, compacted(oldEntries, oldLength))));
+  }
+  // The new recording is the reference recording minus entries that repeat the previous entry of their type byte for
+  // byte; each dropped entry names the task of the nearest kept entry, so usage attribution is unchanged too.
+  const previous = new Map();
+  let next = 0, skipped = 0, nearest;
+  for (const entry of oldEntries) {
+    const json = old(entry);
+    if (next < newEntries.length && json === now(newEntries[next])) { next++; nearest = entry; }
+    else {
+      skipped++;
+      assert.equal(json, previous.get(entry.customType));
+      assert.equal(entry.data.taskId ?? entry.data.control?.taskId, nearest.data.taskId ?? nearest.data.control?.taskId);
+    }
+    previous.set(entry.customType, json);
+  }
+  assert.equal(next, newEntries.length);
+  assert.ok(skipped > 100 && newEntries.length > 100, `${skipped} skipped of ${oldEntries.length}`);
+});
