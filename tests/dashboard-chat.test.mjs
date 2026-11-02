@@ -314,6 +314,18 @@ test('an SSE replay burst shares /api/state requests: one in flight plus one tra
   c.release(); await settle();
 });
 
+test('an awaited refresh resolves once the request that started after it answers, even while polls keep arriving', async t => {
+  const c = await chat(t), settle = () => new Promise(resolve => setImmediate(resolve));
+  await settle(); c.hold();
+  c.emit({type: 'agent_start'}); // request 1 in flight
+  let done = false; c.window.refresh().then(() => { done = true; }); // e.g. the launch dialog's `await refresh()`
+  c.release(); await settle(); // request 1 answers; the trailing request 2 starts
+  c.emit({type: 'agent_settled'}); // a poll (or SSE refresh) while request 2 is in flight
+  c.release(); await settle(); // request 2, the first one that started after the awaited call, answers
+  assert.equal(done, true);
+  c.release(); await settle();
+});
+
 test('the details column rebuilds only when its inputs change, so streaming keeps its nodes and a pending report button', async t => {
   const c = await chat(t, {timers: [50, 150]}), delta = () => c.emit({type: 'message_update', assistantMessageEvent: {type: 'text_delta', contentIndex: 0, delta: 'word '}});
   c.emit({type: 'response', command: 'get_commands', success: true, data: {commands: [{name: 'review', description: 'Review the diff'}]}});

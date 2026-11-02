@@ -411,13 +411,13 @@ function renderSide() {
 
 // One /api/state request at a time: calls made while one is in flight share a single trailing request that starts after
 // them, so no change is missed. An SSE replay fires a refresh for every replayed agent_start/agent_settled line.
-let refreshing = null, refreshAgain = false;
+// Each caller waits for at most that trailing request: polls arriving meanwhile queue the next one instead of
+// extending this caller's wait (an awaited refresh in a dialog must not starve behind a slow /api/state).
+let refreshing = null, queued = null;
 function refresh() {
-  if (refreshing) { refreshAgain = true; return refreshing; }
-  return refreshing = (async () => {
-    try { do { refreshAgain = false; await refreshOnce(); } while (refreshAgain); }
-    finally { refreshing = null; }
-  })();
+  if (!refreshing) return refreshing = refreshOnce().finally(() => { refreshing = null; });
+  const next = () => { queued = null; return refresh(); };
+  return queued ??= refreshing.then(next, next);
 }
 async function refreshOnce() {
   let data;
