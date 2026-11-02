@@ -43,23 +43,16 @@ jobs:
         run: |
           [Environment]::SetEnvironmentVariable('PSModulePath', "$env:SystemRoot\system32\WindowsPowerShell\v1.0\Modules", 'Machine')
           Rename-Item "$env:ProgramFiles\WindowsPowerShell\Modules" Modules.hidden
-      - name: TEMP time each remaining module folder
-        shell: bash
-        run: |
-          bun -e "
-          import {spawnSync} from 'node:child_process';
-          import {windowsProbeEnvironment} from './scripts/preflight-windows.mjs';
-          const ps='C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
-          const env=windowsProbeEnvironment(process.cwd());
-          const t=(name,cmd,e)=>{const s=Date.now();const r=spawnSync(ps,['-NoLogo','-NoProfile','-NonInteractive','-Command',cmd],{env:e,encoding:'utf8',windowsHide:true,timeout:60000});console.log('DIAG',name,Date.now()-s,'ms',r.status,r.error?.code??'');return r.stdout||''};
-          const P='[void](Get-ExecutionPolicy)';
-          const dirs=t('modulepath','\$env:PSModulePath',env).trim().split(';').filter(Boolean);
-          console.log('DIAG dirs',dirs);
-          t('baseline',P,env);
-          for(const dir of dirs)t('only '+dir,P,{...env,PSModulePath:dir});
-          "
+      # The first PowerShell call still takes about 4 s, too close to the preflight's 5 s limit, so run it once beforehand.
+      - name: Warm up the preflight
+        run: bun run preflight:windows
+        continue-on-error: true
       - run: bun run check:windows
+      # The default TEMP is C:/Users/RUNNER~1/..., and checkpoints reject a short path as a symlinked working directory.
       - run: bun run test:windows
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
 
   release:
     needs: verify
