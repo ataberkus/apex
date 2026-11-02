@@ -287,10 +287,10 @@ test('a 100 KB single-line command is checked for catastrophic deletes in linear
     json: size => grow(size, "echo '[", i => `{"path":"/src/module${i}/index.js","addr":"${i} Main ${i % 20 === 0 ? 'Rd' : 'St'}"}`, ',', "]' > fixtures/data.json"),
     locale: size => grow(size, "echo '{", i => `"k${i}":"Configuraci\u00f3n del sistema ${i}","u${i}":"https://ex.com/search/${i}"`, ',', "}' > locales/es.json"),
   };
-  // A linear check takes 1-12 ms at 100 KB idle (Linux and Windows); the old regex took about 0.5 s at 25 KB and 3.7 s at
-  // 50 KB. The ceiling leaves room for scheduler stalls under a loaded suite (100 ms failed on a two-vCPU Windows runner)
+  // A linear check takes 1-12 ms at 100 KB idle (Linux and Windows); the old regex took about 0.5 s at 25 KB and 2.9-3.7 s
+  // at 50 KB. The ceiling leaves room for scheduler stalls under a loaded suite (100 ms failed on a two-vCPU Windows runner)
   // and still fails a cubic check at 50 KB.
-  const ceiling = 1000;
+  const ceiling = 500;
   for (const [name, shape] of Object.entries(shapes)) {
     // Grow step by step so that a regression fails at a small size instead of hanging the test run.
     for (const size of [6e3, 12e3, 25e3, 50e3, 100e3]) {
