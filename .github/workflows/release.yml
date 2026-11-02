@@ -40,7 +40,27 @@ jobs:
       # The first Windows PowerShell start on a fresh runner outlasts the preflight's 5 s probe.
       - name: Warm up Windows PowerShell
         run: powershell -NoLogo -NoProfile -NonInteractive -Command "[void](Get-ExecutionPolicy); [void][System.Security.AccessControl.DirectorySecurity]"
+      - name: TEMP diagnose PowerShell probe
+        shell: bash
+        run: |
+          bun -e "
+          import {spawnSync} from 'node:child_process';
+          import {windowsProbeEnvironment} from './scripts/preflight-windows.mjs';
+          const ps='C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
+          const env=windowsProbeEnvironment(process.cwd());
+          console.log(Object.keys(env));
+          const t=(name,cmd,e)=>{const s=Date.now();const r=spawnSync(ps,['-NoLogo','-NoProfile','-NonInteractive','-Command',cmd],{env:e,encoding:'utf8',windowsHide:true,timeout:120000});console.log(name,Date.now()-s,'ms',r.status,r.error?.code??'',(r.stdout||'').slice(0,200),(r.stderr||'').slice(0,300))};
+          t('plain','exit 0',env);
+          t('plain-2','exit 0',env);
+          t('exec','(Get-ExecutionPolicy)',env);
+          t('exec-2','(Get-ExecutionPolicy)',env);
+          t('type','[void][System.Security.AccessControl.DirectorySecurity]',env);
+          t('identity','[void][System.Security.Principal.WindowsIdentity]',env);
+          t('exec-userprofile','(Get-ExecutionPolicy)',{...env,USERPROFILE:process.env.USERPROFILE,LOCALAPPDATA:process.env.LOCALAPPDATA});
+          t('exec-fullenv','(Get-ExecutionPolicy)',process.env);
+          "
       - run: bun run check:windows
+        continue-on-error: true
       - run: bun run test:windows
 
   release:
