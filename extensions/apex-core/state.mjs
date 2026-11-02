@@ -229,17 +229,27 @@ export function createTaskState({ cwd, branch = [], persist = () => {}, policy, 
       }
     } catch { data = initial(); }
   }
+  // Restore, compaction and accounting read only the latest entry per type, so a byte-identical repeat of this
+  // instance's previous entry of the same type changes nothing; skipping it saves a synchronous session append.
+  const lastPersisted = new Map();
+  const persistState = (customType, value) => {
+    const json = JSON.stringify(value);
+    if (lastPersisted.get(customType) === json) return undefined;
+    const result = persist(customType, value);
+    lastPersisted.set(customType, json); // only once persist returned, so a throwing write is retried next time
+    return result;
+  };
   const serialize = () => ({ version: 1, task: data.task, taskId: data.taskId, turns: data.turns, todoSteers: data.todoSteers, gateContinuations: data.gateContinuations, lastTurn: data.lastTurn, extraction: copy(data.extraction), ledger: copy(data.ledger) });
   // Embed the bounded control envelope in apex-todo as well: Phase 1's
   // compactor deliberately preserves only apex-contract and apex-todo verbatim.
   const saveControl = () => {
     const control = serialize();
-    const recorded = persist('apex-task-state', control);
-    const embedded = persist('apex-todo', { version: 1, taskId: data.taskId, items: copy(data.todos), nextId: data.nextId, control: copy(control) });
+    const recorded = persistState('apex-task-state', control);
+    const embedded = persistState('apex-todo', { version: 1, taskId: data.taskId, items: copy(data.todos), nextId: data.nextId, control: copy(control) });
     return Promise.all([recorded, embedded]);
   };
-  const saveContract = () => persist('apex-contract', { version: 1, taskId: data.taskId, ...copy(data.contract) });
-  const saveTodo = () => persist('apex-todo', { version: 1, taskId: data.taskId, items: copy(data.todos), nextId: data.nextId, control: serialize() });
+  const saveContract = () => persistState('apex-contract', { version: 1, taskId: data.taskId, ...copy(data.contract) });
+  const saveTodo = () => persistState('apex-todo', { version: 1, taskId: data.taskId, items: copy(data.todos), nextId: data.nextId, control: serialize() });
   const serial = action => { const pending = queue.then(action); queue = pending.catch(() => {}); return pending; };
   const checkSignal = signal => { if (signal?.aborted) throw new Error('Operation aborted'); };
   const toolResult = (structuredContent, message) => ({ content: [{ type: 'text', text: message }], structuredContent, details: { taskId: data.taskId } });

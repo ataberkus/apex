@@ -128,6 +128,22 @@ async function probe(runCommand, command, args, cwd, {timeoutMs = LOCAL_TIMEOUT_
   } finally { clearTimeout(timer); }
 }
 
+// Version probes cannot change within a session unless a tool is installed or upgraded. Only available results stay
+// cached, so a newly installed tool, or one whose cold start timed out, is probed again; concurrent captures share
+// one spawn. Callers get clones and cannot alter the cached observation.
+function cachedProbe(cache, runCommand, command, args, root, options = {}) {
+  if (!cache) return probe(runCommand, command, args, root, options);
+  const key = JSON.stringify([root, command, args, options.maxOutputBytes ?? PROBE_BYTES, childEnvironment(root).PATH]);
+  let pending = cache.get(key);
+  if (!pending) {
+    pending = probe(runCommand, command, args, root, options);
+    cache.set(key, pending);
+    const forget = () => { if (cache.get(key) === pending) cache.delete(key); };
+    pending.then(result => { if (result.status !== 'available') forget(); }, forget);
+  }
+  return pending.then(result => structuredClone(result));
+}
+
 function confined(root, path) {
   const value = relative(root, path);
   return value !== '..' && !value.startsWith(`..${sep}`) && !isAbsolute(value);
@@ -502,14 +518,14 @@ function buildTestHints(manifests) {
 
 /** Capture a bounded local snapshot. External reachability requires networkAllowed === true. */
 export async function captureEnvironment({cwd = process.cwd(), task = '', entrypoints = false,
-  networkAllowed = false, maxBytes = SNAPSHOT_BYTES, runCommand} = {}) {
+  networkAllowed = false, maxBytes = SNAPSHOT_BYTES, runCommand, probeCache} = {}) {
   const root = resolve(cwd);
   const discoveryPromise = discover(root);
   const identityPromise = localIdentity();
   const packagePromise = Promise.all(PACKAGE_PROBES.map(async ([name, command]) =>
-    [name, await probe(runCommand, command, ['--version'], root, {maxOutputBytes: 512})]));
+    [name, await cachedProbe(probeCache, runCommand, command, ['--version'], root, {maxOutputBytes: 512})]));
   const toolResultsPromise = Promise.all(PROBES.map(async ([command, args]) =>
-    [command, await probe(runCommand, command, args, root)]));
+    [command, await cachedProbe(probeCache, runCommand, command, args, root)]));
   const entriesPromise = entrypoints === true
     ? toolResultsPromise.then(tools => discoverEntries(root, task, runCommand, Object.fromEntries(tools).rg))
     : Promise.resolve({entries: [], info: {status: 'disabled', sourceFiles: []}});

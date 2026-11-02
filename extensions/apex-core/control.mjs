@@ -13,6 +13,9 @@ const skillsRoot = fileURLToPath(new URL('../../skills/', import.meta.url));
 const owns = (object, key) => Object.hasOwn(object, key);
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hash = value => createHash('sha256').update(value).digest('hex');
+// Shared, so neither may carry the g or y flag (test/exec would then keep lastIndex between calls).
+const WINDOWS_DELETE_WORD = /\b(?:Remove-Item|del|rd)\b/i, WINDOWS_RECURSE_FLAG = /-Recurse|\/s/i;
+const EDIT_PRECHECK_MATCHED = Symbol('apex-edit-precheck-matched');
 const textOf = event => (event?.content ?? []).filter(part => part?.type === 'text').map(part => part.text).join('\n');
 const bounded = (value, bytes) => {
   const buffer = Buffer.from(String(value));
@@ -234,6 +237,21 @@ function destructiveCommandWords(words) {
   return words.slice(index);
 }
 
+// Linear equivalent of /\b(?:Remove-Item|del|rd)\b[^\n;]*(?:-Recurse|\/s)[^\n;]*\s(?:[A-Z]:\\|\$HOME)\s*$/i, which
+// backtracks cubically on long single-line commands and froze the TUI. The target is pinned to the end, so the \s before
+// it has a fixed position, and the word and the flag must both lie in the [\n;]-free segment ending there.
+function windowsRecursiveRootDelete(command) {
+  const trimmed = command.trimEnd(); // trimEnd strips exactly the \s set
+  const targetLength = /[A-Z]:\\$/i.test(trimmed) ? 3 : /\$HOME$/i.test(trimmed) ? 5 : 0;
+  const space = trimmed.length - targetLength - 1; // may be '\n', as in the regex
+  if (!targetLength || space < 0 || !/\s/.test(trimmed[space])) return false;
+  const start = Math.max(trimmed.lastIndexOf('\n', space - 1), trimmed.lastIndexOf(';', space - 1)) + 1;
+  const segment = trimmed.slice(start, space);
+  // Word hits never nest, so the leftmost one also ends first and leaves the longest tail for the flag.
+  const word = WINDOWS_DELETE_WORD.exec(segment);
+  return word !== null && WINDOWS_RECURSE_FLAG.test(segment.slice(word.index + word[0].length));
+}
+
 function catastrophic(command) {
   const {commands, syntax} = shellCommandWords(command);
   if (/:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}/.test(syntax)) return true;
@@ -260,7 +278,7 @@ function catastrophic(command) {
     }
     if (recursive && force && rootOrHome) return true;
   }
-  return /\b(?:Remove-Item|del|rd)\b[^\n;]*(?:-Recurse|\/s)[^\n;]*\s(?:[A-Z]:\\|\$HOME)\s*$/i.test(command);
+  return windowsRecursiveRootDelete(command);
 }
 
 /** Native hook contract: mutate event.input in place, or return Pi's block result. */
@@ -273,12 +291,13 @@ export async function correctToolCall(event, ctx, {headless = true, confirm} = {
       const bytes = await boundedFile(args.path);
       if (bytes.includes(0)) throw new Error('Edit precondition requires a text file');
       // Pi's own matching handles BOM, CRLF, tolerant whitespace, ambiguity and overlap.
-      // Operations contain captured bytes and a no-op writer; this check cannot modify files.
+      // Operations contain captured bytes and a writer that cannot modify files. Pi calls writeFile only after every
+      // edit matched; the writer aborts the dry run there, which skips Pi's whole-file diff and patch generation.
       const native = createEditToolDefinition(ctx.cwd, {operations: {
-        access: async () => {}, readFile: async () => bytes, writeFile: async () => {},
+        access: async () => {}, readFile: async () => bytes, writeFile: async () => { throw EDIT_PRECHECK_MATCHED; },
       }});
       try { await native.execute(event.toolCallId, args, undefined, undefined, {cwd: ctx.cwd}); }
-      catch (error) { throw new Error(bounded(error.message, 1500) + closestCandidates(bytes, args.edits)); }
+      catch (error) { if (error !== EDIT_PRECHECK_MATCHED) throw new Error(bounded(error.message, 1500) + closestCandidates(bytes, args.edits)); }
     }
     if (!headless && ctx?.hasUI === true && ctx?.mode === 'tui' && ['bash', 'powershell'].includes(event.toolName) && catastrophic(args.command)) {
       const ask = confirm ?? (ctx.ui?.confirm ? command => ctx.ui.confirm('Confirm catastrophic command', bounded(command, 2000)) : undefined);
