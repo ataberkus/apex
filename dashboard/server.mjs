@@ -12,7 +12,7 @@ import {buildPiInvocation, resolvePi} from '../lib/launcher.mjs';
 import {checkpointsUsable, WINDOWS_AUTO, WINDOWS_THINKING, withWindowsDefaults} from '../lib/windows-target.mjs';
 import {readSessionReport} from '../lib/session-report.mjs';
 import {isDirectory, runtimeExecutable, spawnFailure} from '../lib/runtime.mjs';
-import {runtimePolicy} from '../extensions/apex-core/config.mjs';
+import {parseCoreFlags, runtimePolicy} from '../extensions/apex-core/config.mjs';
 import {parseAutocompactTokens} from '../extensions/apex-features/config.mjs';
 import {GROUPS, modelCatalog} from './catalog.mjs';
 import {formatPair} from '../extensions/apex-router/pair.mjs';
@@ -168,10 +168,26 @@ function record(session, line) {
     const content = event.message.content;
     session.title = (typeof content === 'string' ? content : content?.find(part => part.type === 'text')?.text ?? '').slice(0, 90);
   }
-  session.log.push(line);
-  if (session.log.length > 20000) session.log.shift(); // ponytail: replay drops oldest events past 20k; reload via get_messages if this matters
+  const kept = replayLine(session, event, line);
+  if (kept !== null) {
+    session.log.push(kept);
+    if (session.log.length > 20000) session.log.shift(); // ponytail: replay drops the oldest retained events past 20k; reload via get_messages if this matters
+  }
   for (const client of session.clients) client.write(`data: ${line}\n\n`);
   if (auto) approve(session, event);
+}
+
+// Replay keeps what app.js handle() renders and enhanceInput reads (message_end user/assistant, get_messages); live
+// clients still get every line. Bash progress snapshots, turn_end, toolResult messages (results render from
+// tool_execution_end) and agent_end's message copies are never read, and an assistant message_end supersedes the run of
+// deltas right before it. Opt a type back in here if app.js starts rendering it.
+function replayLine(session, event, line) {
+  const {type} = event, role = event.message?.role;
+  if (type === 'tool_execution_update' || type === 'turn_end') return null;
+  if ((type === 'message_start' || type === 'message_end') && role === 'toolResult') return null;
+  if (type === 'message_end' && role === 'assistant') session.log.length -= Math.min(session.deltaTail, session.log.length);
+  session.deltaTail = type === 'message_update' ? session.deltaTail + 1 : 0; // any other kept line (a note, a response) stays in place
+  return type === 'agent_end' ? JSON.stringify({type, willRetry: event.willRetry}) : line;
 }
 
 const pickModel = (catalog, id) => {
@@ -192,7 +208,7 @@ function pairOf(catalog, pair) {
     build: {model: build.id, provider: build.provider, id: build.model, thinking: levelFor(build, pair.build.thinking ?? 'medium', ' building')}};
 }
 
-// Validates the whole launch request, then returns the arguments for bin/apex.
+// Validates the whole launch request, then returns the arguments for bin/apex (startSession runs the Pi invocation they build).
 function launchArguments(body, file) {
   const catalog = modelCatalog(runtime);
   const pair = body.pair ? pairOf(catalog, body.pair) : undefined;
@@ -237,16 +253,19 @@ function launchArguments(body, file) {
   if (body.evalMode) apexArgs.push('--apex-eval');
   const route = pair ? ['--apex-pair', formatPair({plan: pair.plan, build: {provider: pair.build.provider, id: pair.build.id}})] : ['--provider', model.provider, '--model', model.model];
   const args = [...apexArgs, ...route, '--thinking', thinking, '--mode', 'rpc', ...(file ? ['--session', file] : [])];
-  buildPiInvocation(withWindowsDefaults(args), resolvePi().cli); // same steps bin/apex takes, so a refusal reads clearly here instead of as a crashed child
+  buildPiInvocation(withWindowsDefaults(args), resolvePi().cli); // same steps bin/apex (and startSession) take, so a refusal reads clearly here instead of as a crashed child
   const flags = {...picked, timeBudget, autocompactTokens, evalMode: Boolean(body.evalMode)};
   return {args, model, pair, thinking, target, flags, request: flags};
 }
 
+// Spawns the Pi invocation bin/apex would build, without bin/apex staying resident as a relay for each session.
 function startSession(cwd, file, launch) {
+  const pi = buildPiInvocation(withWindowsDefaults(launch.args, {cwd}), resolvePi().cli), at = pi.args.indexOf('--apex-core-flags');
+  const viaLauncher = at >= 0 && parseCoreFlags(pi.args[at + 1]).includes('recovery'); // bin/apex owns the recovery profile and its cleanup
   const id = randomBytes(4).toString('hex');
   const command = runtimeExecutable();
-  const child = spawn(command, [join(root, 'bin', 'apex'), ...launch.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
-  const session = {id, cwd, child, file, resumed: Boolean(file), title: file ? titleOf(file) : '', status: 'idle', log: [], clients: new Set(), stderr: '',
+  const child = spawn(command, viaLauncher ? [join(root, 'bin', 'apex'), ...launch.args] : [pi.cli, ...pi.args], {cwd, env: {...process.env, PI_CODING_AGENT_DIR: agentDir}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true});
+  const session = {id, cwd, child, file, resumed: Boolean(file), title: file ? titleOf(file) : '', status: 'idle', log: [], deltaTail: 0, clients: new Set(), stderr: '',
     pending: new Map(), requests: new Map(), provider: launch.model?.provider ?? 'apex', pair: launch.pair, model: launch.model?.id ?? PAIR, input: launch.model?.input ?? ['text'],
     thinking: launch.thinking, levels: THINKING, flags: launch.flags, request: launch.request, target: launch.target, autoApprove: false, counted: 0, base: undefined, settled: 0};
   live.set(id, session);
@@ -254,7 +273,8 @@ function startSession(cwd, file, launch) {
   child.stderr.on('data', chunk => { session.stderr = (session.stderr + chunk).slice(-2000); });
   child.on('error', error => { session.stderr = spawnFailure(error, {command, cwd}); });
   child.stdin.on('error', error => { for (const finish of session.requests.values()) finish(error); });
-  child.on('close', code => {
+  child.on('close', (code, signal) => {
+    if (!viaLauncher && code === null) code = signal === 'SIGINT' ? 130 : 1; // the exit code bin/apex reported for a signalled Pi
     session.status = code === 0 ? 'done' : 'error';
     session.pending.clear();
     for (const finish of session.requests.values()) finish(new Error('The agent stopped before accepting the message. Resume the session to retry.'));
@@ -270,16 +290,20 @@ function startSession(cwd, file, launch) {
   return session;
 }
 
+// Scans each chunk once and joins a line's pieces only when it ends: rescanning one growing string made a multi-MB
+// line (a resumed history, agent_end, screenshots) quadratic in its size.
 function eachLine(stream, onLine) {
-  let buffered = '';
+  let pending = [];
   stream.setEncoding('utf8');
   stream.on('data', chunk => {
-    buffered += chunk;
-    for (let end; (end = buffered.indexOf('\n')) >= 0;) { // LF only: JSON strings may hold U+2028
-      const line = buffered.slice(0, end).replace(/\r$/, '');
-      buffered = buffered.slice(end + 1);
+    let start = 0;
+    for (let end; (end = chunk.indexOf('\n', start)) >= 0; start = end + 1) { // LF only: JSON strings may hold U+2028
+      pending.push(chunk.slice(start, end));
+      const line = (pending.length === 1 ? pending[0] : pending.join('')).replace(/\r$/, '');
+      pending = [];
       if (line) onLine(line);
     }
+    if (start < chunk.length) pending.push(chunk.slice(start));
   });
 }
 
@@ -549,7 +573,7 @@ const server = http.createServer(async (req, res) => {
       const session = live.get(url.searchParams.get('id'));
       if (!session) return fail(res, 404, 'Unknown session');
       res.writeHead(200, {'content-type': 'text/event-stream', 'cache-control': 'no-store'});
-      for (const line of session.log) res.write(`data: ${line}\n\n`);
+      if (session.log.length) res.write(session.log.map(line => `data: ${line}\n\n`).join(''));
       session.clients.add(res);
       return req.on('close', () => session.clients.delete(res));
     }

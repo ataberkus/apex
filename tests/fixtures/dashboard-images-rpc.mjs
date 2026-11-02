@@ -6,13 +6,13 @@ import {appendFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {EventEmitter} from 'node:events';
 import {PassThrough, Writable} from 'node:stream';
-import {fileURLToPath} from 'node:url';
 import {ApiKeyLogin, OAuthLogin} from '../../dashboard/provider-login.mjs';
+import {resolvePi} from '../../lib/launcher.mjs';
 
 OAuthLogin.prototype.status = ApiKeyLogin.prototype.status = async () => ({phase: 'idle', signedIn: true});
-const apex = fileURLToPath(new URL('../../bin/apex', import.meta.url));
+const cli = resolvePi().cli; // the dashboard starts Pi itself with the invocation bin/apex would build
 childProcess.spawn = (_command, args, options) => {
-  assert.equal(args[0], apex, 'Only the offline fixture agent may be started');
+  assert.equal(args[0], cli, 'Only the offline fixture agent may be started');
   const child = new EventEmitter(); child.stdout = new PassThrough(); child.stderr = new PassThrough();
   const input = options.cwd.endsWith('text-only') ? ['text'] : ['text', 'image'];
   const emit = event => child.stdout.write(JSON.stringify(event) + '\n');
