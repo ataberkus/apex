@@ -409,7 +409,17 @@ function renderSide() {
     : p.limits.map(l => `${limitName(p, l)} ${percent(l)}`).join(', '))).join(' · ');
 }
 
-async function refresh() {
+// One /api/state request at a time: calls made while one is in flight share a single trailing request that starts after
+// them, so no change is missed. An SSE replay fires a refresh for every replayed agent_start/agent_settled line.
+let refreshing = null, refreshAgain = false;
+function refresh() {
+  if (refreshing) { refreshAgain = true; return refreshing; }
+  return refreshing = (async () => {
+    try { do { refreshAgain = false; await refreshOnce(); } while (refreshAgain); }
+    finally { refreshing = null; }
+  })();
+}
+async function refreshOnce() {
   let data;
   try { data = await (await fetch('/api/state')).json(); } catch { return; }
   const sig = JSON.stringify(data);
@@ -547,7 +557,7 @@ function place(ctx, index, part, live) {
   let block = ctx.blocks.get(index);
   if (part.type === 'thinking') {
     if (!block) { if (!part.thinking) return; block = {node: el('details')}; block.group = step('thought', null, block.node); ctx.blocks.set(index, block); }
-    const paint = () => renderThought(block.node, part);
+    const paint = () => renderThought(block.node, part, live); // live: a closed row defers its body until opened
     if (live) { queueRender(block.node, paint); if (block.group.stepOf !== block.node) doing(block.group, 'Thinking', block.node); }
     else { pendingRender.delete(block.node); paint(); done(block.group, block.node); }
   } else if (part.type === 'text') {
@@ -810,12 +820,20 @@ function renderAsks() {
 }
 
 /* details column */
-let infoTimer = 0;
-function queueInfo() { if (!infoTimer) infoTimer = setTimeout(() => { infoTimer = 0; renderInfo(); }, 150); }
+let infoTimer = 0, infoInputs = null;
+// Every SSE event (each streamed delta too) queues a repaint, but the panel's inputs rarely change; a needless rebuild
+// drops focus and selection in it and re-enables a pending 'Load token breakdown' button. Everything renderInfo and
+// renderUsage read belongs here (add new inputs!): objects replaced wholesale by identity, maps mutated in place and
+// the minute countdowns by content. Direct renderInfo() calls always rebuild.
+const infoSnapshot = () => [sel, sel?.viewOnly, view, view.stats, view.report, view.commands, view.contract, state.usage,
+  JSON.stringify([[...view.todos.values()], [...view.files], [...view.statuses], [...view.widgets], usageRows().map(p => p?.error ? '' : Array.from(p?.limits ?? [], l => l?.resetsAt ? until(l.resetsAt) : ''))])]; // never throws
+const sameInputs = (a, b) => Boolean(a) && a.length === b.length && a.every((x, i) => x === b[i]);
+function queueInfo() { if (!infoTimer) infoTimer = setTimeout(() => { infoTimer = 0; if (!sameInputs(infoInputs, infoSnapshot())) renderInfo(); }, 150); }
 const section = (panel, title) => panel.append(el('h3', '', title));
 const hint = (panel, words) => panel.append(el('p', 'empty', words));
 const MARK = {done: '\u2713', in_progress: '\u25B6', dropped: '\u00D7', pending: '\u25CB'};
 function renderInfo() {
+  infoInputs = infoSnapshot();
   const plan = $('p-plan'), use = $('p-use'), cmd = $('p-cmd');
   plan.replaceChildren(); section(plan, 'Todo');
   if (view.todos.size) {

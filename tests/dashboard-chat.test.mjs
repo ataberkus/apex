@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {runInContext} from 'node:vm';
 import {JSDOM} from 'jsdom';
 import {renderMarkdown, renderMessage, renderThought} from '../dashboard/chat-content.mjs';
+import * as before from './fixtures/chat-content-d0c6d2b.mjs';
 import * as attachments from '../dashboard/attachments.mjs';
 
 const [html, script] = await Promise.all([
@@ -11,7 +12,7 @@ const [html, script] = await Promise.all([
   readFile(new URL('../dashboard/app.js', import.meta.url), 'utf8'),
 ]);
 
-async function chat(t) {
+async function chat(t, {timers = [50]} = {}) {
   const dom = new JSDOM(html, {url: 'http://127.0.0.1:4777', runScripts: 'outside-only'});
   t.after(async () => { await new Promise(resolve => setImmediate(resolve)); dom.window.close(); });
   const {window} = dom, streams = [], requests = [];
@@ -20,9 +21,15 @@ async function chat(t) {
     {id: 'second', title: 'Other session', cwd: 'C:\\project', model: 'sol', thinking: 'xhigh', status: 'idle', pending: [], settled: 0},
   ];
   const state = {workspaces: [{path: 'C:\\project', live: sessions, saved: [], archived: []}], models: [], groups: [], auth: {'openai-codex': {label: 'Codex', type: 'oauth', signedIn: true}}};
-  let sendError = null;
+  let sendError = null, stateCalls = 0, held = null, report = null;
   window.fetch = async (path, options) => {
-    if (path === '/api/state') return {ok: true, json: async () => state};
+    if (path === '/api/state') {
+      stateCalls++;
+      if (!held) return {ok: true, json: async () => state};
+      const body = JSON.stringify(state); // a held request answers with the state as of the request
+      return new Promise(resolve => held.push(() => resolve({ok: true, json: async () => JSON.parse(body)})));
+    }
+    if (path.startsWith('/api/report?')) return new Promise(resolve => { report = body => resolve({ok: true, json: async () => body}); });
     assert.equal(path, '/api/send');
     requests.push(JSON.parse(options.body));
     return {ok: !sendError, json: async () => sendError ? {error: sendError} : {}};
@@ -33,16 +40,18 @@ async function chat(t) {
   };
   Object.assign(window, attachments, {renderMarkdown, renderMessage, renderThought});
   window.setInterval = () => 0;
-  window.setTimeout = (callback, delay) => { if (delay === 50) callback(); return 0; }; // advance Markdown paint time, not polling
+  window.setTimeout = (callback, delay) => { if (timers.includes(delay)) callback(); return 0; }; // advance Markdown paint time (and the details column on request), not polling
   const context = dom.getInternalVMContext();
   runInContext(script.replace(/^import .* from .*;\r?\n/gm, ''), context);
   await new Promise(resolve => setImmediate(resolve));
   const select = (index = 0) => runInContext(`select(${JSON.stringify(sessions[index])})`, context);
   select();
   return {
-    $: id => window.document.getElementById(id), sessions, streams, requests, select,
+    window, $: id => window.document.getElementById(id), sessions, streams, requests, select,
     emit: event => streams.at(-1).onmessage({data: JSON.stringify(event)}),
     rejectSend: error => { sendError = error; },
+    stateCalls: () => stateCalls, hold: () => { held = []; }, release: () => held.splice(0).forEach(answer => answer()),
+    answerReport: body => report(body),
   };
 }
 
@@ -259,4 +268,70 @@ test('auto-approvals and extension notes during a turn stay in its group; approv
   assert.equal(rows[1].open, false);
   assert.deepEqual(JSON.parse(rows[1].querySelector('pre').textContent), huge, 'unmatched approval: full arguments, pretty, on demand');
   assert.equal(log.querySelector('.activity summary .what').textContent, 'Ran 2 commands');
+});
+
+test('a closed live thought updates only its preview; opening renders the body so far and the final paint completes it', async t => {
+  const c = await chat(t), update = delta => c.emit({type: 'message_update', assistantMessageEvent: {type: 'thinking_delta', contentIndex: 0, delta}});
+  c.emit({type: 'message_start', message: {role: 'assistant', content: []}});
+  update('**Plan the');
+  const thought = c.$('log').querySelector('.step.thought'), summary = thought.querySelector('summary'), body = thought.querySelector('.step-body');
+  update(' change**\n\nRead `app.js`.');
+  assert.equal(thought.querySelector('summary i').textContent, 'Plan the change');
+  assert.equal(thought.querySelector('summary'), summary, 'the summary is not swapped under the pointer');
+  assert.equal(body.childNodes.length, 0, 'closed: no Markdown while streaming');
+  thought.open = true; thought.dispatchEvent(new c.window.Event('toggle'));
+  assert.equal(body.querySelector('code').textContent, 'app.js');
+  update('\n\n- then **edit**');
+  assert.equal(body.querySelector('li strong').textContent, 'edit', 'open: live repaints');
+  thought.open = false;
+  update('\n- and test');
+  assert.equal(body.querySelectorAll('li').length, 1, 'closed again: deferred');
+  const full = '**Plan the change**\n\nRead `app.js`.\n\n- then **edit**\n- and test', part = {type: 'thinking', thinking: full};
+  c.emit({type: 'message_update', assistantMessageEvent: {type: 'thinking_end', contentIndex: 0, content: full}});
+  c.emit({type: 'message_end', message: {role: 'assistant', content: [part]}});
+  assert.equal(thought.open, false);
+  assert.equal(thought.querySelector('.step-body'), body);
+  assert.equal(thought.innerHTML, before.renderThought(c.window.document.createElement('details'), part).innerHTML, 'final DOM as before');
+});
+
+test('an SSE replay burst shares /api/state requests: one in flight plus one trailing request that sees later changes', async t => {
+  const c = await chat(t), settle = () => new Promise(resolve => setImmediate(resolve));
+  await settle();
+  const start = c.stateCalls();
+  c.hold();
+  c.emit({type: 'agent_start'});
+  c.sessions[0].title = 'Renamed while a request was in flight';
+  for (let i = 0; i < 10; i++) { c.emit({type: 'agent_settled'}); c.emit({type: 'agent_start'}); }
+  assert.equal(c.stateCalls() - start, 1);
+  c.release(); await settle();
+  assert.equal(c.$('title').textContent, 'Working session', 'the first answer predates the rename');
+  assert.equal(c.stateCalls() - start, 2);
+  c.release(); await settle();
+  assert.equal(c.$('title').textContent, 'Renamed while a request was in flight');
+  assert.equal(c.stateCalls() - start, 2);
+  c.emit({type: 'agent_settled'});
+  assert.equal(c.stateCalls() - start, 3, 'a later refresh starts a new request');
+  c.release(); await settle();
+});
+
+test('the details column rebuilds only when its inputs change, so streaming keeps its nodes and a pending report button', async t => {
+  const c = await chat(t, {timers: [50, 150]}), delta = () => c.emit({type: 'message_update', assistantMessageEvent: {type: 'text_delta', contentIndex: 0, delta: 'word '}});
+  c.emit({type: 'response', command: 'get_commands', success: true, data: {commands: [{name: 'review', description: 'Review the diff'}]}});
+  c.emit({type: 'response', command: 'get_session_stats', success: true, data: {tokens: {total: 1200, input: 1000, output: 200}, cost: 0.02}});
+  assert.equal(c.$('p-cmd').querySelector('.cmdrow b').textContent, '/review');
+  const command = c.$('p-cmd').querySelector('.cmdrow'), button = [...c.$('p-use').querySelectorAll('button')].find(b => b.textContent === 'Load token breakdown');
+  c.emit({type: 'message_start', message: {role: 'assistant', content: []}});
+  for (let i = 0; i < 20; i++) delta();
+  assert.equal(c.$('p-cmd').querySelector('.cmdrow'), command, 'deltas leave the column alone');
+  button.click();
+  delta();
+  assert.equal(button.isConnected, true);
+  assert.equal(button.textContent, 'Loading…');
+  assert.equal(button.disabled, true);
+  c.emit({type: 'tool_execution_start', toolCallId: 't1', toolName: 'todo', args: {action: 'add'}});
+  c.emit({type: 'tool_execution_end', toolCallId: 't1', toolName: 'todo', isError: false, result: {content: [{type: 'text', text: JSON.stringify([{id: 1, text: 'Write the test', status: 'in_progress'}])}]}});
+  assert.equal(c.$('p-plan').querySelector('.todo li').textContent, '▶Write the test');
+  c.answerReport({summary: {categories: {messages: {estimatedTokens: 900}}}});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(c.$('p-use').textContent, /Where tokens went/);
 });
