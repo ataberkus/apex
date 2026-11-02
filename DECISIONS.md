@@ -460,6 +460,20 @@ An audit with benchmarks and adversarial verification found the costs in per-tur
     - With the Windows defaults, two of four exits took 5.4 s and 17.2 s while Windows PowerShell (the private-storage helper) was slow. The 5 s fallback then killed Pi, and the session showed exit 1 (d0c6d2b: `null`) with status error. No process outlived a Stop.
   - `check:windows`, `micro:windows` and `smoke:windows-package` stopped at the preflight (BLOCKED) on both versions, because the 5 s Windows PowerShell probe took 24–40 s, with or without real-time scanning. That validation left them unverified; the release workflow now passes `check:windows` on the runner by hiding its preinstalled PowerShell modules.
 
+## Feature setup failures stay with the feature (2026-11-02)
+
+`session_start` registered features in sequence, so anything that made `checkpoints.list()` throw (a junction cwd, a corrupt `state.json`, a refused private-storage helper) rejected the handler. Pi's runner reports that and carries on, leaving a running session without everything after the failure. Measured on a junction cwd with `cost,checkpoints,remember,plan,review,safety,resume`: only `/cost` registered. The safety gate was the worst loss: `markFeatureMode` had already told core that features own safety, so core's own catastrophic-command prompt stood down too.
+
+Each feature now starts on its own (`setup` in `extensions/apex-features/index.mjs`). What a failure does depends on what the feature guards:
+
+- **`safety` blocks every tool.** Setup runs first and depends on nothing later. If it still fails, a stand-in refuses every call, reads included: the gate only fails on a broken install, and a read-only allowlist here would be a second copy of the one in `safety.mjs`.
+- **`checkpoints` keep blocking mutations.** A stand-in manager rejects `capture`, so `tool_call`, `/plan save` and the plan's settle save fail on their ordinary paths, and `closeTurn` never reaches `finish` because nothing was captured. The real manager is shut down and not kept after a failed `list()`: its turn counter could fall behind stored records, and a recovered capture would then reuse an old turn's record. Tree navigation and forking retry the setup. `/undo` registers first, so it answers with the setup error.
+- **Anything else drops its flag.** The stand-ins keep theirs because `tool_call` returns early with no flags, which would skip them.
+
+A failed feature shows as an `error` notification naming it. Print mode has a no-op `ui.notify`, so without a UI `initialize` rejects once every feature has run, and Pi prints that to stderr.
+
+Not isolated: `parseFeatureFlags` (the launcher validates the list first, and a bad list names no feature to report) and `sessionManager.getBranch()` (Pi's own in-memory read). A plan that finishes while checkpoints are refused rejects `agent_before_settle`, as any capture failure there does: Pi reports it, nothing is written, and `/plan cancel` leaves plan mode.
+
 ## Windows path spellings: 8.3 names and case are not links (2026-11-02)
 
 Bun's async `realpath` expands 8.3 names and normalizes case as well as resolving links, so `realpath(path) !== path` also refused `C:\Users\RUNNER~1\...` and `c:\...`. A bare `apex` launched from such a directory lost `/plan` and every later feature, because `session_start` stopped at the first checkpoint call. `realpathSync` keeps both spellings, which is why `checkpointsUsable` had turned checkpoints on.
