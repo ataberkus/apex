@@ -375,6 +375,10 @@ test('a 100 KB single-line command is checked for catastrophic deletes in linear
     json: size => grow(size, "echo '[", i => `{"path":"/src/module${i}/index.js","addr":"${i} Main ${i % 20 === 0 ? 'Rd' : 'St'}"}`, ',', "]' > fixtures/data.json"),
     locale: size => grow(size, "echo '{", i => `"k${i}":"Configuraci\u00f3n del sistema ${i}","u${i}":"https://ex.com/search/${i}"`, ',', "}' > locales/es.json"),
   };
+  // A linear check takes 1-12 ms at 100 KB idle (Linux and Windows); the old regex took about 0.5 s at 25 KB and 2.9-3.7 s
+  // at 50 KB. The ceiling leaves room for scheduler stalls under a loaded suite (100 ms failed on a two-vCPU Windows runner)
+  // and still fails a cubic check at 50 KB.
+  const ceiling = 500;
   for (const [name, shape] of Object.entries(shapes)) {
     // Grow step by step so that a regression fails at a small size instead of hanging the test run.
     for (const size of [6e3, 12e3, 25e3, 50e3, 100e3]) {
@@ -382,11 +386,11 @@ test('a 100 KB single-line command is checked for catastrophic deletes in linear
       const started = performance.now();
       assert.equal(await asksConfirmation(correctToolCall, command), false, name);
       const elapsed = performance.now() - started;
-      assert.ok(elapsed < 500, `${name} at ${command.length} bytes took ${elapsed.toFixed(1)} ms`);
+      assert.ok(elapsed < ceiling, `${name} at ${command.length} bytes took ${elapsed.toFixed(1)} ms`);
     }
     const started = performance.now();
     assert.equal(await asksConfirmation(correctToolCall, `${shape(100e3)} && rd /s /q C:\\`), true, name);
-    assert.ok(performance.now() - started < 500, name);
+    assert.ok(performance.now() - started < ceiling, name);
   }
 });
 
@@ -438,17 +442,23 @@ test('edit precondition stops at the native writer, skipping whole-file diff wor
   const block = lines.slice(450, 850).join('\n');
   const edits = [{oldText: block, newText: block.replace(/compute/g, 'calc').replace(/line/g, 'L')}];
   const before = await stat(file);
-  const times = [];
-  for (let i = 0; i < 5; i++) {
+  const reference = await import('./fixtures/core-control-d0c6d2b.mjs');
+  const times = [], referenceTimes = [];
+  // Interleaved with d0c6d2b's pre-check, which still computes Pi's two whole-file diffs, so a loaded machine slows both.
+  for (let i = 0; i < 7; i++) {
     const event = call('edit', {path: 'large.js', edits});
-    const started = performance.now();
+    let started = performance.now();
     assert.equal(await correctToolCall(event, {cwd}), undefined);
     times.push(performance.now() - started);
     assert.deepEqual(event.input, {path: file, edits});
+    started = performance.now();
+    assert.equal(await reference.correctToolCall(call('edit', {path: 'large.js', edits}), {cwd}), undefined);
+    referenceTimes.push(performance.now() - started);
   }
-  // Pi's two whole-file diffs of this 400-line rewrite took about 90 ms per pre-check; matching alone takes about 1 ms.
-  const median = times.sort((a, b) => a - b)[2];
-  assert.ok(median < 25, `median pre-check ${median.toFixed(1)} ms`);
+  // Idle, the diffs cost 60-100 ms per pre-check and matching alone 1-2.5 ms (Linux and Windows). A fixed 25 ms bound
+  // failed under the full Windows suite on two vCPUs (39 ms median); a pre-check that diffed again would match the reference.
+  const median = values => values.sort((a, b) => a - b)[3];
+  assert.ok(median(times) * 3 < median(referenceTimes), `median pre-check ${median(times).toFixed(1)} ms, d0c6d2b ${median(referenceTimes).toFixed(1)} ms`);
   const after = await stat(file);
   assert.equal(await readFile(file, 'utf8'), original);
   assert.equal(after.mtimeMs, before.mtimeMs);

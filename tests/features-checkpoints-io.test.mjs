@@ -288,9 +288,9 @@ async function misdirectIndex(shadow, entryName, blob, file) {
   for (let i = 0, count = data.readUInt32BE(8); i < count; i++) {
     const end = data.indexOf(0, offset + 62);
     if (data.toString('utf8', offset + 62, end) === entryName) {
-      const info = await lstat(file, { bigint: true }); const seconds = ns => Number(ns / 1000000000n) >>> 0; const nanos = ns => Number(ns % 1000000000n);
-      [seconds(info.ctimeNs), nanos(info.ctimeNs), seconds(info.mtimeNs), nanos(info.mtimeNs), Number(info.dev & 0xffffffffn), Number(info.ino & 0xffffffffn)].forEach((value, k) => data.writeUInt32BE(value, offset + k * 4));
-      [Number(info.uid), Number(info.gid), Number(info.size)].forEach((value, k) => data.writeUInt32BE(value >>> 0, offset + 28 + k * 4));
+      // Only the size: Git zeroes it on a racily clean entry. The other stat fields stay as Git recorded them from its own
+      // lstat, which on Git for Windows differs from Bun's (ctime is the creation time; dev, ino, uid and gid are its own).
+      data.writeUInt32BE(Number((await lstat(file)).size) >>> 0, offset + 36);
       Buffer.from(blob, 'hex').copy(data, offset + 40); found = true;
     }
     offset += (Math.floor((end - offset) / 8) + 1) * 8;
@@ -302,8 +302,7 @@ async function misdirectIndex(shadow, entryName, blob, file) {
   const later = new Date(Date.now() + 60000); await utimes(index, later, later);
 }
 
-// The forged stat data below does not make Git for Windows trust the entry, so it rehashes and no fallback is needed.
-test('a kept mirror file that Git maps to the wrong blob falls back to a full rewrite with the true blob', { skip: process.platform === 'win32' && 'Git for Windows rehashes the forged entry' }, async t => {
+test('a kept mirror file that Git maps to the wrong blob falls back to a full rewrite with the true blob', async t => {
   const { cwd, manager } = await fixture(t);
   await writeFile(path.join(cwd, 'stable.txt'), 'stable content\n');
   await manager.capture('one');
@@ -392,11 +391,21 @@ test('two manager instances alternating on one session share the mirror and rest
   }
 });
 
+// Newer Git (Git for Windows 2.56 here) runs a geometric repack as its default auto maintenance: it ignores gc.auto's
+// loose-object estimate and packs instead of pruning. The fixture enables the gc task and disables that one, after the
+// module's own two settings, so this stays the gc scenario on every Git; the module's environment is recorded unchanged.
+const classicAutoGc = env => ({ ...env, GIT_CONFIG_COUNT: String(Number(env.GIT_CONFIG_COUNT) + 2),
+  [`GIT_CONFIG_KEY_${env.GIT_CONFIG_COUNT}`]: 'maintenance.gc.enabled', [`GIT_CONFIG_VALUE_${env.GIT_CONFIG_COUNT}`]: 'true',
+  [`GIT_CONFIG_KEY_${Number(env.GIT_CONFIG_COUNT) + 1}`]: 'maintenance.geometric-repack.enabled', [`GIT_CONFIG_VALUE_${Number(env.GIT_CONFIG_COUNT) + 1}`]: 'false' });
 test('auto-gc triggered by a shadow commit finishes inside the job instead of racing later store walks', async t => {
   const commits = [];
-  const { cwd, manager } = await fixture(t, { runGit: (args, opts) => { if (args.includes('commit')) commits.push(opts.env); return runGitCommand(args, opts); } });
+  const { cwd, manager } = await fixture(t, { runGit: (args, opts) => {
+    if (!args.includes('commit')) return runGitCommand(args, opts);
+    commits.push(opts.env); return runGitCommand(args, { ...opts, env: classicAutoGc(opts.env) });
+  } });
   await manager.capture('gc');
-  // Git estimates loose objects from objects/17 alone (more than 27 there means past gc.auto's 6,700).
+  // Git estimates loose objects from objects/17 alone (more than 27 there means past gc.auto's 6,700). These are
+  // unreachable and old, so a completed gc prunes them.
   const objects = path.join(storeOf(cwd), 'shadow/.git/objects'); const seeded = [];
   for (let i = 0; seeded.length < 40; i++) {
     const body = Buffer.from(`seed ${i}\n`); const object = Buffer.concat([Buffer.from(`blob ${body.length}\0`), body]);
@@ -408,9 +417,8 @@ test('auto-gc triggered by a shadow commit finishes inside the job instead of ra
   for (const { id, object } of seeded) { const file = path.join(objects, '17', id.slice(2)); await writeFile(file, deflateSync(object)); await utimes(file, old, old); }
   await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
   await manager.finish('gc');
-  // A completed gc leaves a pack. Whether it also prunes the seeds at once depends on the Git version: 2.55 keeps them
-  // for a later pass.
-  assert.ok((await readdir(path.join(objects, 'pack'))).some(name => name.endsWith('.pack')));
+  const remaining = await readdir(path.join(objects, '17')).catch(() => []);
+  assert.equal(seeded.filter(({ id }) => remaining.includes(id.slice(2))).length, 0);
   await assert.rejects(lstat(path.join(storeOf(cwd), 'shadow/.git/gc.pid')), { code: 'ENOENT' });
   // Through the environment, so the command line (quoted by Git's error messages) is unchanged.
   assert.equal(commits.length, 2);

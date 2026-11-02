@@ -3,7 +3,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
-import {spawn} from 'node:child_process';
 import {mkdtemp, readFile, rm} from 'node:fs/promises';
 import {PassThrough} from 'node:stream';
 import {StringDecoder} from 'node:string_decoder';
@@ -14,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {JSDOM} from 'jsdom';
 import {renderMarkdown, renderMessage, renderThought} from '../dashboard/chat-content.mjs';
 import * as attachments from '../dashboard/attachments.mjs';
+import {startDashboard} from './fixtures/dashboard-server.mjs';
 
 const serverPath = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
 const [html, script, server] = await Promise.all([
@@ -260,15 +260,9 @@ async function until(check, what) {
 
 test('the server replays a finished run without progress snapshots or superseded deltas, and every line reaches live watchers', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-replay-'));
-  const port = 45000 + Math.floor(Math.random() * 1000);
-  const child = spawn(process.execPath, [...preload, serverPath], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
+  const {child, port, token} = await startDashboard({args: [...preload, serverPath], env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent')}});
   const watchers = [];
   try {
-    const token = await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Dashboard startup timed out')), 20000);
-      child.once('error', reject);
-      child.stdout.on('data', chunk => { const match = /\?t=(\S+)/.exec(String(chunk)); if (match) { clearTimeout(timer); resolve(match[1]); } });
-    });
     const cookie = (await call(port, {path: `/?t=${token}`})).headers['set-cookie'][0].split(';')[0];
     const post = (path, body) => call(port, {method: 'POST', path, headers: {cookie, origin: `http://127.0.0.1:${port}`}, body: JSON.stringify(body)});
     const cwd = JSON.parse((await post('/api/workspaces', {path: home})).text).path;
