@@ -1,0 +1,113 @@
+# Every push to main that passes the offline Windows gate becomes a GitHub release. Pull requests run the same
+# steps up to, but not including, publishing. See "Releases" in README.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version part to increase
+        type: choice
+        options: [patch, minor, major]
+        default: minor
+
+permissions:
+  contents: read
+
+# Queued, never cancelled: two releases computing the next tag at once would collide.
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  BUN_VERSION: 1.4.4
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install search tools
+        run: choco install ripgrep fd --yes --no-progress
+      # Preflight and private storage run Windows PowerShell with PSModulePath stripped, so it searches every default
+      # module folder. GitHub's image fills those with Azure and other modules: command lookup takes 16 s instead of 0.7 s.
+      - name: Hide the runner's preinstalled PowerShell modules
+        run: |
+          [Environment]::SetEnvironmentVariable('PSModulePath', "$env:SystemRoot\system32\WindowsPowerShell\v1.0\Modules", 'Machine')
+          Rename-Item "$env:ProgramFiles\WindowsPowerShell\Modules" Modules.hidden
+      # The first PowerShell call still takes about 4 s, too close to the preflight's 5 s limit, so run it once beforehand.
+      - name: Warm up the preflight
+        run: bun run preflight:windows
+        continue-on-error: true
+      - run: bun run check:windows
+      # The default TEMP is C:/Users/RUNNER~1/..., and checkpoints reject a short path as a symlinked working directory.
+      - run: bun run test:windows
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Choose the next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          previous="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          IFS=. read -r major minor patch <<< "${previous:-v0.0.0}"
+          major="${major#v}"
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            *) version="$major.$minor.$((patch + 1))" ;;
+          esac
+          # A re-run of a commit that is already released must not publish it twice.
+          if git tag --points-at HEAD | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then already=true; else already=false; fi
+          {
+            echo "previous=$previous"
+            echo "version=$version"
+            echo "already=$already"
+          } >> "$GITHUB_OUTPUT"
+          echo "Previous: ${previous:-none}; next: v$version; already released: $already"
+      - name: Build the package
+        if: steps.version.outputs.already == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          # The version lives in the tag; package.json stays 0.0.0 in Git and is stamped only for the tarball.
+          bun pm version "$VERSION" --no-git-tag-version
+          mkdir dist
+          bun pm pack --ignore-scripts --quiet --destination dist
+          (cd dist && sha256sum ./*.tgz > SHA256SUMS)
+          # This repository merges locally, so GitHub's PR-based generated notes would be empty.
+          git log --no-merges --format='- %s (%h)' ${PREVIOUS:+"$PREVIOUS..HEAD"} > dist/notes.md
+          ls -l dist
+          cat dist/notes.md
+      - name: Publish the release
+        if: github.event_name != 'pull_request' && steps.version.outputs.already == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/*.tgz dist/SHA256SUMS \
+            --title "v$VERSION" --notes-file dist/notes.md --target "$GITHUB_SHA"
