@@ -31,6 +31,10 @@ async function pool(items, width, fn) {
   return out;
 }
 const queues = new Map();
+// A shadow commit past ~6,700 loose objects starts auto-gc, which by default detaches (Git for Windows cannot) and repacks
+// while the next job walks the store: ENOENT, a blocked mutation. Run it inside the job instead, as on Windows. Set in
+// the environment (Git 2.31+), not with -c, so command lines and the error messages that quote them stay the same.
+const FOREGROUND_GC = Object.freeze({ GIT_CONFIG_COUNT: '2', GIT_CONFIG_KEY_0: 'gc.autoDetach', GIT_CONFIG_VALUE_0: 'false', GIT_CONFIG_KEY_1: 'maintenance.autoDetach', GIT_CONFIG_VALUE_1: 'false' });
 // state.json as last validated or written per state file: the SHA-256 of those exact bytes, the limits it was validated
 // under, and the parsed object. Jobs on a session are serialized and any failed job drops its entry, so a load whose
 // bytes hash the same can reuse the object instead of parsing and validating up to 16 MB again.
@@ -127,7 +131,7 @@ export function createCheckpointManager({ cwd, sessionId, runGit, limits: config
     try {
       const abort = new Promise((_, reject) => { abortListener = () => reject(fail(timeout.signal.aborted ? 'git-timeout' : 'cancelled', timeout.signal.aborted ? 'Checkpoint Git time limit exceeded' : 'Checkpoint operation cancelled')); merged.addEventListener('abort', abortListener, { once: true }); });
       const maxOutput = encoding === 'buffer' ? limits.maxFileBytes : limits.maxGitOutputBytes;
-      const options = { cwd: workdir, env: { ...cleanEnv(), ...(workdir === shadow ? { GIT_COMMON_DIR: '.git', GIT_OBJECT_DIRECTORY: '.git/objects' } : {}) }, signal: merged, timeout: limits.gitTimeoutMs, maxBuffer: maxOutput, encoding, ...(input !== undefined ? { input } : {}) };
+      const options = { cwd: workdir, env: { ...cleanEnv(), ...(workdir === shadow ? { GIT_COMMON_DIR: '.git', GIT_OBJECT_DIRECTORY: '.git/objects', ...FOREGROUND_GC } : {}) }, signal: merged, timeout: limits.gitTimeoutMs, maxBuffer: maxOutput, encoding, ...(input !== undefined ? { input } : {}) };
       let execution;
       if (runGit) execution = runGit(commands, options);
       else {

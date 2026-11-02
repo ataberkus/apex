@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, lstat, symlink, link, utimes, open } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { deflateSync } from 'node:zlib';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCheckpointManager } from '../extensions/apex-features/checkpoints.mjs';
@@ -338,4 +339,31 @@ test('two manager instances alternating on one session share the mirror and rest
     assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), turn === 1 ? 'committed\n' : `agent ${turn - 1}`);
     await assert.rejects(readFile(path.join(cwd, `added-${turn}.txt`)), { code: 'ENOENT' });
   }
+});
+
+test('auto-gc triggered by a shadow commit finishes inside the job instead of racing later store walks', async t => {
+  const commits = [];
+  const { cwd, manager } = await fixture(t, { runGit: (args, opts) => { if (args.includes('commit')) commits.push(opts.env); return runGitCommand(args, opts); } });
+  await manager.capture('gc');
+  // Git estimates loose objects from objects/17 alone (more than 27 there means past gc.auto's 6,700). These are
+  // unreachable and old, so a completed gc prunes them.
+  const objects = path.join(storeOf(cwd), 'shadow/.git/objects'); const seeded = [];
+  for (let i = 0; seeded.length < 40; i++) {
+    const body = Buffer.from(`seed ${i}\n`); const object = Buffer.concat([Buffer.from(`blob ${body.length}\0`), body]);
+    const id = createHash('sha1').update(object).digest('hex');
+    if (id.startsWith('17')) seeded.push({ id, object });
+  }
+  await mkdir(path.join(objects, '17'), { recursive: true });
+  const old = new Date('2020-01-01T00:00:00Z');
+  for (const { id, object } of seeded) { const file = path.join(objects, '17', id.slice(2)); await writeFile(file, deflateSync(object)); await utimes(file, old, old); }
+  await writeFile(path.join(cwd, 'tracked.txt'), 'agent');
+  await manager.finish('gc');
+  const remaining = await readdir(path.join(objects, '17')).catch(() => []);
+  assert.equal(seeded.filter(({ id }) => remaining.includes(id.slice(2))).length, 0);
+  await assert.rejects(lstat(path.join(storeOf(cwd), 'shadow/.git/gc.pid')), { code: 'ENOENT' });
+  // Through the environment, so the command line (quoted by Git's error messages) is unchanged.
+  assert.equal(commits.length, 2);
+  for (const env of commits) assert.deepEqual([env.GIT_CONFIG_COUNT, env.GIT_CONFIG_KEY_0, env.GIT_CONFIG_VALUE_0, env.GIT_CONFIG_KEY_1, env.GIT_CONFIG_VALUE_1], ['2', 'gc.autoDetach', 'false', 'maintenance.autoDetach', 'false']);
+  assert.equal((await manager.restore('gc')).status, 'restored');
+  assert.equal(await readFile(path.join(cwd, 'tracked.txt'), 'utf8'), 'committed\n');
 });
