@@ -46,22 +46,26 @@ function markdownImage(token, doc) {
   }
   const href = safeLink(token.href, doc);
   if (!href || href.startsWith('mailto:')) return doc.createTextNode(token.raw);
-  const button = node(doc, 'button', 'Load image' + (alt ? ': ' + alt : ''), 'btn quiet markdown-image-load');
+  // Click handlers must not capture token strings: they can be slices of this paint's whole source, and renderMarkdown
+  // reuses the node in later paints, so the closure would keep that older source alive. They read the DOM's own copy
+  // instead (here a detached Text node). href is safe: URL serialization makes a new string.
+  const button = node(doc, 'button', 'Load image' + (alt ? ': ' + alt : ''), 'btn quiet markdown-image-load'), label = doc.createTextNode(alt);
   button.type = 'button'; button.title = 'Load external image from ' + new URL(href).host;
-  button.onclick = () => button.replaceWith(preview(doc, href, alt));
+  button.onclick = () => button.replaceWith(preview(doc, href, label.data));
   return button;
 }
 function codeBlock(token, doc) {
   const block = node(doc, 'div', undefined, 'code-block'), head = node(doc, 'div', undefined, 'code-head');
   const copy = node(doc, 'button', 'Copy', 'ghost'); copy.type = 'button'; copy.setAttribute('aria-label', 'Copy code');
+  const code = node(doc, 'code', token.text); // the handler reads code.textContent, not token.text: see markdownImage
   copy.onclick = async () => {
-    try { await doc.defaultView.navigator.clipboard.writeText(token.text); copy.textContent = 'Copied'; }
+    try { await doc.defaultView.navigator.clipboard.writeText(code.textContent); copy.textContent = 'Copied'; }
     catch { copy.textContent = 'Could not copy'; }
     setTimeout(() => { copy.textContent = 'Copy'; }, 2000);
   };
   head.append(node(doc, 'small', token.lang?.split(/\s+/)[0] || 'Code'), copy);
   const pre = node(doc, 'pre'); pre.tabIndex = 0; pre.setAttribute('aria-label', 'Code block');
-  pre.append(node(doc, 'code', token.text)); block.append(head, pre);
+  pre.append(code); block.append(head, pre);
   return block;
 }
 function appendTokens(parent, tokens, doc, depth = 0) {
@@ -124,12 +128,15 @@ function appendTokens(parent, tokens, doc, depth = 0) {
   }
 }
 // Streaming repaints one target with a growing source every 50 ms. Each call still lexes the whole source, but keeps the
-// top-level nodes of the longest run of leading tokens whose raw text is unchanged, so a repaint builds only the changed
-// tail (and finished blocks keep their selection, Copy state and loaded images). This is exact because appendTokens keeps
-// no state between top-level tokens and Marked's inline state entering token k (inLink, inRawBlock) follows from tokens
-// 0..k-1. Reference links resolve against the whole document, so any change to the definitions rebuilds everything.
-// Never lex only the tail: it would start with fresh inline state and can render differently.
-const rendered = new WeakMap(); // target -> {src, links, raws, nodes}; nodes[k] = the top-level nodes made from token k
+// top-level nodes of the longest run of leading tokens whose type, raw and text are all unchanged, so a repaint builds
+// only the changed tail (and finished blocks keep their selection, Copy state and loaded images). Equal raw alone is not
+// enough: what follows a paragraph can change its text but not its raw (an indented line it absorbed keeps its indent,
+// but merged in as indented code it loses it). Tokens without text (list, table, hr, space, def) are built from their
+// raw alone, inline tokens from the text, and Marked's inline state entering token k (inLink, inRawBlock) follows from
+// tokens 0..k-1. appendTokens keeps no state between top-level tokens. Reference links resolve against the whole
+// document, so any change to the definitions rebuilds everything. Never lex only the tail: it would start with fresh
+// inline state and can render differently.
+const rendered = new WeakMap(); // target -> {src, links, types, raws, texts, nodes}; nodes[k] = the top-level nodes made from token k
 function untouched(target, prev) { // exactly our nodes, in order, or the cache is void
   let child = target.firstChild;
   for (const list of prev.nodes) for (const node of list) { if (node !== child) return false; child = child.nextSibling; }
@@ -148,7 +155,7 @@ export function renderMarkdown(target, source) {
     let i = 0;
     if (prev) {
       const n = Math.min(prev.raws.length, tokens.length);
-      while (i < n && prev.raws[i] === tokens[i].raw) i++;
+      while (i < n && prev.raws[i] === tokens[i].raw && prev.texts[i] === tokens[i].text && prev.types[i] === tokens[i].type) i++;
       for (let k = i; k < prev.nodes.length; k++) for (const node of prev.nodes[k]) node.remove();
     }
     const nodes = prev ? prev.nodes.slice(0, i) : [], fragment = doc.createDocumentFragment();
@@ -157,7 +164,8 @@ export function renderMarkdown(target, source) {
       appendTokens(part, [tokens[k]], doc); nodes.push([...part.childNodes]); fragment.append(part);
     }
     if (prev) target.append(fragment); else target.replaceChildren(fragment);
-    rendered.set(target, {src: text, links, raws: tokens.map(token => token.raw), nodes}); // this lex's raws: older ones would pin older sources
+    rendered.set(target, {src: text, links, types: tokens.map(token => token.type), raws: tokens.map(token => token.raw),
+      texts: tokens.map(token => token.text), nodes}); // this lex's strings: older ones would pin older sources
   } catch { rendered.delete(target); target.textContent = text; }
   return target;
 }

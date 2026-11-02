@@ -152,6 +152,49 @@ test('streamed Markdown repaints into one target match a fresh render by the pre
   }
 });
 
+// Equal raw is not equal output: Marked gives 'text\n\tcode\n' a paragraph with the tab kept while it ends the source, but
+// once '---' follows it merges the line in as indented code, which strips the tab and keeps the newline (same raw). The
+// block-level streams above do not hit this; these character-level ones, with indented lines before '---', do.
+test('character streams and one paint at any boundary followed by the final text match the previous renderer', t => {
+  const doc = surface(t).ownerDocument, random = seeded(24301), pick = list => list[Math.floor(random() * list.length)];
+  const fresh = source => before.renderMarkdown(doc.createElement('div'), source).innerHTML;
+  const CHARS = [...'    \t\n\n\nab-=>*1.|[]:`<#'], LINES = ['words here', '    indented', '\tcode', '---', '===', '- item', '1. one', '> quote', '```', '| a | b |', '|---|---|', '[x]: https://x.example', ''];
+  const sources = ['Run the tests with\n\tbun test\n---\n\n## Next', 'Summary of the change:\n    keep the nodes\n---\n\nDone.', 'Note:\n    indented continuation\n---\n\nMore'];
+  while (sources.length < 120) {
+    let source = '';
+    if (sources.length % 2) for (let n = 4 + Math.floor(random() * 32); n > 0; n--) source += pick(CHARS);
+    else for (let n = 2 + Math.floor(random() * 8); n > 0; n--) source += (random() < 0.4 ? pick(['    ', '\t', '  ']) : '') + pick(LINES) + '\n';
+    sources.push(source);
+  }
+  let steps = 0;
+  for (const source of sources) {
+    const target = doc.createElement('div'), want = fresh(source);
+    for (let at = 1; at <= source.length; at++) {
+      const prefix = source.slice(0, at); renderMarkdown(target, prefix); steps++;
+      if (target.innerHTML !== fresh(prefix)) assert.equal(target.innerHTML, fresh(prefix), JSON.stringify(prefix));
+      const jump = renderMarkdown(doc.createElement('div'), prefix); renderMarkdown(jump, source); // text_end after one paint here
+      if (jump.innerHTML !== want) assert.equal(jump.innerHTML, want, `${JSON.stringify(prefix)} then ${JSON.stringify(source)}`);
+    }
+  }
+  assert.ok(steps > 3500, `only ${steps} steps`);
+});
+
+test('Copy and Load image read their text from the DOM, so reused blocks still copy the code and load with their alt', async t => {
+  const target = surface(t), doc = target.ownerDocument, copied = [];
+  Object.defineProperty(doc.defaultView.navigator, 'clipboard', {configurable: true, value: {writeText: async text => { copied.push(text); }}});
+  const source = '```sh\nnpm test &amp;&amp; echo <done>\n```\n\n![A &amp; B diagram](https://example.com/d.png)\n\nTail';
+  renderMarkdown(target, source.slice(0, -2));
+  const block = target.querySelector('.code-block'), load = target.querySelector('.markdown-image-load');
+  renderMarkdown(target, source);
+  assert.equal(target.querySelector('.code-block'), block); assert.equal(target.querySelector('.markdown-image-load'), load);
+  block.querySelector('button').click(); await new Promise(setImmediate);
+  assert.deepEqual(copied, ['npm test &amp;&amp; echo <done>']); assert.equal(block.querySelector('button').textContent, 'Copied');
+  load.click();
+  const reference = before.renderMarkdown(doc.createElement('div'), source); reference.querySelector('.markdown-image-load').click();
+  assert.equal(target.querySelector('.image-preview').outerHTML, reference.querySelector('.image-preview').outerHTML);
+  assert.equal(target.querySelector('img').alt, 'A & B diagram');
+});
+
 test('Markdown repaints keep the nodes of finished blocks, skip identical sources and rebuild on new link definitions', t => {
   const target = surface(t);
   renderMarkdown(target, 'Use [docs].\n\n```js\nconst a = 1;\n```\n\nStreaming par');
