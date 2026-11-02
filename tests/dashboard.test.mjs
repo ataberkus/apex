@@ -191,7 +191,7 @@ test('Codex sessions start and accept prompts above the former cap', async () =>
 
 test('auto-approve answers safety prompts for one session, including waiting ones, and never catastrophic confirmations', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-auto-'));
-  const port = 49000 + Math.floor(Math.random() * 1000);
+  const port = 43000 + Math.floor(Math.random() * 1000);
   const fixture = new URL('./fixtures/dashboard-rpc.mjs', import.meta.url).href;
   const child = spawn(process.execPath, [...preload(fixture), server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {

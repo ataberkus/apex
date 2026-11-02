@@ -41,7 +41,7 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 
 test('/api/transcript returns a listed workspace session file and refuses files outside its session folder, starting no agent', async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-transcript-'));
-  const port = 52000 + Math.floor(Math.random() * 3000);
+  const port = 41000 + Math.floor(Math.random() * 1000);
   const child = spawn(process.execPath, [server], {env: {...process.env, APEX_DASH_HOME: home, PI_CODING_AGENT_DIR: join(home, 'agent'), APEX_DASH_PORT: String(port)}, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true});
   try {
     const token = await new Promise((resolve, reject) => {

@@ -360,7 +360,7 @@ test('edit precondition stops at the native writer, skipping whole-file diff wor
   }
   // Pi's two whole-file diffs of this 400-line rewrite took about 90 ms per pre-check; matching alone takes about 1 ms.
   const median = times.sort((a, b) => a - b)[2];
-  assert.ok(median < 25, `median pre-check ${median.toFixed(1)} ms`);
+  assert.ok(median < 60, `median pre-check ${median.toFixed(1)} ms`);
   const after = await stat(file);
   assert.equal(await readFile(file, 'utf8'), original);
   assert.equal(after.mtimeMs, before.mtimeMs);

@@ -22,7 +22,7 @@ function call(port, {method = 'GET', path = '/', headers = {}, body} = {}) {
 test('authenticated image sending forwards native image blocks, honors live capabilities, rejects bad data and waits for RPC acceptance', {timeout: 30000}, async () => {
   const home = await mkdtemp(join(tmpdir(), 'apex-dash-images-')), textOnly = join(home, 'text-only');
   await mkdir(textOnly);
-  const port = 50000 + Math.floor(Math.random() * 5000);
+  const port = 42000 + Math.floor(Math.random() * 1000);
   const server = fileURLToPath(new URL('../dashboard/server.mjs', import.meta.url));
   // The fixture replaces child_process.spawn; live-builtins makes the server's named `spawn` import see that.
   const preload = ['--preload', fileURLToPath(new URL('../scripts/live-builtins.mjs', import.meta.url)), '--preload', fileURLToPath(new URL('./fixtures/dashboard-images-rpc.mjs', import.meta.url))];
