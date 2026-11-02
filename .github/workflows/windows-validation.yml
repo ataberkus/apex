@@ -3,7 +3,7 @@ name: Windows validation
 on:
   push:
     branches: [claude/compassionate-franklin-w43wqb]
-    paths: ['.github/workflows/windows-validation.yml', '.github/windows-validation/**']
+    paths: ['.github/workflows/windows-validation.yml', '.github/windows-validation/**', 'tests/**']
   workflow_dispatch:
 permissions:
   contents: read
