@@ -5,6 +5,8 @@ import {SELECTED_MODEL} from '../apex-context/config.mjs';
 const READ_TOOLS=Object.freeze(['read','grep','find','ls']);
 const MAX_OUTPUT_BYTES=4096;
 const MAX_TURNS=8;
+const MAX_TASKS=4;
+const MAX_BATCH_BYTES=16384;
 const DENIED='Auxiliary model work is blocked by offline-only authorization.';
 const ACCOUNTING=Symbol('apex-usage-accounting');
 const OPTIONAL_SUBSETS=['reasoning','cacheWrite1h'];
@@ -16,6 +18,7 @@ function assertPolicy(policy) {
 }
 function abort(signal) { if(signal?.aborted) {const error=new Error('Auxiliary work aborted.');error.name='AbortError';throw error;} }
 function validateTask(task) {if(typeof task!=='string'||!task.trim()||task.length>20000)throw new Error('Task must be a nonempty string of at most 20000 characters.');}
+function validateTasks(tasks) {if(!Array.isArray(tasks)||tasks.length<1||tasks.length>MAX_TASKS)throw new Error(`Tasks must be an array of one to ${MAX_TASKS} tasks.`);tasks.forEach(validateTask);return [...tasks];}
 function emptyUsage() {return {input:0,output:0,cacheRead:0,cacheWrite:0,totalTokens:0,cost:{input:0,output:0,cacheRead:0,cacheWrite:0,total:0}};}
 function amount(value,name,limit) {if(value===undefined)return 0;if(!Number.isFinite(value)||value<0||value>limit)throw new Error(`Invalid bounded usage ${name}.`);return value;}
 function usageComplete(value) {
@@ -59,9 +62,22 @@ function identity(result) {
   if(result?.model!==undefined && result.model!==SELECTED_MODEL)throw new Error('Unexpected auxiliary physical model.');
   if(result?.thinkingLevel!==undefined && result.thinkingLevel!=='xhigh')throw new Error('Unexpected auxiliary thinking level.');
 }
-function nativeResult(text,{kind,status='complete',usage=emptyUsage(),checks=[],truncated=false,attempted=false,complete=false}={}) {
+function nativeResult(text,{kind,status='complete',usage=emptyUsage(),checks=[],truncated=false,attempted=false,complete=false,tasks}={}) {
   const apexAux={version:1,kind,provider:'openrouter',model:'meta/muse-spark-1.3-contributor',attempted,complete};
-  return {content:[{type:'text',text}],...(status==='complete'?{}:{isError:true}),...(attempted?{usage}:{}),details:{status,model:SELECTED_MODEL,thinkingLevel:'xhigh',depth:1,usage,checks,truncated,apexAux}};
+  return {content:[{type:'text',text}],...(status==='complete'?{}:{isError:true}),...(attempted?{usage}:{}),details:{status,model:SELECTED_MODEL,thinkingLevel:'xhigh',depth:1,usage,checks,truncated,...(tasks?{tasks}:{}),apexAux}};
+}
+function failureStatus(error,signal) {return error?.name==='AbortError'||signal?.aborted?'aborted':error?.message===DENIED?'blocked':'error';}
+/** Bounded worker pool without fail-fast: abort stops new launches; launched items always settle (omp mapWithConcurrencyLimitAllSettled). */
+async function settleAll(items,concurrency,fn,signal) {
+  const results=new Array(items.length).fill(undefined);let next=0;
+  const worker=async()=>{
+    while(!signal?.aborted){
+      const index=next++;if(index>=items.length)return;
+      try{results[index]={status:'fulfilled',value:await fn(items[index],index)};}catch(reason){results[index]={status:'rejected',reason};}
+    }
+  };
+  await Promise.all(Array.from({length:Math.max(1,Math.min(concurrency,items.length))},worker));
+  return results;
 }
 function freshRequest(policy,{kind,task,cwd,systemPrompt,signal}) {
   return {policy,kind,task,cwd,systemPrompt,signal,model:SELECTED_MODEL,thinkingLevel:'xhigh',depth:1,tools:[...READ_TOOLS],history:[],maxTurns:MAX_TURNS,maxOutputBytes:MAX_OUTPUT_BYTES};
@@ -99,13 +115,18 @@ function checkRecords(records,commands) {
 export function createSubagentTools({policy,runSession,runChecks=localChecks,loadSdk}={}) {
   const sessionRunner=runSession??(request=>nativeSession(request,loadSdk));
   return ['explore','verify'].map(kind=>({
-    name:kind,label:kind,description:kind==='explore'?'Fresh-context read-only codebase exploration.':'Independent verification with optional explicit tests in an isolated copy.',
-    parameters:{type:'object',properties:{task:{type:'string',minLength:1,maxLength:20000},...(kind==='verify'?{commands:{type:'array',maxItems:4,items:{type:'string',maxLength:1000}}}:{})},required:['task'],additionalProperties:false},
+    name:kind,label:kind,description:kind==='explore'?'Fresh-context read-only codebase exploration; tasks runs up to 4 independent explorations in parallel.':'Independent verification with optional explicit tests in an isolated copy.',
+    parameters:kind==='explore'
+      ?{type:'object',properties:{task:{type:'string',minLength:1,maxLength:20000},tasks:{type:'array',minItems:1,maxItems:MAX_TASKS,items:{type:'string',minLength:1,maxLength:20000},description:'Instead of task'}},additionalProperties:false}
+      :{type:'object',properties:{task:{type:'string',minLength:1,maxLength:20000},commands:{type:'array',maxItems:4,items:{type:'string',maxLength:1000}}},required:['task'],additionalProperties:false},
     async execute(_id,params,signal,_onUpdate,ctx) {
       let usage=emptyUsage();let checks=[];let attempted=false;
       try {
         // This must precede prompt reads, context access and every adapter invocation.
-        assertPolicy(policy);abort(signal);validateTask(params?.task);
+        assertPolicy(policy);abort(signal);
+        let tasks;
+        if(kind==='explore'&&params?.tasks!==undefined){if(params.task!==undefined)throw new Error('Explore takes exactly one of task or tasks.');tasks=validateTasks(params.tasks);}
+        else validateTask(params?.task);
         if((ctx?.depth??0)>=1||(ctx?.subagentDepth??0)>=1)throw new Error('Subagents are restricted to depth one.');
         const cwd=ctx?.cwd;
         if(typeof cwd!=='string'||!path.isAbsolute(cwd))throw new Error('Subagent cwd must be an explicit absolute path.');
@@ -118,6 +139,33 @@ export function createSubagentTools({policy,runSession,runChecks=localChecks,loa
           checks=checkRecords(await runChecks({policy,cwd,task,commands,signal}),commands);abort(signal);
           task+=`\n\nActual explicit verification checks (executed in an isolated copy):\n${JSON.stringify(checks)}\nAssess this evidence; do not claim additional tests ran.`;
         } else if(kind==='verify') task+='\n\nNo test commands were supplied. This run can inspect files only; report execution-dependent requirements as unverified.';
+        if(tasks) {
+          assertPolicy(policy);abort(signal);
+          attempted=true;
+          const launched=[];
+          // Each task gets its own fresh context; one failure never cancels its siblings.
+          const settled=await settleAll(tasks,tasks.length,async(task,index)=>{
+            assertPolicy(policy);abort(signal);
+            launched[index]=true;
+            const result=await sessionRunner(freshRequest(policy,{kind,task,cwd,systemPrompt,signal}));
+            const used=usageOf(result?.usage);
+            try {identity(result);abort(signal);if(typeof result?.text!=='string')throw new Error('Subagent session did not return text.');}
+            catch(error) {if(error&&typeof error==='object'&&!error.usage)error.usage=used;throw error;}
+            return {...boundedText(result.text),usage:used,complete:usageComplete(result?.usage)};
+          },signal);
+          const outcomes=settled.map((entry,index)=>{
+            if(entry?.status==='fulfilled')return {status:'complete',...entry.value};
+            if(!entry)return {status:'aborted',text:'Not started: auxiliary work aborted.',truncated:false,complete:false};
+            const {reason}=entry;
+            return {status:failureStatus(reason,signal),...boundedText(reason instanceof Error?reason.message:String(reason)),usage:launched[index]?reason?.usage:undefined,complete:false};
+          });
+          outcomes.forEach((outcome,index)=>{if(launched[index])addUsage(usage,outcome.usage);});
+          const bounded=boundedText(outcomes.map((outcome,index)=>`## Task ${index+1}: ${outcome.status}\n${outcome.text}`).join('\n\n'),MAX_BATCH_BYTES);
+          const failed=outcomes.filter(outcome=>outcome.status!=='complete');
+          const status=failed.length<outcomes.length?'complete':failed.every(outcome=>outcome.status===failed[0].status)?failed[0].status:'error';
+          return nativeResult(bounded.text,{kind,status,usage,truncated:bounded.truncated||outcomes.some(outcome=>outcome.truncated),attempted,
+            complete:outcomes.every(outcome=>outcome.complete),tasks:outcomes.map(({status,truncated,complete})=>({status,truncated,complete}))});
+        }
         assertPolicy(policy);abort(signal);
         attempted=true;
         const result=await sessionRunner(freshRequest(policy,{kind,task,cwd,systemPrompt,signal}));
@@ -127,7 +175,7 @@ export function createSubagentTools({policy,runSession,runChecks=localChecks,loa
         return nativeResult(bounded.text,{kind,usage,checks,truncated:bounded.truncated,attempted,complete:usageComplete(result?.usage)});
       } catch(error) {
         if(error?.usage)addUsage(usage,error.usage);
-        const status=error?.name==='AbortError'||signal?.aborted?'aborted':error?.message===DENIED?'blocked':'error';
+        const status=failureStatus(error,signal);
         return nativeResult(boundedText(error instanceof Error?error.message:String(error)).text,{kind,status,usage,checks,attempted,complete:false});
       }
     },

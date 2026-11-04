@@ -486,3 +486,69 @@ Bun's async `realpath` expands 8.3 names and normalizes case as well as resolvin
 - The skill probes (`skills/_shared/static-probe.mjs`) check their root the same way and scan from the canonical path, so their inner comparisons stay exact. This is the scanner's first import outside the runtime's builtins. It is a relative import of a builtin-only module that ships in the same package, and code from the scanned project is still never imported.
 - `confinedPath` (`extensions/apex-core/control.mjs`) keeps its lexical test and also accepts another spelling of a path inside the cwd: the cwd and the path's nearest existing ancestor must both pass `linkFreeRealpath`, and the ancestor with the missing suffix rejoined must land inside the canonical cwd. `correctToolCall` rewrites paths to the canonical spelling, so under a short cwd the lexical test alone refused them in `diagnostics.before` and `after`, which silently lost post-edit diagnostics, and refused the path Pi echoes back to the model. A junction into the cwd from outside passes the canonical `inside(realRoot, resolved)` boundary, so `linkFreeRealpath` is what refuses it. `select` and `findManifest` measure from the canonical cwd for the same reason. A linked cwd gets `undefined`, so `confinedPath` keeps its lexical answer there. `artifactPath` stays lexical: it validates input synchronously, only the model writes those paths, and the refusal is visible in the contract tool's own result.
 - `createDiagnostics` alone also checks a path against the canonical cwd. Under a linked cwd `correctToolCall` rewrites to the real path, which `confinedPath` refuses lexically, so `before` and `after` silently lost post-edit diagnostics. The tool gate does not change, because this only decides which file a checker sees: a canonical path the model types under a linked cwd stays blocked, even though Pi echoes that path back after a write or edit. The target is still the one a tool resolves from the spelled root, and `inside(realRoot, resolved)` and `linkFreeRealpath` still refuse a link leading out of the cwd or into it. `select` and `findManifest` measure from `realpath(root)`, since the confined `file` is always canonical.
+
+## Ports from oh-my-pi, behind existing flags (2026-11-04)
+
+A code-only comparison with oh-my-pi (`packages/coding-agent` 18.12.1 source; installed binary 18.13.3) found mechanisms where omp was stronger and one Apex safety gap. Each port lives in an Apex extension, `lib/` or tests. Pi stays at 1.4.0 with no core patch. Every port sits behind a flag that already existed, so `parseContextFlags`, `parseCoreFlags`, `parseFeatureFlags`, `all` and the `evals/phase{1,2,3}-ablations.json` lists are unchanged. `WINDOWS_AUTO` (`lib/windows-target.mjs`) is unchanged. Its `correct` gains only the headless block and the RPC prompt below: no tool, prompt section, rewrite or continuation. No paid eval or live micro run measured any of this. The evidence is the code each port follows and the offline tests named here.
+
+**Safety (the gap).**
+- **Catastrophic commands fail closed with nobody to ask.** Before, core `correct` asked only in an interactive TUI. Every other run (`-p`, JSON, RPC, eval, `--headless`, no TTY) went ahead with `rm -rf /`, and so did `safety` outside a TUI/RPC client. Now `correctToolCall(event, ctx, {approval})` asks an approver. With none, it blocks with `Catastrophic command blocked: no interactive approval available`. Core picks the approver (`extensions/apex-core/index.mjs`):
+  - `'delegate'` when the safety feature will prompt (`featureSafetyPrompts`).
+  - The untimed TUI confirm, as before.
+  - A 15 s confirm for RPC, which also follows the abort signal. A timeout, abort or UI error denies.
+  - Otherwise nothing, so the command blocks.
+
+  `--apex-eval` never gets an approver (`featureEvalMode`), so eval runs gain no prompt, timer or wait. The safety gate repeats the block when it is not interactive, which covers `safety` without `correct`. Tests: `core-control` "catastrophic commands need an explicit approver", `core-integration` "core correction asks RPC clients with a bounded confirm…", `features-integration` "eval runs never prompt for catastrophic commands", and `features-safety` "eval/headless/no UI…". The reason text changed from `…not confirmed in the TUI` to `Catastrophic command was not confirmed`.
+- **More catastrophic shapes** (omp `tools/bash.ts#CRITICAL_BASH_PATTERNS`) are matched on Apex's tokenizer in the new `lib/catastrophic.mjs`, so quoted or echoed text never counts and the scan stays linear:
+  - `rm --no-preserve-root`
+  - `chmod`/`chown -R /`
+  - `shred /dev/…`
+  - redirect or `tee` to raw disks or `/etc/{passwd,shadow,sudoers}`
+  - fetch piped to a shell
+  - `sh <(curl …)`
+  - `eval "$(curl …)"`
+  - `kill -9 1`
+  - `init 0`
+  - `nc -e`
+  - the PowerShell forms `iwr … | iex`, `iex (irm …)`, `Stop-Computer`, `Restart-Computer`, `Format-Volume`, `Clear-Disk`
+
+  omp's `sudo rm` and "`rm -rf` on any absolute path" rules are left out: they are too broad for a hard block. The d0c6d2b differential test still matches on every earlier shape.
+- **Session grants** (omp `tools/approval.ts#sessionApprovalScope`, `requestApproval`). A TUI with `ui.select` offers `Allow once`, `Allow <tool> (<write|exec>) for this session` and `Deny`, still bounded by the 15 s `TIMEOUT`. A grant belongs to one gate instance and never covers a catastrophic command, which always gets a per-call `Confirm catastrophic command`. RPC keeps the per-call `Confirm tool action` prompt, because the dashboard's Allow-all and auto-approve answer that title only (`dashboard/server.mjs` `SAFETY_PROMPT`). `literalDisplay` is still exempt. `apply_patch` joins the write tier and `ast_grep` joins `READ_ONLY`. Not copied: omp's `yolo` default (`tools/settings.ts` `tools.approvalMode`).
+
+**Edits and reads (`read` + `edit`).**
+- **Seen-line guard** (omp `crates/pi-edit/src/modes/hashline/patcher.rs#assert_seen_lines`, `edit/store.ts`). Read records which lines it showed, per sha256 of the file's bytes (256 paths × 8 versions). Edit finds the lines it would replace from the unique exact match, or else from a native dry run that throws before writing. Lines never shown are refused:
+  - 40 or fewer, each 400 chars or shorter: they are shown in the error and recorded, so a retry can proceed.
+  - More: the error asks for an offset/limit read and records nothing.
+
+  With no snapshot of the current version there is no guard, as in omp. A successful edit clears that path. Files over 2 MiB, binary files and files with a lone CR are skipped. Without `read` nothing is recorded, so `edit` alone behaves as before.
+- **Closest match** (omp `crates/pi-edit/src/fuzzy.rs#format_match_error`, `similarity`). A failed `old_string` reports the best window's similarity %, its line and the first line that differs. Duplicates report `occurs at lines …` instead. Bounds: the first 20000 lines, 64 candidates and a 16M-cell Levenshtein budget. The `correctToolCall` pre-check is unchanged.
+
+**Search (`search`, `lazy`).**
+- **Grep caps and paging** (omp `tools/grep.ts`). Grep without context caps each file at 20 matches, or 200 when only one file matched. It pages files 20 at a time, sorted by path so pages stay stable, with `skip` and footers naming the next page and the hidden matches. Rows it cannot parse fall back to the old unpaged output.
+- **`ast_grep`** (omp `tools/ast-grep.ts`) comes from the new `extensions/apex-context/ast.mjs`, through `@oh-my-pi/pi-natives` 18.9.1 `astGrep`. That is a new direct dependency, already in the tree through `@oh-my-pi/pi-ai`. It loads on the first call. Paths go through core's exported `confinedPath`. Output is at most 80 lines / 8 KiB, with `skip` paging. The tool is deferred under `lazy` and excluded from checkpoint capture (`NO_CAPTURE`). Plan mode's fixed `read,grep,find,ls` loadout does not include it.
+
+**Other.**
+- **Superseded reads** (`mask`; omp `packages/agent/src/compaction/pruning.ts#collectSupersededResults`, `tools/read-supersede.ts#isCompleteReadResult`). A complete newer read of the same path elides an older read of the same or narrower range, even without a recovery log. Apex's age and batch-threshold gates still apply. A dedup pointer never supersedes, and it pins its original.
+- **Browser `console`** (`browser`; omp `tools/browser/console-capture.ts`) reads new console warnings and errors, page errors and failed requests since the last read. Buffer: 200 entries per page. Each read returns at most 50 entries / 8 KiB. `level: "all"` adds log, info and debug.
+- **Parallel `explore`** (`subagents`; omp `task/parallel.ts#mapWithConcurrencyLimitAllSettled`) takes `tasks` (1–4) in fresh contexts:
+  - Results are all-settled.
+  - Each task's section is capped at 4 KiB and the total at 16 KiB.
+  - Usage is summed over started tasks.
+  - The result is an error only when every task fails.
+
+  The offline-only policy still blocks it before any session starts.
+- **`diagnostics` covers `apply_patch`** (omp `edit/index.ts#createEditWritethrough`). The target comes from the patch headers and is confined like an edit target.
+
+**Skipped:**
+- **LSP client:** it needs long-lived language-server processes, and there is no Job Object for reliable process-tree cleanup on Windows. `diagnostics` already covers post-edit checking.
+- **`ast_edit`:** multi-file rewrites would bypass the per-file pre-check and the mutation queue.
+- **Model fallback chains and credential rotation:** they conflict with the exact-model policy.
+- **Auto-thinking:** it needs an extra model call per prompt.
+- **Cache-aware pruning, snapcompact and the compaction chain:** Apex has no provider-cache model, and snapcompact renders images.
+- **Tiered pricing:** Pi 1.4.0 `ModelCost` has no tier data.
+- **omp's shell and path layer:** it would need Pi core patches.
+- **User allow/deny patterns:** there is no settings surface for them.
+- **omp's conversation-only `checkpoint`/`rewind`:** shadow-Git checkpoints and `/undo` restore files, and that rewind does not.
+
+Apex's checkpoints, `confinedPath`, the edit pre-check and `accounting.mjs` are unchanged.
+

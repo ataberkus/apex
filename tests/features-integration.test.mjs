@@ -130,6 +130,15 @@ test('native extension-local flag scoping still shares eval/safety ownership',as
   await h.emit('session_shutdown');
  }finally{previous?Object.defineProperty(process.stdout,'isTTY',previous):delete process.stdout.isTTY;}
 });
+test('eval runs never prompt for catastrophic commands: core and safety both block them',async()=>{
+ for(const flags of ['','safety']){
+  const h=fixture(flags,true);h.values['apex-core-flags']='correct';h.ctx.mode='rpc';h.ctx.hasUI=true;h.ctx.ui.confirm=async()=>assert.fail('eval prompted');h.ctx.ui.select=async()=>assert.fail('eval prompted');
+  createApexCore()(h.pi);createApexFeatures()(h.pi);await h.emit('session_start');
+  assert.deepEqual(await h.emit('tool_call',{toolName:'bash',input:{command:'rm -rf /'},toolCallId:'danger'}),{block:true,reason:'Catastrophic command blocked: no interactive approval available'});
+  assert.equal(await h.emit('tool_call',{toolName:'bash',input:{command:'npm test'},toolCallId:'safe'}),undefined);
+  await h.emit('session_shutdown');
+ }
+});
 
 test('scoped native flags preserve Phase 1 edits when core corrections are enabled',async()=>{
  const {default:contextFactory}=await import('../extensions/apex-context/index.mjs');

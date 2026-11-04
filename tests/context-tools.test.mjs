@@ -29,11 +29,12 @@ test('feature selection is inert and conventional tools stay directly active wit
   assert.equal(typeof createEfficientTools, 'function');
   assert.deepEqual(createEfficientTools({cwd, features: new Set()}), []);
   const enabled = createEfficientTools({cwd, features: new Set(['read', 'search', 'edit', 'patch', 'lazy'])});
-  assert.deepEqual(enabled.map(item => item.name), ['read', 'grep', 'find', 'ls', 'edit', 'apply_patch']);
-  for (const item of enabled.filter(item => item.name !== 'apply_patch')) {
+  assert.deepEqual(enabled.map(item => item.name), ['read', 'grep', 'find', 'ls', 'ast_grep', 'edit', 'apply_patch']);
+  for (const item of enabled.filter(item => !['ast_grep', 'apply_patch'].includes(item.name))) {
     assert.equal(item.exposure ?? 'direct', 'direct');
     assert.notEqual(item.defaultActive, false);
   }
+  assert.equal(enabled.find(item => item.name === 'ast_grep').exposure, 'deferred');
   assert.equal(enabled.at(-1).exposure, 'deferred');
 });
 
@@ -194,12 +195,12 @@ test('native edit whitespace matching, ambiguity and overlap fail atomically wit
   assert.equal(await readFile(file, 'utf8'), 'keep  \nvalue = "new"\nrepeat\nrepeat\n');
   const before = await readFile(file);
   await assert.rejects(edit.execute('e2', {path: 'file.txt', edits: [{old_string: 'keep', new_string: 'oops'},
-    {old_string: 'repeat', new_string: 'no'}]}, undefined, undefined, {cwd}), error => /occurrences/.test(error.message) && /Closest candidates/.test(error.message) && error.message.length < 5000);
+    {old_string: 'repeat', new_string: 'no'}]}, undefined, undefined, {cwd}), error => /occurrences/.test(error.message) && /edits\[1\]: occurs at lines 3, 4/.test(error.message) && error.message.length < 5000);
   assert.deepEqual(await readFile(file), before);
   await assert.rejects(edit.execute('e3', {path: 'file.txt', edits: [{old_string: 'value', new_string: 'oops'},
     {old_string: 'value = "new"', new_string: 'no'}]}, undefined, undefined, {cwd}), /overlap/);
   assert.deepEqual(await readFile(file), before);
-  await assert.rejects(edit.execute('e4', {path: 'file.txt', old_string: 'valu = "new"', new_string: 'x'}, undefined, undefined, {cwd}), /Closest candidates/);
+  await assert.rejects(edit.execute('e4', {path: 'file.txt', old_string: 'valu = "new"', new_string: 'x'}, undefined, undefined, {cwd}), /Closest match \(\d+% similar\) at line 2:\n  - valu = "new"\n  \+ value = "new"/);
 });
 
 test('wrapper and native sibling edits serialize against realpath aliases', async t => {
@@ -222,9 +223,9 @@ test('search uses native caps with grouped grep and unknown overflow totals', as
   const grep = await tool(cwd, 'search', 'grep');
   const result = await grep.execute('g', {pattern: 'needle', limit: 2}, undefined, undefined, {cwd});
   assert.equal(result.details.matchLimitReached, 2);
-  assert.equal(result.details.apexSearch.total, null);
+  assert.equal(result.details.apexSearch.total, 4);
   assert.equal(result.details.apexSearch.returned, 2);
-  assert.match(text(result), /total unknown/i);
+  assert.match(text(result), /\[2 more matches in alpha\.txt not shown\]/);
   assert.match(text(result), /alpha\.txt:/);
   const complete = await grep.execute('g2', {pattern: 'needle', limit: 20}, undefined, undefined, {cwd});
   assert.equal(complete.details.apexSearch.total, 4);
@@ -276,4 +277,109 @@ test('edit argument preparation supports native legacy/object/string inputs with
   }
   assert.deepEqual(edit.prepareArguments({path: 'file.txt', oldText: 'a', newText: 'b'}),
     {path: 'file.txt', edits: [{old_string: 'a', new_string: 'b'}]});
+});
+
+const numbered = count => Array.from({length: count}, (_, i) => `line ${i + 1}`).join('\n') + '\n';
+async function session(cwd, features = ['read', 'edit']) {
+  const {createEfficientTools} = await load();
+  const tools = createEfficientTools({cwd, features: new Set(features)});
+  return {read: tools.find(item => item.name === 'read'), edit: tools.find(item => item.name === 'edit')};
+}
+const lineEdit = (n, replacement = `LINE ${n}`) => ({path: 'big.txt', old_string: `line ${n}\n`, new_string: `${replacement}\n`});
+
+test('seen-line guard refuses an edit on lines never read for this version, revealing them once', async t => {
+  const cwd = await fixture(t), file = path.join(cwd, 'big.txt');
+  await writeFile(file, numbered(200));
+  const {read, edit} = await session(cwd);
+  await read.execute('r1', {path: 'big.txt', offset: 1, limit: 80}, undefined, undefined, {cwd});
+  await assert.rejects(edit.execute('e1', lineEdit(150), undefined, undefined, {cwd}), error =>
+    /never shown in full for this version of big\.txt: 150\. Shown now:\n150: line 150\nRetry the edit if it still applies\.$/.test(error.message));
+  assert.equal(await readFile(file, 'utf8'), numbered(200));
+  await edit.execute('e2', lineEdit(150), undefined, undefined, {cwd});
+  assert.match(await readFile(file, 'utf8'), /\nLINE 150\n/);
+  // The written version carries no snapshot, so an edit elsewhere is unrestricted.
+  await edit.execute('e3', lineEdit(190), undefined, undefined, {cwd});
+  assert.match(await readFile(file, 'utf8'), /\nLINE 190\n/);
+});
+
+test('seen-line guard allows edits within read lines and without a snapshot of the live version', async t => {
+  const cwd = await fixture(t), file = path.join(cwd, 'big.txt');
+  await writeFile(file, numbered(200));
+  const {read, edit} = await session(cwd);
+  await read.execute('r1', {path: 'big.txt', offset: 1, limit: 80}, undefined, undefined, {cwd});
+  await edit.execute('e1', lineEdit(40), undefined, undefined, {cwd});
+  assert.match(await readFile(file, 'utf8'), /\nLINE 40\n/);
+  await read.execute('r2', {path: 'big.txt', offset: 1, limit: 80}, undefined, undefined, {cwd});
+  await writeFile(file, (await readFile(file, 'utf8')).replace('line 200\n', 'other writer\n'));
+  await edit.execute('e2', lineEdit(150), undefined, undefined, {cwd});
+  assert.match(await readFile(file, 'utf8'), /\nLINE 150\n/);
+  for (const features of [['edit'], ['read', 'edit']]) {
+    await writeFile(file, numbered(200));
+    const fresh = await session(cwd, features);
+    await fresh.edit.execute('e3', lineEdit(150), undefined, undefined, {cwd});
+    assert.match(await readFile(file, 'utf8'), /\nLINE 150\n/);
+  }
+});
+
+test('seen-line guard uses a native dry run for fuzzy matches and refuses wide reveals without recording', async t => {
+  const cwd = await fixture(t), file = path.join(cwd, 'big.txt');
+  await writeFile(file, numbered(200).replace('line 150\n', 'line 150   \n'));
+  const {read, edit} = await session(cwd);
+  await read.execute('r1', {path: 'big.txt', limit: 80}, undefined, undefined, {cwd});
+  await assert.rejects(edit.execute('e1', lineEdit(150), undefined, undefined, {cwd}), /version of big\.txt: 150\. Shown now:\n150: line 150   \n/);
+  await edit.execute('e2', lineEdit(150), undefined, undefined, {cwd});
+  assert.match(await readFile(file, 'utf8'), /\nLINE 150\n/);
+  await read.execute('r2', {path: 'big.txt', limit: 80}, undefined, undefined, {cwd});
+  const span = Array.from({length: 51}, (_, i) => `line ${100 + i}`).join('\n').replace('line 150', 'LINE 150');
+  const wide = {path: 'big.txt', old_string: span, new_string: 'merged'};
+  for (const id of ['e3', 'e4']) {
+    await assert.rejects(edit.execute(id, wide, undefined, undefined, {cwd}), /big\.txt: 100-150\. Read them with offset\/limit, then retry\.$/);
+  }
+  await assert.rejects(edit.execute('bad', {path: 'big.txt', old_string: 'absent line', new_string: 'x'}, undefined, undefined, {cwd}), /Could not find/);
+});
+
+test('closest match reports similarity, line and differing line within a bounded scan of a large file', async t => {
+  const cwd = await fixture(t), file = path.join(cwd, 'big.txt');
+  await writeFile(file, Array.from({length: 30000}, (_, i) => `function item${i + 1}() { return ${i + 1}; }`).join('\n'));
+  const edit = await tool(cwd, 'edit');
+  const started = Date.now();
+  await assert.rejects(edit.execute('e', {path: 'big.txt', old_string: 'function item15000() { return 15000 }', new_string: 'x'}, undefined, undefined, {cwd}), error =>
+    /Closest match \(97% similar\) at line 15000:\n  - function item15000\(\) \{ return 15000 \}\n  \+ function item15000\(\) \{ return 15000; \}/.test(error.message) &&
+    error.message.length < 2000);
+  assert.ok(Date.now() - started < 10000);
+  await writeFile(file, '@@@\n');
+  await assert.rejects(edit.execute('e2', {path: 'big.txt', old_string: 'zzz', new_string: 'x'}, undefined, undefined, {cwd}), /Closest match: none found in bounded scan/);
+});
+
+test('grep pages files, caps hot files and pages with skip', async t => {
+  const cwd = await fixture(t);
+  await writeFile(path.join(cwd, 'hot.txt'), 'needle\n'.repeat(100));
+  for (let i = 0; i < 25; i++) await writeFile(path.join(cwd, `f${String(i).padStart(2, '0')}.txt`), 'needle\n');
+  const grep = await tool(cwd, 'search', 'grep');
+  assert.ok(grep.parameters.properties.skip);
+  const first = await grep.execute('g1', {pattern: 'needle'}, undefined, undefined, {cwd});
+  assert.match(text(first), /^f00\.txt:\n  1: needle\n/);
+  assert.doesNotMatch(text(first), /hot\.txt/);
+  assert.match(text(first), /\[Files 1-20 of 26 matched; next page skip=20\]/);
+  assert.deepEqual({...first.details.apexSearch}, {returned: 20, returnedCountKnown: true, total: 125, totalKnown: true, grouped: true,
+    skip: 0, files: 26, filesShown: 20, perFileCap: 20});
+  const second = await grep.execute('g2', {pattern: 'needle', skip: 20}, undefined, undefined, {cwd});
+  const hot = /hot\.txt:\n((?:  \d+: needle\n?)*)/.exec(text(second));
+  assert.equal(hot[1].trim().split('\n').length, 20);
+  assert.match(text(second), /\[80 more matches in hot\.txt not shown\]/);
+  assert.equal(second.details.apexSearch.filesShown, 6);
+  assert.doesNotMatch(text(second), /next page/);
+  assert.match(text(await grep.execute('g3', {pattern: 'needle', skip: 30}, undefined, undefined, {cwd})), /No more results \(26 files matched; skip=30/);
+  await writeFile(path.join(cwd, 'solo.txt'), 'needle\n'.repeat(300));
+  const single = await grep.execute('g4', {pattern: 'needle', path: 'solo.txt', limit: 250}, undefined, undefined, {cwd});
+  assert.equal(single.details.apexSearch.returned, 200);
+  assert.equal(single.details.apexSearch.perFileCap, 200);
+  assert.match(text(single), /\[100 more matches in solo\.txt not shown\]/);
+  assert.equal((await grep.execute('g5', {pattern: 'needle', path: 'solo.txt'}, undefined, undefined, {cwd})).details.apexSearch.returned, 80);
+  await assert.rejects(grep.execute('bad', {pattern: 'needle', skip: 1, context: 2}, undefined, undefined, {cwd}), /skip pages grep files/);
+  await assert.rejects(grep.execute('bad', {pattern: 'needle', skip: -1}, undefined, undefined, {cwd}), /skip must be a non-negative integer/);
+  const ls = await tool(cwd, 'search', 'ls');
+  await assert.rejects(ls.execute('bad', {skip: 1}, undefined, undefined, {cwd}), /skip pages grep files/);
+  const context = await grep.execute('g6', {pattern: 'needle', path: 'f00.txt', context: 1}, undefined, undefined, {cwd});
+  assert.equal(context.details.apexSearch.grouped, false);
 });

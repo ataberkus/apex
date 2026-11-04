@@ -4,7 +4,7 @@ import {parseAutocompactTokens,parseFeatureFlags,runtimePolicy} from './config.m
 
 // codemode is a container: every tool its script calls fires tool_call itself, so mutating nested calls capture before they run.
 // todo/contract change only session state; explore/verify run fresh-context sessions or isolated copies outside the working tree.
-const NO_CAPTURE=new Set(['read','grep','find','ls','tool_search','codemode','todo','contract','explore','verify']);
+const NO_CAPTURE=new Set(['read','grep','find','ls','ast_grep','tool_search','codemode','todo','contract','explore','verify']);
 const SKILLS=['debugging','test-writing','profiling','build-systems','python-packaging','numerics','http','databases','git-surgery','security-hardening'];
 const STATE='apex-features-state';
 const reason=error=>String(error?.message??error).slice(0,1000);

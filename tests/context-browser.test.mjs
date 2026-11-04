@@ -16,6 +16,9 @@ function fakeBrowser({snapshot} = {}) {
     keyboard: {async press(key) { calls.push(['press', key]); }},
     async screenshot(options) { calls.push(['screenshot', options.type]); return Buffer.from('PNGDATA'); },
     async goBack() { calls.push(['back']); page.address = 'https://example.test/previous'; return {}; },
+    listeners: {},
+    on(event, handler) { (page.listeners[event] ??= []).push(handler); },
+    emit(event, value) { for (const handler of page.listeners[event] ?? []) handler(value); },
   };
   const browser = {closed: 0, async newPage() { return page; }, async close() { browser.closed++; }, on() {}};
   return {browser, page, calls};
@@ -132,6 +135,85 @@ test('Edge is used when Chrome is absent, and close during launch still closes i
   assert.equal(await closing, true);
   await navigating;
   assert.equal(fake.browser.closed, 1);
+});
+
+const consoleMessage = (type, text, url) => ({type: () => type, text: () => text, location: () => (url ? {url, lineNumber: 4, columnNumber: 2} : {url: ''})});
+const lines = result => result.structuredContent.text.split('\n').slice(1);
+
+test('console returns new warnings, errors, page errors and failed requests since the last read', async () => {
+  const {launch, fake} = launcher();
+  const tool = createBrowserTool({launch});
+  await assert.rejects(tool.execute('0', {action: 'console'}), /navigate first/);
+  fake.page.goto = async url => {
+    fake.page.address = url;
+    fake.page.emit('console', consoleMessage('log', 'booted'));
+    fake.page.emit('console', consoleMessage('warning', 'deprecated\nAPI'));
+    fake.page.emit('console', consoleMessage('error', 'boom', 'https://example.test/app.js'));
+    const error = new Error('Uncaught x');
+    error.stack = 'Error: Uncaught x\n    at run (https://example.test/app.js:9:7)';
+    fake.page.emit('pageerror', error);
+    fake.page.emit('requestfailed', {method: () => 'GET', url: () => 'https://example.test/missing.js', failure: () => ({errorText: 'net::ERR_FAILED'})});
+    return {status: () => 200};
+  };
+  await tool.execute('1', {action: 'navigate', url: 'https://example.test/'});
+  const first = await tool.execute('2', {action: 'console'});
+  assert.deepEqual(lines(first), ['2 warn deprecated API', '3 error boom https://example.test/app.js:5:3',
+    '4 pageerror Uncaught x https://example.test/app.js:9:7', '5 requestfailed GET https://example.test/missing.js: net::ERR_FAILED']);
+  assert.deepEqual({level: first.structuredContent.level, entries: first.structuredContent.entries, dropped: first.structuredContent.dropped, truncated: first.structuredContent.truncated},
+    {level: 'default', entries: 4, dropped: 0, truncated: false});
+  assert.deepEqual(lines(await tool.execute('3', {action: 'console'})), ['(no new entries)']);
+
+  fake.page.emit('console', consoleMessage('info', 'ready'));
+  fake.page.emit('console', consoleMessage('assert', 'Assertion failed'));
+  assert.deepEqual(lines(await tool.execute('4', {action: 'console', level: 'all'})), ['6 info ready', '7 assert Assertion failed']);
+  fake.page.emit('console', consoleMessage('debug', 'quiet'));
+  assert.deepEqual(lines(await tool.execute('5', {action: 'console', level: 'default'})), ['(no new entries)']);
+  assert.deepEqual(lines(await tool.execute('6', {action: 'console', level: 'all'})), ['(no new entries)'], 'the cursor passed filtered entries');
+
+  await tool.close();
+  await assert.rejects(tool.execute('7', {action: 'console'}), /navigate first/);
+  fake.page.goto = async url => { fake.page.address = url; return {status: () => 200}; };
+  await tool.execute('8', {action: 'navigate', url: 'https://example.test/'});
+  fake.page.emit('console', consoleMessage('error', 'after reopen'));
+  assert.deepEqual(lines(await tool.execute('9', {action: 'console'})), ['1 error after reopen'], 'closing resets buffer and cursor');
+  await tool.close();
+});
+
+test('console bounds the ring buffer, entry text, and each read', async () => {
+  const {launch, fake} = launcher();
+  const tool = createBrowserTool({launch});
+  await tool.execute('1', {action: 'navigate', url: 'https://example.test/'});
+  for (let index = 1; index <= 250; index++) fake.page.emit('console', consoleMessage('error', `e${index}`));
+  const first = await tool.execute('2', {action: 'console'});
+  assert.deepEqual([first.structuredContent.entries, first.structuredContent.remaining, first.structuredContent.dropped, first.structuredContent.truncated], [50, 150, 50, true]);
+  assert.equal(lines(first)[0], '51 error e51');
+  assert.deepEqual(lines(first).slice(-2), ['[150 more entries; call console again]', '[50 unread entries dropped; buffer keeps 200]']);
+  const second = await tool.execute('3', {action: 'console'});
+  assert.deepEqual([lines(second)[0], second.structuredContent.remaining, second.structuredContent.dropped], ['101 error e101', 100, 0]);
+  await tool.execute('4', {action: 'console'});
+  assert.equal((await tool.execute('5', {action: 'console'})).structuredContent.remaining, 0);
+
+  for (let index = 0; index < 10; index++) fake.page.emit('console', consoleMessage('error', `${'é'.repeat(3000)}\nsecond line`, `https://example.test/${'p'.repeat(1000)}`));
+  const wide = await tool.execute('6', {action: 'console'});
+  assert.deepEqual([wide.structuredContent.entries, wide.structuredContent.remaining], [1, 9]);
+  const [, , text, location] = lines(wide)[0].split(' ');
+  assert.equal(text.length, 2000);
+  assert.ok(text.endsWith('…'));
+  assert.equal(location.length, 500);
+  while ((await tool.execute('drain', {action: 'console'})).structuredContent.remaining) { /* one wide entry per read */ }
+  for (let index = 0; index < 10; index++) fake.page.emit('console', consoleMessage('error', 'é'.repeat(3000)));
+  const capped = await tool.execute('7', {action: 'console'});
+  assert.equal(capped.structuredContent.entries, 2, 'two clipped entries fit the 8 KiB read cap');
+  assert.ok(Buffer.byteLength(lines(capped).slice(0, 2).join('\n')) <= 8192);
+  await tool.close();
+});
+
+test('console rejects an invalid level before any launch', async () => {
+  const {launch, launches} = launcher();
+  const tool = createBrowserTool({launch});
+  await assert.rejects(tool.execute('1', {action: 'console', level: 'verbose'}), /level must be default or all/);
+  await assert.rejects(tool.execute('2', {action: 'console', level: 3}), /level must be default or all/);
+  assert.equal(launches.length, 0);
 });
 
 // The extension imports playwright-core only on the first browser call; this fake stands in for it.

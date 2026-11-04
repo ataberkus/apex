@@ -6,6 +6,7 @@
       "name": "@apex-agent/pi",
       "dependencies": {
         "@oh-my-pi/pi-ai": "18.9.1",
+        "@oh-my-pi/pi-natives": "18.9.1",
         "marked": "18.0.11",
         "playwright-core": "1.64.1",
       },

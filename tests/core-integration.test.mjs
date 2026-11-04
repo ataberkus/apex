@@ -90,6 +90,27 @@ test('core correction preserves the selected Phase 1 edit shape through the nati
     assert.deepEqual(h.api.getActiveTools(),['read','write','edit','bash']);
   }finally{await rm(cwd,{recursive:true,force:true});}
 });
+test('core correction asks RPC clients with a bounded confirm and blocks catastrophic commands without one',async t=>{
+  assert.ok(extension,'Phase 2 coordinator missing');
+  const bash=command=>({type:'tool_call',toolName:'bash',toolCallId:'danger',input:{command}});
+  const rpc=harness('correct',{mode:'rpc'});const asked=[];let answer=async()=>false;
+  rpc.ctx.hasUI=true;rpc.ctx.ui={confirm:(...args)=>{asked.push(args);return answer(...args);}};
+  extension.default(rpc.api);await rpc.hooks.get('session_start')({},rpc.ctx);
+  assert.deepEqual(await rpc.hooks.get('tool_call')(bash('rm -rf /'),rpc.ctx),{block:true,reason:'Catastrophic command was not confirmed'});
+  assert.equal(asked[0][0],'Confirm catastrophic command');assert.equal(asked[0][1],'rm -rf /');assert.equal(asked[0][2].timeout,15000);assert.equal(asked[0][2].signal.aborted,true);
+  answer=async()=>true;assert.equal(await rpc.hooks.get('tool_call')(bash('rm -rf /'),rpc.ctx),undefined);
+  assert.equal(await rpc.hooks.get('tool_call')(bash('npm test'),rpc.ctx),undefined);assert.equal(asked.length,2);
+  t.mock.timers.enable({apis:['setTimeout']});let late;answer=()=>new Promise(resolve=>{late=resolve;});
+  const pending=rpc.hooks.get('tool_call')(bash('rm -rf /'),rpc.ctx);for(let i=0;i<10&&asked.length<3;i++)await Promise.resolve();
+  assert.equal(asked.length,3);t.mock.timers.tick(15000);
+  assert.deepEqual(await pending,{block:true,reason:'Catastrophic command was not confirmed'});late(true);t.mock.timers.reset();
+  for(const ui of [undefined,{confirm:async()=>assert.fail('print mode never asks')}]){
+    const print=harness('correct');print.ctx.hasUI=ui!==undefined;print.ctx.ui=ui;
+    extension.default(print.api);await print.hooks.get('session_start')({},print.ctx);
+    assert.deepEqual(await print.hooks.get('tool_call')(bash('rm -rf /'),print.ctx),{block:true,reason:'Catastrophic command blocked: no interactive approval available'});
+    assert.equal(await print.hooks.get('tool_call')(bash('npm test'),print.ctx),undefined);
+  }
+});
 test('reload retains elapsed time and does not repeat earlier time thresholds',async()=>{
   assert.ok(extension,'Phase 2 coordinator missing');
   let ms=0;

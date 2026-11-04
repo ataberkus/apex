@@ -195,3 +195,71 @@ for (const [description, metadata] of nestedParentFixtures) {
     assert.match(manager.buildSessionProjection().entries.find(entry => entry.sourceEntry.id === parent).messages[0].content[0].text, /failure evidence/);
   });
 }
+
+const noLog = { details: undefined };
+function readObserve(manager, id, args, overrides = {}) { return observe(manager, id, 'read', args, { ...noLog, ...overrides }); }
+function filler(manager, id) { return observe(manager, id, 'bash', undefined, noLog); }
+
+test('superseded reads elide without a recovery log once old enough and over threshold', () => {
+  const manager = SessionManager.inMemory(process.cwd());
+  const old = readObserve(manager, 'read-old', { path: 'superseded.js', limit: 40 });
+  const latest = readObserve(manager, 'read-new', { path: './superseded.js', limit: 40 });
+  filler(manager, 'filler-a');
+  filler(manager, 'filler-b');
+  const result = planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 1 });
+  assert.deepEqual(drafts(result).map(entry => entry.targetId), [old]);
+  const stub = drafts(result)[0].replacement.content[0].text;
+  assert.equal(stub, `[elided: read "superseded.js" superseded by newer read toolCallId="read-new"; ok, 51 observed lines, ${Buffer.byteLength(`read-old: ${'fixture output\n'.repeat(50)}`)} observed bytes]`);
+  assert.ok(!drafts(result).some(entry => entry.targetId === latest));
+  assert.equal(planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 10_000 }), undefined);
+  assert.equal(planMasking(event(manager), context(manager), { keepTurns: 4, thresholdTokens: 1 }), undefined);
+});
+
+test('a newer complete read supersedes an older partial read of the same path', () => {
+  const manager = SessionManager.inMemory(process.cwd());
+  const partial = readObserve(manager, 'partial', { path: 'whole.js', offset: 20, limit: 10 });
+  readObserve(manager, 'complete', { path: 'whole.js' }, { details: { apexRead: { mode: 'text', offset: 1, limit: 80, deduplicated: false } } });
+  filler(manager, 'filler-a');
+  filler(manager, 'filler-b');
+  const result = planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 1 });
+  assert.deepEqual(drafts(result).map(entry => entry.targetId), [partial]);
+  assert.match(drafts(result)[0].replacement.content[0].text, /superseded by newer read toolCallId="complete"/);
+});
+
+test('partial, truncated, and outline newer reads do not supersede a different range', () => {
+  const manager = SessionManager.inMemory(process.cwd());
+  const older = readObserve(manager, 'older-range', { path: 'ranges.js', offset: 40, limit: 10 });
+  readObserve(manager, 'other-range', { path: 'ranges.js', offset: 1, limit: 10 }, { content: [{ type: 'text', text: `${'line\n'.repeat(10)}\n[90 more lines in file. Use offset=11 to continue.]` }] });
+  readObserve(manager, 'truncated', { path: 'ranges.js' }, { details: { truncation: { truncated: true } } });
+  readObserve(manager, 'outline', { path: 'ranges.js', mode: 'outline' });
+  readObserve(manager, 'later-range', { path: 'ranges.js', offset: 60 });
+  filler(manager, 'filler-a');
+  filler(manager, 'filler-b');
+  const result = planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 1 });
+  assert.ok(!drafts(result).some(entry => entry.targetId === older));
+});
+
+test('a dedup pointer never supersedes and pins its original against elision', () => {
+  const manager = SessionManager.inMemory(process.cwd());
+  const control = readObserve(manager, 'control', { path: 'dedup.js' });
+  const original = readObserve(manager, 'original', { path: 'dedup.js' });
+  readObserve(manager, 'pointer', { path: 'dedup.js' }, { content: [{ type: 'text', text: `[Unchanged text range offset=1 limit=80; see unmasked read toolCallId="original" in active context.]${' '.repeat(800)}` }],
+    details: { apexRead: { mode: 'text', offset: 1, limit: 80, deduplicated: true, originalToolCallId: 'original' } } });
+  const fresh = readObserve(manager, 'fresh', { path: 'dedup.js' });
+  filler(manager, 'filler-a');
+  filler(manager, 'filler-b');
+  const result = planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 1 });
+  assert.deepEqual(drafts(result).map(entry => entry.targetId), [control]);
+  assert.match(drafts(result)[0].replacement.content[0].text, /toolCallId="fresh"/);
+  assert.ok(!drafts(result).some(entry => entry.targetId === original || entry.targetId === fresh));
+});
+
+test('a dedup pointer alone leaves the older original read visible', () => {
+  const manager = SessionManager.inMemory(process.cwd());
+  readObserve(manager, 'only-original', { path: 'pointer-only.js' });
+  readObserve(manager, 'only-pointer', { path: 'pointer-only.js' }, { content: [{ type: 'text', text: `[Unchanged; see "only-original"]${' '.repeat(800)}` }],
+    details: { apexRead: { mode: 'text', deduplicated: true } } });
+  filler(manager, 'filler-a');
+  filler(manager, 'filler-b');
+  assert.equal(planMasking(event(manager), context(manager), { keepTurns: 1, thresholdTokens: 1 }), undefined);
+});

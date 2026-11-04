@@ -238,3 +238,44 @@ test('max exception serialization preserves missing callback accounting and know
  await assert.rejects(runMaxAttempts({...base,createIsolation:async()=>({cwd:'/exception-max',cleanup:async()=>{throw Error('cleanup');}}),verifyAttempt:async()=>({passed:true,usage:usage()})}),error=>error.usageComplete===true&&error.usage.totalTokens===12);
  await assert.rejects(runMaxAttempts({policy:runtimePolicy(),get cwd(){assert.fail('offline cwd read');}}),error=>error.usageComplete===false&&error.usage===undefined);
 });
+
+test('explore tasks run concurrently in fresh contexts, settle independently and sum usage',async()=>{
+ const {createSubagentTools}=await exports();let active=0;let peak=0;let release;const gate=new Promise(resolve=>{release=resolve;});const requests=[];
+ const explore=createSubagentTools({policy:paid,runSession:async request=>{requests.push(request);active++;peak=Math.max(peak,active);if(active===3)release();await Promise.race([gate,new Promise(resolve=>setTimeout(resolve,2000))]);active--;
+  if(request.task==='fails'){const error=Error('boom');error.usage=usage(1,1);throw error;}return {text:`found ${request.task}`,usage:usage()};}})[0];
+ const result=await explore.execute('batch',{tasks:['alpha','fails','gamma']},undefined,undefined,{cwd:process.cwd()});
+ assert.equal(peak,3);assert.equal(requests.length,3);
+ assert.equal(new Set(requests.map(request=>request.history)).size,3);assert.ok(requests.every(request=>request.history.length===0&&request.depth===1));
+ assert.equal(result.isError,undefined);assert.equal(result.details.status,'complete');
+ assert.equal(text(result),'## Task 1: complete\nfound alpha\n\n## Task 2: error\nboom\n\n## Task 3: complete\nfound gamma');
+ assert.deepEqual(result.details.tasks.map(task=>task.status),['complete','error','complete']);
+ assert.equal(result.details.usage.totalTokens,15);assert.equal(result.usage.totalTokens,15);assert.equal(result.details.apexAux.complete,false);
+ const all=await createSubagentTools({policy:paid,runSession:async()=>({text:'x'.repeat(10000),usage:usage()})})[0].execute('all',{tasks:['a','b','c','d']},undefined,undefined,{cwd:process.cwd()});
+ assert.equal(all.details.apexAux.complete,true);assert.equal(all.details.truncated,true);assert.ok(Buffer.byteLength(text(all))<=16384);assert.equal(all.details.usage.totalTokens,24);
+});
+
+test('explore batch reports an error only when every task fails',async()=>{
+ const {createSubagentTools}=await exports();
+ const result=await createSubagentTools({policy:paid,runSession:async request=>{throw Error(`failed ${request.task}`);}})[0].execute('fail',{tasks:['a','b']},undefined,undefined,{cwd:process.cwd()});
+ assert.equal(result.isError,true);assert.equal(result.details.status,'error');assert.equal(text(result),'## Task 1: error\nfailed a\n\n## Task 2: error\nfailed b');assert.equal(result.details.apexAux.attempted,true);
+});
+
+test('aborting an explore batch stops new launches while launched tasks settle',async()=>{
+ const {createSubagentTools}=await exports();const controller=new AbortController();let calls=0;
+ const explore=createSubagentTools({policy:paid,runSession:async()=>{calls++;controller.abort();return {text:'late',usage:usage()};}})[0];
+ const result=await explore.execute('abort',{tasks:['a','b','c']},controller.signal,undefined,{cwd:process.cwd()});
+ assert.equal(calls,1);assert.equal(result.isError,true);assert.equal(result.details.status,'aborted');
+ assert.deepEqual(result.details.tasks.map(task=>task.status),['aborted','aborted','aborted']);assert.equal(result.details.usage.totalTokens,6);
+ assert.match(text(result),/## Task 2: aborted\nNot started/);
+});
+
+test('explore requires exactly one of task or tasks and offline policy blocks batches first',async()=>{
+ const {createSubagentTools}=await exports();let calls=0;const explore=createSubagentTools({policy:paid,runSession:async()=>{calls++;return {text:'x',usage:usage()};}})[0];
+ for(const [params,pattern] of [[{task:'a',tasks:['b']},/exactly one of task or tasks/],[{tasks:[]},/one to 4 tasks/],[{tasks:['a','b','c','d','e']},/one to 4 tasks/],[{tasks:['a','  ']},/nonempty string/],[{tasks:'a'},/one to 4 tasks/],[{},/nonempty string/]]){
+  const result=await explore.execute('bad',params,undefined,undefined,{cwd:process.cwd()});assert.equal(result.isError,true);assert.equal(result.details.status,'error');assert.match(text(result),pattern);
+ }
+ assert.equal(calls,0);
+ const offline=createSubagentTools({policy:runtimePolicy(),runSession:()=>{calls++;}})[0];
+ const blocked=await offline.execute('offline',{tasks:['a','b']},undefined,undefined,{get cwd(){throw Error('cwd accessed before denial');}});
+ assert.equal(blocked.details.status,'blocked');assert.equal(blocked.isError,true);assert.equal(calls,0);assert.equal(blocked.usage,undefined);
+});

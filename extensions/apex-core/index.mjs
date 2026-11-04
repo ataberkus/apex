@@ -1,4 +1,4 @@
-import {featureSafetyManaged} from '../apex-features/lifecycle.mjs';
+import {featureEvalMode,featureSafetyPrompts} from '../apex-features/lifecycle.mjs';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {parseCoreFlags,parseTimeBudget,parseAttempts,runtimePolicy} from './config.mjs';
@@ -18,6 +18,17 @@ const snapshotVisible=(ctx,hash,text)=>{
     x.sourceEntry.customType==='apex-initial-context'&&typeof x.sourceEntry.details?.environmentHash==='string'&&
     x.sourceEntry.details.environmentRepeated!==true&&x.messages?.length>0);
   return latest?.sourceEntry.details.environmentHash===hash&&latest.messages.some(message=>contentText(message.content).includes(text));
+};
+const CONFIRM_TIMEOUT=15000;
+// An RPC client (the dashboard) may never answer: deny on timeout, abort or a UI failure, and ignore a late answer.
+const timedConfirm=async(ctx,message)=>{
+  if(ctx.signal?.aborted)return false;
+  const controller=new AbortController();let cancel,timer;
+  const canceled=new Promise(resolve=>{cancel=()=>{controller.abort();resolve(false);};timer=setTimeout(cancel,CONFIRM_TIMEOUT);});
+  ctx.signal?.addEventListener('abort',cancel,{once:true});
+  try{return await Promise.race([Promise.resolve().then(()=>ctx.ui.confirm('Confirm catastrophic command',message,{signal:controller.signal,timeout:CONFIRM_TIMEOUT})),canceled])===true&&!controller.signal.aborted;}
+  catch{return false;}
+  finally{clearTimeout(timer);ctx.signal?.removeEventListener('abort',cancel);controller.abort();}
 };
 
 /** Factories register hooks only. Allocation/probes/tool registration start with session_start. */
@@ -146,8 +157,11 @@ export function createApexCore({now=()=>performance.now(),policy=runtimePolicy()
     pi.on('tool_call',async(event,ctx)=>{
       if(!features.size)return;
       if(features.has('correct')){
-        const denied=await control.correctToolCall(event,ctx,{headless:headless||featureSafetyManaged(ctx),confirm:ctx.mode==='tui'&&ctx.hasUI?
-          command=>ctx.ui.confirm('Confirm catastrophic command',command):undefined});
+        const confirms=ctx.hasUI===true&&typeof ctx.ui?.confirm==='function'&&!featureEvalMode(ctx);
+        const approval=featureSafetyPrompts(ctx)?'delegate':confirms&&!headless&&ctx.mode==='tui'?
+          command=>ctx.ui.confirm('Confirm catastrophic command',String(command).slice(0,2000)):
+          confirms&&ctx.mode==='rpc'?command=>timedConfirm(ctx,String(command).slice(0,2000)):undefined;
+        const denied=await control.correctToolCall(event,ctx,{approval});
         if(denied?.block)return denied;
       }
       if(processTools){const denied=processTools.applyBashTimeout(event);if(denied?.block)return denied;}

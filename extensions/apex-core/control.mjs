@@ -5,7 +5,9 @@ import {lstat, open, readlink, realpath, stat} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createEditToolDefinition} from '@earendil-works/pi-coding-agent';
+import {catastrophic} from '../../lib/catastrophic.mjs';
 import {linkFreeRealpath} from '../../lib/real-path.mjs';
+import {parseUnifiedPatch} from '../apex-context/patch.mjs';
 
 const knownTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls', 'bash', 'powershell']);
 const pathTools = new Set(['read', 'write', 'edit', 'grep', 'find', 'ls']);
@@ -14,8 +16,6 @@ const skillsRoot = fileURLToPath(new URL('../../skills/', import.meta.url));
 const owns = (object, key) => Object.hasOwn(object, key);
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hash = value => createHash('sha256').update(value).digest('hex');
-// Shared, so neither may carry the g or y flag (test/exec would then keep lastIndex between calls).
-const WINDOWS_DELETE_WORD = /\b(?:Remove-Item|del|rd)\b/i, WINDOWS_RECURSE_FLAG = /-Recurse|\/s/i;
 const EDIT_PRECHECK_MATCHED = Symbol('apex-edit-precheck-matched');
 const textOf = event => (event?.content ?? []).filter(part => part?.type === 'text').map(part => part.text).join('\n');
 const bounded = (value, bytes) => {
@@ -168,7 +168,7 @@ async function insideAsSpelled(root, absolute) {
   } catch { return false; }
 }
 
-async function confinedPath(cwd, value, {readOnly = false} = {}) {
+export async function confinedPath(cwd, value, {readOnly = false} = {}) {
   if (typeof cwd !== 'string' || !cwd) throw new Error('A working directory is required for confined paths');
   const root = path.resolve(cwd);
   const absolute = path.resolve(root, value);
@@ -205,110 +205,11 @@ function closestCandidates(bytes, edits) {
     candidates.map(item => `${item.index + 1}: ${bounded(item.line, 350)}`).join('\n') : 'none in the bounded scan; read the relevant range.');
 }
 
-function shellCommandWords(command) {
-  const commands = [];
-  let words = [];
-  let word;
-  let quote;
-  let syntax = '';
-  const flushWord = () => { if (word) words.push(word); word = undefined; };
-  const flushCommand = () => { flushWord(); if (words.length) commands.push(words); words = []; };
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index];
-    if (!quote && char === '#' && !word) {
-      while (index < command.length && command[index] !== '\n') index++;
-      flushCommand();
-      syntax += '\n';
-      continue;
-    }
-    if (!quote && /[;\n|&()]/.test(char)) { flushCommand(); syntax += char; continue; }
-    if (!quote && /\s/.test(char)) { flushWord(); syntax += char; continue; }
-    word ??= {text: '', homeExpansion: false, tildeExpansion: false};
-    if (!quote && (char === '"' || char === "'")) { quote = char; continue; }
-    if (quote && char === quote) { quote = undefined; continue; }
-    if (char === '\\' && quote !== "'" && index + 1 < command.length) {
-      const next = command[index + 1];
-      if (!quote || /[$`"\\\n]/.test(next)) {
-        if (next !== '\n') word.text += next;
-        index++;
-        syntax += ' ';
-        continue;
-      }
-    }
-    if (char === '$' && quote !== "'" && /^(?:\$HOME(?=\W|$)|\$\{HOME\})/.test(command.slice(index))) word.homeExpansion = true;
-    if (char === '~' && !quote && !word.text) word.tildeExpansion = true;
-    word.text += char;
-    if (!quote) syntax += char;
-  }
-  flushCommand();
-  return {commands, syntax};
-}
-
-function destructiveCommandWords(words) {
-  let index = 0;
-  while (/^[A-Za-z_][\w]*=/.test(words[index]?.text ?? '')) index++;
-  // Only common direct execution wrappers are recognized; this is not shell evaluation.
-  while (words[index]) {
-    const name = path.posix.basename(words[index].text);
-    if (!['sudo', 'command', 'exec', 'nohup'].includes(name)) break;
-    index++;
-    while (words[index]?.text.startsWith('-')) {
-      const option = words[index++].text;
-      if (option === '--') break;
-      if (name === 'command' && option !== '-p') return [];
-      if (name === 'sudo' && ['-u', '--user', '-g', '--group', '-h', '--host', '-p', '--prompt', '-C', '--close-from',
-        '-D', '--chdir', '-R', '--chroot', '-r', '--role', '-t', '--type'].includes(option) || name === 'exec' && option === '-a') index++;
-    }
-  }
-  return words.slice(index);
-}
-
-// Linear equivalent of /\b(?:Remove-Item|del|rd)\b[^\n;]*(?:-Recurse|\/s)[^\n;]*\s(?:[A-Z]:\\|\$HOME)\s*$/i, which
-// backtracks cubically on long single-line commands and froze the TUI. The target is pinned to the end, so the \s before
-// it has a fixed position, and the word and the flag must both lie in the [\n;]-free segment ending there.
-function windowsRecursiveRootDelete(command) {
-  const trimmed = command.trimEnd(); // trimEnd strips exactly the \s set
-  const targetLength = /[A-Z]:\\$/i.test(trimmed) ? 3 : /\$HOME$/i.test(trimmed) ? 5 : 0;
-  const space = trimmed.length - targetLength - 1; // may be '\n', as in the regex
-  if (!targetLength || space < 0 || !/\s/.test(trimmed[space])) return false;
-  const start = Math.max(trimmed.lastIndexOf('\n', space - 1), trimmed.lastIndexOf(';', space - 1)) + 1;
-  const segment = trimmed.slice(start, space);
-  // Word hits never nest, so the leftmost one also ends first and leaves the longest tail for the flag.
-  const word = WINDOWS_DELETE_WORD.exec(segment);
-  return word !== null && WINDOWS_RECURSE_FLAG.test(segment.slice(word.index + word[0].length));
-}
-
-function catastrophic(command) {
-  const {commands, syntax} = shellCommandWords(command);
-  if (/:\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}/.test(syntax)) return true;
-  for (const words of commands) {
-    const [executable, ...args] = destructiveCommandWords(words);
-    const name = path.posix.basename(executable?.text ?? '');
-    if (/^(?:mkfs(?:\.[\w]+)?|shutdown|reboot|halt|poweroff)$/.test(name)) return true;
-    if (name === 'dd' && args.some(arg => /^of=\/dev\//.test(arg.text))) return true;
-    if (name !== 'rm') continue;
-    let recursive = false;
-    let force = false;
-    let options = true;
-    let rootOrHome = false;
-    for (const arg of args) {
-      if (options && arg.text === '--') { options = false; continue; }
-      if (options && arg.text.startsWith('-')) {
-        if (arg.text === '--recursive' || /^-[A-Za-z]*[rR][A-Za-z]*$/.test(arg.text)) recursive = true;
-        if (arg.text === '--force' || /^-[A-Za-z]*f[A-Za-z]*$/.test(arg.text)) force = true;
-        continue;
-      }
-      rootOrHome ||= arg.text.startsWith('/') && path.posix.normalize(arg.text) === '/' ||
-        arg.homeExpansion && /^(?:\$HOME|\$\{HOME\})(?:\/)?$/.test(arg.text) ||
-        arg.tildeExpansion && /^~\/?$/.test(arg.text);
-    }
-    if (recursive && force && rootOrHome) return true;
-  }
-  return windowsRecursiveRootDelete(command);
-}
-
-/** Native hook contract: mutate event.input in place, or return Pi's block result. */
-export async function correctToolCall(event, ctx, {headless = true, confirm} = {}) {
+/**
+ * Native hook contract: mutate event.input in place, or return Pi's block result. `approval` decides catastrophic shell
+ * commands: 'delegate' (the safety feature asks), an async `(command, event, ctx) => boolean`, or absent (blocked).
+ */
+export async function correctToolCall(event, ctx, {approval} = {}) {
   if (!knownTools.has(event?.toolName)) return undefined;
   try {
     const args = prepareCorrectableArguments(event.toolName, event.input);
@@ -325,9 +226,9 @@ export async function correctToolCall(event, ctx, {headless = true, confirm} = {
       try { await native.execute(event.toolCallId, args, undefined, undefined, {cwd: ctx.cwd}); }
       catch (error) { if (error !== EDIT_PRECHECK_MATCHED) throw new Error(bounded(error.message, 1500) + closestCandidates(bytes, args.edits)); }
     }
-    if (!headless && ctx?.hasUI === true && ctx?.mode === 'tui' && ['bash', 'powershell'].includes(event.toolName) && catastrophic(args.command)) {
-      const ask = confirm ?? (ctx.ui?.confirm ? command => ctx.ui.confirm('Confirm catastrophic command', bounded(command, 2000)) : undefined);
-      if (!ask || await ask(args.command, event, ctx) !== true) return {block: true, reason: 'Catastrophic command was not confirmed in the TUI'};
+    if (['bash', 'powershell'].includes(event.toolName) && approval !== 'delegate' && catastrophic(args.command)) {
+      if (typeof approval !== 'function') return {block: true, reason: 'Catastrophic command blocked: no interactive approval available'};
+      if (await approval(args.command, event, ctx) !== true) return {block: true, reason: 'Catastrophic command was not confirmed'};
     }
     // Keep Pi's original reference so sibling handlers and native execute receive the patch.
     for (const key of Object.keys(event.input)) delete event.input[key];
@@ -572,11 +473,12 @@ export function createDiagnostics({cwd, runCommand = defaultRunCommand}) {
   };
   return {
     async before(event) {
-      if (!['write', 'edit'].includes(event?.toolName)) return skipped(event, 'Not a supported file mutation');
+      if (!['write', 'edit', 'apply_patch'].includes(event?.toolName)) return skipped(event, 'Not a supported file mutation');
       if (typeof event.toolCallId !== 'string' || !event.toolCallId) return skipped(event, 'A tool-call id is required');
       const epoch = generation;
       try {
-        const file = await confined(event.input?.path);
+        // apply_patch names its one existing target in the patch headers; a patch that does not parse is never applied.
+        const file = await confined(event.toolName === 'apply_patch' ? parseUnifiedPatch(event.input?.patch).path : event.input?.path);
         let existed = true;
         try {
           const info = await stat(file);
