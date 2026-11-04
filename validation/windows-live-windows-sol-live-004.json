@@ -1,0 +1,456 @@
+{
+  "schema_version": 1,
+  "kind": "windows_live_features_acceptance",
+  "run_id": "windows-sol-live-004",
+  "provider": "openai-codex",
+  "model": "gpt-6.1-sol",
+  "thinking": "xhigh",
+  "platform": "win32",
+  "passed": false,
+  "checks": {
+    "native_session_completed": false,
+    "exact_model_xhigh": true,
+    "read": false,
+    "search": false,
+    "edit": false,
+    "write": false,
+    "bash": false,
+    "patch": false,
+    "lazy": false,
+    "contract": false,
+    "todo": false,
+    "verification_gate": false,
+    "fixture_exact": false,
+    "shaping": false,
+    "exact_recovery": false,
+    "remember": false,
+    "skills": false,
+    "checkpoint": false,
+    "accounting": true,
+    "resume": true,
+    "offline_auxiliary_no_sends": false,
+    "network_policy": true,
+    "final_completed": false,
+    "extensions_no_errors": true
+  },
+  "failure": "subagent_tool_missing",
+  "physical_requests": 1,
+  "sends": [
+    {
+      "ordinal": 1,
+      "payload_bytes": 26228,
+      "payload_sha256": "c275abd8da86a4ccfc75f69ec0aec64e53bc96939430081be30ddff10c00e9e8",
+      "model": "gpt-6.1-sol",
+      "thinking": "xhigh",
+      "sent_at": "2026-10-02T10:33:42.888Z",
+      "status": 400
+    }
+  ],
+  "blocked_reasons": [],
+  "external_network_attempts": [],
+  "wall_seconds": 0.995,
+  "catalog_token_cost_usd": 0,
+  "billed_cost_usd": null,
+  "reserved_catalog_upper_bound_usd": 46.6944,
+  "server_output_token_cap": null,
+  "output_bound_source": "pinned catalog maxTokens; a catalog estimate, not an invoice guarantee",
+  "responses": [],
+  "accounting": {
+    "cost": {
+      "totals": {
+        "input": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "output": null,
+        "totalTokens": null,
+        "thinking": null,
+        "cacheWrite1h": null
+      },
+      "knownTotals": {
+        "input": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 0,
+        "totalTokens": 0,
+        "thinking": 0,
+        "cacheWrite1h": 0
+      },
+      "cost": {
+        "label": "estimate, not invoice",
+        "nativeEstimateUsd": null,
+        "knownNativeEstimateUsd": 0,
+        "pricingEstimateUsd": null,
+        "knownPricingEstimateUsd": 0
+      },
+      "completeness": {
+        "usage": false,
+        "cost": false,
+        "thinking": false,
+        "issues": [
+          "partial_usage",
+          "zero_usage_placeholder"
+        ]
+      },
+      "scope": "session",
+      "model": {
+        "provider": "openai-codex",
+        "id": "gpt-6.1-sol"
+      },
+      "currentTaskId": "12873d87-e811-4b69-bf70-2cb7d39d52de",
+      "context": {
+        "tokens": 6313,
+        "window": 272000,
+        "percent": 2.320955882353
+      },
+      "categories": {
+        "estimateMethod": "utf8-bytes/4",
+        "label": "stored content proxy, not exact input attribution",
+        "user": {
+          "bytes": 1466,
+          "estimatedTokens": 366.5
+        },
+        "assistant": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "thinking": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "toolCalls": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "toolResults": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "summaries": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "system": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "custom": {
+          "bytes": 964,
+          "estimatedTokens": 241
+        },
+        "other": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        }
+      },
+      "topConsumers": [
+        {
+          "entryId": "3b3c989c",
+          "type": "message",
+          "bytes": 1466,
+          "estimatedTokens": 366.5
+        },
+        {
+          "entryId": "8cad83ac",
+          "type": "custom_message",
+          "bytes": 964,
+          "estimatedTokens": 241
+        }
+      ],
+      "tasks": [
+        {
+          "taskId": "12873d87-e811-4b69-bf70-2cb7d39d52de",
+          "totals": {
+            "input": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "output": null,
+            "totalTokens": null,
+            "thinking": null,
+            "cacheWrite1h": null
+          },
+          "knownTotals": {
+            "input": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "output": 0,
+            "totalTokens": 0,
+            "thinking": 0,
+            "cacheWrite1h": 0
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": null,
+            "knownNativeEstimateUsd": 0,
+            "pricingEstimateUsd": null,
+            "knownPricingEstimateUsd": 0
+          },
+          "completeness": {
+            "usage": false,
+            "cost": false,
+            "thinking": false,
+            "issues": [
+              "partial_usage",
+              "zero_usage_placeholder"
+            ]
+          }
+        }
+      ],
+      "counts": {
+        "entries": 18,
+        "usageRecords": 1,
+        "duplicateEntries": 0,
+        "duplicateRequests": 0,
+        "missingHelperRecords": 0
+      }
+    },
+    "report": {
+      "totals": {
+        "input": null,
+        "cacheRead": null,
+        "cacheWrite": null,
+        "output": null,
+        "totalTokens": null,
+        "thinking": null,
+        "cacheWrite1h": null
+      },
+      "knownTotals": {
+        "input": 0,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "output": 0,
+        "totalTokens": 0,
+        "thinking": 0,
+        "cacheWrite1h": 0
+      },
+      "cost": {
+        "label": "estimate, not invoice",
+        "nativeEstimateUsd": null,
+        "knownNativeEstimateUsd": 0,
+        "pricingEstimateUsd": null,
+        "knownPricingEstimateUsd": 0
+      },
+      "completeness": {
+        "usage": false,
+        "cost": false,
+        "thinking": false,
+        "issues": [
+          "partial_usage",
+          "zero_usage_placeholder"
+        ]
+      },
+      "scope": "session",
+      "model": {
+        "provider": "openai-codex",
+        "id": "gpt-6.1-sol"
+      },
+      "currentTaskId": "12873d87-e811-4b69-bf70-2cb7d39d52de",
+      "context": {
+        "tokens": 6313,
+        "window": 272000,
+        "percent": 2.320955882353
+      },
+      "categories": {
+        "estimateMethod": "utf8-bytes/4",
+        "label": "stored content proxy, not exact input attribution",
+        "user": {
+          "bytes": 1466,
+          "estimatedTokens": 366.5
+        },
+        "assistant": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "thinking": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "toolCalls": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "toolResults": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "summaries": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "system": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        },
+        "custom": {
+          "bytes": 964,
+          "estimatedTokens": 241
+        },
+        "other": {
+          "bytes": 0,
+          "estimatedTokens": 0
+        }
+      },
+      "topConsumers": [
+        {
+          "entryId": "3b3c989c",
+          "type": "message",
+          "bytes": 1466,
+          "estimatedTokens": 366.5
+        },
+        {
+          "entryId": "8cad83ac",
+          "type": "custom_message",
+          "bytes": 964,
+          "estimatedTokens": 241
+        }
+      ],
+      "tasks": [
+        {
+          "taskId": "12873d87-e811-4b69-bf70-2cb7d39d52de",
+          "totals": {
+            "input": null,
+            "cacheRead": null,
+            "cacheWrite": null,
+            "output": null,
+            "totalTokens": null,
+            "thinking": null,
+            "cacheWrite1h": null
+          },
+          "knownTotals": {
+            "input": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "output": 0,
+            "totalTokens": 0,
+            "thinking": 0,
+            "cacheWrite1h": 0
+          },
+          "cost": {
+            "label": "estimate, not invoice",
+            "nativeEstimateUsd": null,
+            "knownNativeEstimateUsd": 0,
+            "pricingEstimateUsd": null,
+            "knownPricingEstimateUsd": 0
+          },
+          "completeness": {
+            "usage": false,
+            "cost": false,
+            "thinking": false,
+            "issues": [
+              "partial_usage",
+              "zero_usage_placeholder"
+            ]
+          }
+        }
+      ],
+      "counts": {
+        "entries": 18,
+        "usageRecords": 1,
+        "duplicateEntries": 0,
+        "duplicateRequests": 0,
+        "missingHelperRecords": 0
+      }
+    }
+  },
+  "offline": {
+    "plan": {
+      "ok": true,
+      "active": true,
+      "prompted": false,
+      "reason": "Offline plan mode is active. Save explicit Markdown with /plan save, or cancel; no model request was started."
+    },
+    "planCancel": {
+      "ok": true,
+      "active": false
+    },
+    "review": {
+      "ok": false,
+      "blocked": true,
+      "reason": "Model work is blocked by offline-only authorization."
+    }
+  },
+  "resume": {
+    "file": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\runs\\model-smoke\\windows-sol-live-004\\sessions\\2026-10-02T10-33-42-732Z_01a0fc2d-4e4c-700e-a0e3-59187c1fce57.jsonl",
+    "bytes": 42476,
+    "header": {
+      "type": "session",
+      "version": 3,
+      "id": "01a0fc2d-4e4c-700e-a0e3-59187c1fce57",
+      "timestamp": "2026-10-02T10:33:42.732Z",
+      "cwd": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\runs\\model-smoke\\windows-sol-live-004\\fixture"
+    },
+    "leafId": "1afb8017",
+    "branchIds": [
+      "e11154a3",
+      "db17489d",
+      "81a07bcc",
+      "8db2463b",
+      "540b19da",
+      "73b08982",
+      "371c95cc",
+      "5f2d305f",
+      "bc68f550",
+      "b431ca45",
+      "26ca347d",
+      "0ebdb1b0",
+      "319dc204",
+      "3b3c989c",
+      "8cad83ac",
+      "bb1da351",
+      "dbae6633",
+      "1afb8017"
+    ],
+    "model": {
+      "provider": "openai-codex",
+      "id": "gpt-6.1-sol"
+    },
+    "thinkingLevel": "xhigh",
+    "tornTail": false,
+    "unterminatedTail": false,
+    "pendingTools": [],
+    "replaySafe": false,
+    "replayPerformed": false,
+    "warning": null
+  },
+  "extension_errors": [],
+  "active_tools": [
+    "read",
+    "bash",
+    "edit",
+    "write",
+    "grep",
+    "find",
+    "ls",
+    "codemode",
+    "tool_search",
+    "contract",
+    "todo",
+    "explore",
+    "verify"
+  ],
+  "boundaries": {
+    "cache": "live prefix ledger; provider cache hit not guaranteed",
+    "mask": "enabled; short fixture may not reach rewrite threshold",
+    "compact": "offline-only refusal; no auxiliary model compaction",
+    "snapshot": "native before_agent_start snapshot",
+    "entrypoints": "fixture entrypoint probing",
+    "headless": "native SDK noninteractive mode, not Windows Terminal UI",
+    "loops": "enabled; repeated-error escalation not induced",
+    "time": "240-second budget configured; threshold warnings not forced",
+    "correct": "enabled; safe commands only",
+    "diagnostics": "enabled; fixture has no external project checker",
+    "subagents": "offline-only refusals, not live auxiliary inference",
+    "plan": "offline read-only mode without model request",
+    "review": "offline-only refusal",
+    "safety": "safe fixture calls, no interactive risky action",
+    "unsupported": [
+      "context route/output Muse-only",
+      "core bg/max/recovery unsupported on Windows"
+    ]
+  },
+  "raw_provider_events_file": "runs\\model-smoke\\windows-sol-live-004\\provider-events.jsonl",
+  "raw_events_file": "runs\\model-smoke\\windows-sol-live-004\\events.jsonl",
+  "raw_session_file": "runs/model-smoke/windows-sol-live-004/session.jsonl",
+  "benchmark_result": false,
+  "usage_complete": false,
+  "reserved_catalog_token_cost_usd": 46.6944
+}

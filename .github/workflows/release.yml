@@ -1,0 +1,167 @@
+# Every push to main that passes the offline Windows gate becomes a GitHub release. Pull requests run the same
+# steps up to, but not including, publishing. See "Releases" in README.md.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version part to increase
+        type: choice
+        options: [patch, minor, major]
+        default: minor
+
+permissions:
+  contents: read
+
+# Queued, never cancelled: two releases computing the next tag at once would collide.
+concurrency:
+  group: release-${{ github.ref }}
+
+env:
+  BUN_VERSION: 1.4.4
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install search tools
+        run: choco install ripgrep fd --yes --no-progress
+      # Preflight and private storage run Windows PowerShell with PSModulePath stripped, so it searches every default
+      # module folder. GitHub's image fills those with Azure and other modules: command lookup takes 16 s instead of 0.7 s.
+      - name: Hide the runner's preinstalled PowerShell modules
+        run: |
+          [Environment]::SetEnvironmentVariable('PSModulePath', "$env:SystemRoot\system32\WindowsPowerShell\v1.0\Modules", 'Machine')
+          Rename-Item "$env:ProgramFiles\WindowsPowerShell\Modules" Modules.hidden
+      # The first PowerShell call still takes about 4 s, too close to the preflight's 5 s limit, so run it once beforehand.
+      - name: Warm up the preflight
+        run: bun run preflight:windows
+        continue-on-error: true
+      - run: bun run check:windows
+      - run: bun run test:windows
+
+  # Chooses the version every later job uses and packs the tarball.
+  package:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      previous: ${{ steps.version.outputs.previous }}
+      version: ${{ steps.version.outputs.version }}
+      already: ${{ steps.version.outputs.already }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Choose the next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          previous="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+          IFS=. read -r major minor patch <<< "${previous:-v0.0.0}"
+          major="${major#v}"
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            *) version="$major.$minor.$((patch + 1))" ;;
+          esac
+          # A re-run of a commit that is already released must not publish it twice.
+          if git tag --points-at HEAD | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then already=true; else already=false; fi
+          {
+            echo "previous=$previous"
+            echo "version=$version"
+            echo "already=$already"
+          } >> "$GITHUB_OUTPUT"
+          echo "Previous: ${previous:-none}; next: v$version; already released: $already"
+      - name: Build the package
+        if: steps.version.outputs.already == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          # The version lives in the tag; package.json stays 0.0.0 in Git and is stamped only for the tarball.
+          bun pm version "$VERSION" --no-git-tag-version
+          mkdir dist
+          bun pm pack --ignore-scripts --quiet --destination dist
+          # This repository merges locally, so GitHub's PR-based generated notes would be empty.
+          git log --no-merges --format='- %s (%h)' ${PREVIOUS:+"$PREVIOUS..HEAD"} > dist/notes.md
+          ls -l dist
+          cat dist/notes.md
+      - uses: actions/upload-artifact@v7
+        if: steps.version.outputs.already == 'false'
+        with:
+          name: package
+          path: |
+            dist/*.tgz
+            dist/notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  # The Windows setup program needs a Windows build; it uses the same commit and the version chosen above.
+  installer:
+    needs: package
+    if: needs.package.outputs.already == 'false'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      # Stages the packed package with `bun install --frozen-lockfile --ignore-scripts` dependencies (Pi included)
+      # and compiles installer/apex.iss into dist/apex-setup-<version>.exe.
+      - name: Build the installer
+        env:
+          VERSION: ${{ needs.package.outputs.version }}
+        run: bun run build:installer $env:VERSION
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installer
+          path: dist/apex-setup-*.exe
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  release:
+    needs: [package, installer]
+    if: needs.package.outputs.already == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write the checksums
+        working-directory: dist
+        run: |
+          # Written once every asset exists, so SHA256SUMS covers the tarball and the installer.
+          sha256sum ./*.tgz ./apex-setup-*.exe > SHA256SUMS
+          ls -l
+          cat SHA256SUMS
+      - name: Publish the release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/*.tgz dist/apex-setup-*.exe dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" \
+            --title "v$VERSION" --notes-file dist/notes.md --target "$GITHUB_SHA"

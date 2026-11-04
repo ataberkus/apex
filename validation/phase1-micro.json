@@ -1,0 +1,93 @@
+{
+  "kind": "offline_phase1_contract",
+  "status": "PASS",
+  "model": "openrouter/meta/muse-spark-1.3-contributor",
+  "thinking_level": "xhigh",
+  "transcript_source": "script-seeded local native tool calls plus an explicitly synthetic text masking observation",
+  "model_performance_measured": false,
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "network_attempts": 0,
+  "transport_attempts": 0,
+  "resource_discovery_attempts": 0,
+  "attempted_calls": {
+    "network": 0,
+    "auth": 0,
+    "inference": 0,
+    "credentials": 0
+  },
+  "checks": {
+    "native_session_start": true,
+    "registered_flag": true,
+    "effective_model": true,
+    "offline_settings": true,
+    "actual_tool_definitions": true,
+    "native_tools_executed": true,
+    "native_result_hook": true,
+    "native_lazy_loadout": true,
+    "codemode_models_disabled": true,
+    "codemode_programmatic_json_intact": true,
+    "native_router": true,
+    "persisted_masking": true,
+    "native_compaction_cancelled": true,
+    "no_extension_errors": true,
+    "environment_sanitized": true,
+    "no_ambient_discovery": true
+  },
+  "cleanup": {
+    "fixture_removed": true
+  },
+  "fixture": "C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase1-micro-9Xe7kZ",
+  "pi_version": "0.99.2",
+  "settings": {
+    "cache_warming": "off",
+    "retry_enabled": false,
+    "automatic_compaction_enabled": false
+  },
+  "registration": {
+    "extension_count": 2,
+    "registered_tool_count": 11,
+    "active_tool_count_before_discovery": 9,
+    "callable_tool_count": 8,
+    "names": [
+      "read",
+      "edit",
+      "grep",
+      "find",
+      "ls",
+      "apply_patch",
+      "tool_search",
+      "codemode"
+    ],
+    "post_registration_refreshes_suppressed": 1
+  },
+  "compaction": {
+    "cancelled": true,
+    "hook_calls": 1,
+    "entry_count": 0
+  },
+  "codemode": {
+    "models_global": "undefined",
+    "engine_source": "pinned installed Pi QuickJS worker; no engine installation",
+    "native_script_executed": true,
+    "programmatic_json_bytes": 20481,
+    "programmatic_json_item_count": 4096,
+    "programmatic_nested_call_count": 1,
+    "programmatic_tiny_output": true
+  },
+  "synthetic_metrics": {
+    "shape": {
+      "original_bytes": 38390,
+      "returned_bytes": 6536,
+      "returned_ratio": 0.17025266996613703,
+      "source": "actual native bash hook-visible result"
+    },
+    "mask": {
+      "original_bytes": 26600,
+      "returned_bytes": 188,
+      "returned_ratio": 0.007067669172932331,
+      "source": "synthetic text observation in native persisted projection"
+    },
+    "provider_token_savings_measured": false
+  }
+}

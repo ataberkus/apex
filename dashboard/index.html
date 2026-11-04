@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Apex</title>
+<link rel="stylesheet" href="/app.css">
+<script>try{var theme=JSON.parse(localStorage.theme||'"dark"')}catch(e){theme='dark'}if(theme!=='system')document.documentElement.setAttribute('data-theme',theme)</script>
+</head>
+<body data-pane="side">
+<a class="skip" href="#box">Skip to message box</a>
+
+<nav id="side" aria-label="Workspaces and sessions">
+  <header class="brand">
+    <h1>Apex</h1>
+    <button class="ghost" id="addws" type="button">Add workspace</button>
+  </header>
+  <section class="account" id="accounts" aria-label="Model logins"><small>Checking saved logins…</small></section>
+  <section id="queue" class="queue" aria-labelledby="queue-h" hidden>
+    <h2 id="queue-h">Needs you <span id="queue-n"></span></h2>
+    <div id="queue-list"></div>
+  </section>
+  <div id="groups"></div>
+  <footer id="subscription-usage" class="usage-summary"></footer>
+  <label class="theme-row">Theme<select id="theme"><option value="dark">Dark</option><option value="light">Light</option><option value="system">Same as browser</option></select></label>
+  <section class="update-row" id="update" aria-label="Apex updates">
+    <div class="update-head"><span id="update-version">Apex</span><button class="ghost" id="update-check" type="button">Check for updates</button></div>
+    <p id="update-hint" class="update-hint" hidden></p>
+    <div id="update-status" class="update-status" role="status"></div>
+    <p id="update-error" class="note" role="alert" hidden></p>
+  </section>
+</nav>
+
+<main id="chat" aria-label="Conversation">
+  <header class="bar">
+    <div class="who">
+      <h2 id="title">Pick a session</h2>
+      <p id="where"></p>
+      <p id="usage" class="usage" hidden></p>
+    </div>
+    <div class="actions">
+      <button class="btn auto" id="auto" type="button" aria-pressed="false" title="Answer this session's tool approvals with Allow. Catastrophic commands still ask." hidden>Auto-approve: off</button>
+      <button class="btn" id="stop" type="button" hidden>Stop turn</button>
+      <button class="btn quiet" id="end" type="button" hidden>End session</button>
+      <button class="btn primary" id="resume" type="button" hidden>Resume</button>
+    </div>
+  </header>
+  <section class="login-needed notice" id="login-needed" hidden>
+    <span id="login-needed-text">Sign in to send messages. Your login is saved for future sessions.</span>
+    <button class="btn primary" id="login-needed-button" type="button">Sign in</button>
+  </section>
+  <div id="log" role="log" aria-live="polite" tabindex="0"></div>
+  <section id="queued" aria-label="Queued messages" aria-live="polite" tabindex="0" hidden></section>
+  <div id="asks" aria-live="assertive"></div>
+  <form id="form" autocomplete="off">
+    <ul id="slash" role="listbox" aria-label="Commands" hidden></ul>
+    <input id="image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden disabled>
+    <div id="attachments" class="attachment-list" role="list" aria-label="Images to send" hidden></div>
+    <div class="composer-row">
+      <textarea id="box" rows="3" placeholder="Message the agent. Type / for commands. Enter sends, Alt+Enter queues while running, Shift+Enter adds a line." aria-label="Message" aria-describedby="attachment-hint" disabled></textarea>
+      <button class="btn" id="queue-send" type="submit" value="followUp" title="Send after the agent finishes (Alt+Enter)" hidden disabled>Add to queue</button>
+      <button class="btn primary" id="send" type="submit" disabled>Send</button>
+    </div>
+    <div class="composer-tools">
+      <div id="route" class="route" role="group" aria-label="Models for this session"></div>
+      <button class="btn" id="attach" type="button" aria-describedby="attachment-hint" disabled>Add images</button>
+      <button class="btn enhance-btn" id="enhance" type="button" aria-label="Enhance prompt" title="Rewrite this draft with project context (Ctrl+Shift+E)" disabled>✨</button>
+    </div>
+    <small id="attachment-hint">Open a session to attach images.</small>
+    <small id="settings-note" hidden></small>
+    <small id="attachment-status" role="status" hidden></small>
+    <p id="composer-error" class="note" role="alert" hidden></p>
+    <div id="toast" role="status" hidden></div>
+  </form>
+</main>
+
+<aside id="info" aria-label="Session details">
+  <div class="tabs" role="tablist" aria-label="Session details">
+    <button role="tab" type="button" id="t-plan" aria-selected="true" aria-controls="p-plan">Plan</button>
+    <button role="tab" type="button" id="t-use" aria-selected="false" aria-controls="p-use" tabindex="-1">Usage</button>
+    <button role="tab" type="button" id="t-cmd" aria-selected="false" aria-controls="p-cmd" tabindex="-1">Commands</button>
+  </div>
+  <section role="tabpanel" id="p-plan" aria-labelledby="t-plan"></section>
+  <section role="tabpanel" id="p-use" aria-labelledby="t-use" hidden></section>
+  <section role="tabpanel" id="p-cmd" aria-labelledby="t-cmd" hidden></section>
+</aside>
+
+<nav id="panes" aria-label="Panels">
+  <button data-pane="side" id="pane-side" type="button" aria-current="page">Sessions</button>
+  <button data-pane="chat" type="button" aria-current="false">Chat</button>
+  <button data-pane="info" type="button" aria-current="false">Details</button>
+</nav>
+
+<dialog id="launch" class="wide" aria-labelledby="launch-h">
+  <form id="launch-form" method="dialog">
+    <header><h2 id="launch-h">New session</h2><p id="launch-where"></p></header>
+    <div class="launch-body launch-grid">
+      <section class="pane-models" aria-labelledby="launch-models-h">
+        <h3 id="launch-models-h" class="sub">Models</h3>
+        <div id="launch-editor" class="editor"></div>
+        <div class="notice auth-needed" id="launch-auth" role="status" hidden></div>
+      </section>
+      <section class="pane-features" aria-labelledby="launch-features-h">
+        <h3 id="launch-features-h" class="sub">Apex features</h3>
+        <div id="feature-note" class="notice" hidden></div>
+        <div id="feature-pick">
+          <fieldset id="presets"><legend class="sr">Start from</legend></fieldset>
+          <p id="preset-note" class="preset-note"></p>
+          <details id="customize" class="customize"><summary>Choose features one by one <em id="feature-count"></em></summary><div id="features"></div></details>
+          <label class="check" id="evalrow"><input type="checkbox" id="evalmode"><span><b>Evaluation isolation</b><small>Turns off remembered project facts, so a run does not depend on earlier sessions.</small></span></label>
+        </div>
+      </section>
+    </div>
+    <footer>
+      <p id="launch-error" class="error" role="alert"></p>
+      <button class="btn" value="cancel" type="button" id="launch-cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="launch-go">Start session</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="routedlg" aria-labelledby="route-h">
+  <form id="route-form">
+    <header><h2 id="route-h">Models for this session</h2><p id="route-where"></p></header>
+    <div class="launch-body">
+      <div id="route-editor" class="editor"></div>
+      <div class="notice auth-needed" id="route-auth" role="status" hidden></div>
+      <fieldset id="route-autocompact" class="live-autocompact" hidden>
+        <legend>Autocompact threshold</legend>
+        <div class="live-autocompact-row">
+          <label class="field"><span class="sr">Compact past this many context tokens</span><input type="number" id="live-autocompact" min="1" max="100000000" step="1" aria-describedby="live-autocompact-note"></label>
+          <span id="live-autocompact-picks" class="picks"></span>
+          <button class="btn" type="button" id="live-autocompact-go">Set threshold</button>
+        </div>
+        <small id="live-autocompact-note"></small>
+      </fieldset>
+    </div>
+    <footer>
+      <p id="route-effect" class="effect"></p>
+      <p id="route-error" class="error" role="alert"></p>
+      <button class="btn" type="button" id="route-cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="route-go">Switch now</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="wsdlg" aria-labelledby="wsdlg-h">
+  <form id="ws-form" method="dialog">
+    <header><h2 id="wsdlg-h">Add a workspace</h2></header>
+    <div class="launch-body">
+      <label class="field">Project folder
+        <input id="wspath" type="text" spellcheck="false" placeholder="C:\Users\you\Documents\GitHub\app" required>
+      </label>
+      <button class="btn" type="button" id="pick">Browse for a folder</button>
+    </div>
+    <footer>
+      <p id="ws-error" class="error" role="alert"></p>
+      <button class="btn" type="button" id="ws-cancel">Cancel</button>
+      <button class="btn primary" type="submit" id="ws-go">Add workspace</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="authdlg" aria-labelledby="auth-h">
+  <form id="auth-form">
+    <header><h2 id="auth-h">Sign in</h2><p id="auth-intro"></p></header>
+    <div class="launch-body">
+      <p id="auth-message" role="status"></p>
+      <a class="btn primary" id="auth-open" target="_blank" rel="noopener noreferrer" hidden>Continue</a>
+      <details id="auth-fallback" hidden>
+        <summary>Browser did not return?</summary>
+        <label class="field"><span id="auth-code-label">Full callback URL</span>
+          <input id="auth-code" type="text" autocomplete="off" spellcheck="false">
+          <small id="auth-code-help">Never paste a password or API key.</small>
+        </label>
+        <button class="btn" type="submit">Finish sign-in</button>
+      </details>
+      <div id="auth-key-row" hidden>
+        <label class="field">API key
+          <input id="auth-key" type="password" autocomplete="off" spellcheck="false">
+          <small>Saved in the agent profile on this computer. The dashboard never shows it again.</small>
+        </label>
+        <button class="btn primary" type="submit">Save key</button>
+      </div>
+    </div>
+    <footer>
+      <p id="auth-error" class="error" role="alert"></p>
+      <button class="btn quiet" id="auth-signout" type="button" hidden>Sign out</button>
+      <button class="btn" id="auth-close" type="button" autofocus>Close</button>
+      <button class="btn primary" id="auth-retry" type="button" hidden>Sign in</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="image-viewer" aria-labelledby="image-viewer-title">
+  <header><h2 id="image-viewer-title">Image preview</h2></header>
+  <div class="image-viewer-body" id="image-viewer-body"></div>
+  <footer><button class="btn" id="image-viewer-close" type="button" autofocus>Close preview</button></footer>
+</dialog>
+
+<script type="importmap">{"imports":{"marked":"/vendor/marked.js"}}</script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

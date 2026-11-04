@@ -1,0 +1,31 @@
+✖ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (6896.829123ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7225.091122
+
+✖ failing tests:
+
+test at tests/process-micro.test.mjs:220:1
+✖ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (6896.829123ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_process_contract","status":"FAIL","proof":"service survives native tool-host exit","platform":"linux","provider_calls":0,"network_scope":"ephemeral loopback HTTP only","host":{"pid":32,"exit_code":0,"signal":null,"exited_successfully":true,"environment_sanitized":true},"post_exit_health":{"succeeded":false},"cleanup":{"owned_pid_only":true,"process_terminated":false,"health_unavailable":false,"repeated_cleanup_safe":true,"watchdog_fallback_waited":true,"fixture_removed":true},"pi_version":"0.99.2","fixture":"/workspace/scratch/06581feb7ad4/process-micro-fault-Q2ukPE/process-micro-rgPamT","native_bash":{"exit_code":0},"failure":"service_not_ready_after_host_exit","elapsed_ms":6538}
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/06581feb7ad4/tests/process-micro.test.mjs:226:44)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

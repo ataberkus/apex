@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "kind": "phase2_local_closure",
+  "created_at": "2026-10-01T15:03:57.731873+00:00",
+  "local_scope_status": "complete",
+  "phase2_acceptance_criteria_met": false,
+  "phase2_pass_rate_target_measured": false,
+  "phase0_empirical_exit_criteria_met": false,
+  "phase1_cost_target_measured": false,
+  "execution_policy": "offline-only",
+  "paid_runs_enabled": false,
+  "configuration": {
+    "main_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "fast_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "thinking_level": "xhigh",
+    "pi_version": "0.99.2",
+    "default_enabled_features": [],
+    "feature_flags": [
+      "snapshot",
+      "entrypoints",
+      "headless",
+      "contract",
+      "todo",
+      "verify",
+      "loops",
+      "bg",
+      "time",
+      "correct",
+      "diagnostics",
+      "subagents",
+      "max",
+      "recovery"
+    ]
+  },
+  "verification": {
+    "check": "PASS",
+    "unit_tests_passed": 432,
+    "node_tests_passed": 302,
+    "python_tests_passed": 130,
+    "unit_tests_failed": 0,
+    "unit_tests_skipped": 1,
+    "skip_reason": "optional installed TypeScript checker unavailable",
+    "integrated_micro": "PASS",
+    "phase2_native_checks_passed": 22,
+    "phase1_native_checks_passed": 16,
+    "native_attempted_calls": {
+      "network": 0,
+      "auth": 0,
+      "inference": 0,
+      "credentials": 0
+    },
+    "independent_reviews_remaining_material_defects": 0,
+    "owned_native_cleanup": {
+      "fixture_removed": true,
+      "owned_processes_removed": true,
+      "recovered_owned_ids": 0
+    }
+  },
+  "spend": {
+    "additional_provider_calls": 0,
+    "additional_inference_calls": 0,
+    "additional_usd": 0,
+    "historical_provider_calls": 9,
+    "historical_usd": 0.002482108,
+    "historical_unused_cap_usd": 0.997517892,
+    "unused_cap_frozen": true,
+    "reserved_usd": 0
+  },
+  "benchmark_trials": 0,
+  "pi_core_changes": false,
+  "active_apex_resources": 0,
+  "cloud_resources_created": 0,
+  "system_installations": 0,
+  "development_exceptions": [
+    {
+      "kind": "early_worker_auth_availability_lookup",
+      "provider_request": false,
+      "spend_usd": 0,
+      "fixed": "explicit injected SDK/runtime and request guards"
+    },
+    {
+      "kind": "automatic_approval_rejection",
+      "action": "unsanitized worker broad npm check",
+      "reason": "observed registry access conflicts with offline scope",
+      "final_evidence": false
+    },
+    {
+      "kind": "root_whitelist_fixture_failure",
+      "failed_tests": 8,
+      "cause": "omitted public absolute Node runtime path",
+      "focused_recheck_passed": 8,
+      "final_full_suite": "PASS"
+    }
+  ],
+  "pending": [
+    "real stock Pi dev/held-out/full baselines and failure rankings",
+    "Phase 2 per-flag same-model success-rate ablations and 95% CI",
+    "model-directed contract/todo/verification/tool reliability",
+    "actual provider retry, helper billing and max execution",
+    "native Windows and actual installed Cargo/Go/type checkers",
+    "full container setup and effective evaluator deadline routing"
+  ],
+  "limits": [
+    "script-seeded native mechanics and synthetic stubs do not measure model outcomes",
+    "all experiments default off",
+    "repository copies and project diagnostics are not OS isolation",
+    "foreground owned Unix group only; daemonized descendants and native Windows bg unsupported",
+    "unattributed nested helper aggregates retain unknown total cost",
+    "portable filesystem checks cannot eliminate hostile same-user ancestor replacement races",
+    "snapshot byte cap only approximates token count; reachability skipped"
+  ],
+  "evidence": [
+    "PHASE2_LOCAL.md",
+    "validation/phase2-check.log",
+    "validation/phase2-unit.log",
+    "validation/phase2-unit-initial.log",
+    "validation/phase2-runtime-path-regression.log",
+    "validation/phase2-micro-gates.log",
+    "validation/phase2-micro.json",
+    "validation/phase2-core-review.md",
+    "validation/phase2-state-models-review.md",
+    "evals/phase2-ablations.json"
+  ]
+}

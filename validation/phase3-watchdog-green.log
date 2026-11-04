@@ -1,0 +1,13 @@
+✔ importing the process microcheck does not spawn processes or create fixtures (135.322651ms)
+✔ native Pi bash service survives tool-host exit and the owned process is cleaned up (1879.163165ms)
+✔ missing readiness waits for the service watchdog before removing its fixture (5318.322922ms)
+✔ an aborted loopback health response returns a failure artifact and cleans up (2519.18176ms)
+✔ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (6804.702404ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16888.20418

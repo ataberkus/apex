@@ -1,0 +1,89 @@
+✔ short unchanged text is inert and creates no directory (6.6424ms)
+✔ module import is inert in a fresh process (952.1224ms)
+✔ ANSI cleanup, carriage-return progress and repeated lines retain exact raw spill (235.2688ms)
+✔ newline progress bars are condensed without hiding a progress-adjacent failure (245.2391ms)
+✔ caps include newlines, omission markers and log reference while retaining head and tail (249.4455ms)
+✔ Unicode long lines keep both ends without replacement characters or excess bytes (235.8416ms)
+✔ test failure context and assertion diff in the middle survive bounded selection (382.8755ms)
+✔ compiler diagnostics and package-manager failures survive the middle of output (692.923ms)
+✔ git diff keeps a hunk and changed lines with bounded head/tail (290.4115ms)
+✔ native Bash structured output remains coherent with shaped content and status fields (259.8407ms)
+✔ nested native Bash JSON remains intact for codemode before parent output is shaped (268.5976ms)
+✔ native full-output pointer is preserved and spill contains only hook-visible text (774.4075ms)
+✔ real native Bash overflow distinguishes model text bytes from structured output bytes (240.8302ms)
+✔ unknown custom structured schemas preserve the result without a spill (0.899ms)
+✔ non-path custom details cannot corrupt the native structured path schema (449.5634ms)
+✔ nontext payloads survive exactly while the neighboring text is shaped (292.391ms)
+▶ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive
+  ﹣ POSIX private spill permissions (0.1666ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive (3922.9067ms)
+✔ Windows spills have protected owner-only ACLs and refuse public directories or existing hard links (10232.201ms)
+﹣ owned logs remain owner-readable under a restrictive process umask (0.1026ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ symlinked output directories are rejected without writing outside .apex (711.7635ms)
+✔ newline-heavy output and very small valid caps remain bounded (1351.7253ms)
+✔ invalid caps fail before any filesystem mutation (1.4343ms)
+✔ factory is inert and invalid/cancelled methods fail before Git (2.4565ms)
+▶ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index
+  ﹣ POSIX mode restored (0.7648ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index (2382.4505ms)
+✔ concurrent sibling captures wait for one persistent snapshot and finish is idempotent (1264.2174ms)
+✔ reopen persists records, session isolation and detached list objects (2903.3668ms)
+▶ manual post-turn edits and chmod refuse all restoration before any file changes
+  ✔ content (1334.863ms)
+  ﹣ mode (0.1135ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+  ✔ deleted (1259.5093ms)
+✔ manual post-turn edits and chmod refuse all restoration before any file changes (2595.0603ms)
+✔ ignored and private paths are excluded, preserve mutations and never enter shadow history (1667.8529ms)
+▶ symlink capture and later symlink target/ancestor restoration are rejected without external writes
+  ﹣ file symlink capture (1.0638ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ symlink capture and later symlink target/ancestor restoration are rejected without external writes (1696.6331ms)
+✔ newly ignored restoration paths refuse undo (1133.7453ms)
+✔ corrupt/foreign metadata and private-store symlinks fail closed (1543.599ms)
+✔ capture and restore enforce file, byte, checkpoint caps (2820.3646ms)
+▶ post-apply durable Git failure rolls back every actual restored file and remains retryable
+  ﹣ POSIX mode rolled back (0.1154ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ post-apply durable Git failure rolls back every actual restored file and remains retryable (1808.9457ms)
+✔ unfinished capture cannot undo and shutdown cancels a queued/in-flight capture (1057.7147ms)
+✔ session metadata supports safe custom version-control directory without ambient Git variables (1425.0804ms)
+✔ binary/CRLF payloads and Unicode filenames survive source attributes without filters (newline name on POSIX) (2051.5638ms)
+✔ hard links and shadow object-directory symlinks fail closed (1484.6708ms)
+✔ same-session manager instances serialize capture and user edits to unchanged paths remain (1579.042ms)
+✔ actual shutdown cancels in-flight and queued captures, and Git timeouts are bounded (304.0626ms)
+✔ rollback refuses concurrent manual edits and retains explicit private recovery backups (2475.2814ms)
+✔ large allowed blobs restore beyond textual Git output cap, and external shadow indirection is refused (5666.745ms)
+✔ untrusted shadow attributes cannot invoke source filters (978.1152ms)
+﹣ regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation (0.0861ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ source regular-file growth after fstat uses bounded chunk reads without readFile (249.5536ms)
+✔ manifest regular-file growth after fstat uses bounded chunk reads without readFile (1070.1289ms)
+✔ learnings are deferred, explicit, literal and supply a detached context file (241.6518ms)
+✔ eval denial happens before filesystem access and tool callbacks (0.2756ms)
+✔ concurrent appends across instances serialize without lost facts or duplicate facts (5914.5105ms)
+✔ missing load creates no files, malformed/oversized facts and abort are refused (2.039ms)
+▶ directory/file symlinks and oversized existing content are refused
+  ﹣ file symlink refused without changing target (0.6236ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ directory/file symlinks and oversized existing content are refused (225.5853ms)
+✔ fact count/UTF8 byte caps are enforced for append and load (244.1341ms)
+✔ Phase 3 gate import leaves SDK, extensions and fixtures inert (96.7113ms)
+✔ native Phase 3 gate exercises commands, tools, resources and persisted state offline (14894.7398ms)
+✔ missing native plan enforcement fails without provider calls (1026.2502ms)
+✔ Phase 3 gate rejects ambient discovery and cleans fault fixtures (1070.2804ms)
+✔ Windows Sol native gate composes real context tools, private storage and undo without auth or inference (14983.2052ms)
+✔ Phase 3 gate rejects unknown model selections before allocation (0.462ms)
+✔ Phase 3 gate rejects unknown faults before allocation (0.1267ms)
+✔ Windows acceptance requires native evidence, not skips, nonzero access, empty checks or the old full-scope artifact (0.6997ms)
+✔ Windows orchestration keeps every native gate, scrubs profiles and never invokes Python/Docker (7.9277ms)
+✔ a real gate failure is not reclassified as out of scope and later Windows evidence is still collected (6.3547ms)
+✔ missing native prerequisites stop Windows gates before allocating a fixture (3.5032ms)
+✔ checkpoint-first Windows storage composes with secure shaping and restores exact CRLF bytes without touching the Git index (2100.2629ms)
+✔ remember-first Windows storage composes with private spill recovery (985.3635ms)
+✔ existing public Windows roots refuse private snapshot/fact writes without silently changing ACLs (1032.5771ms)
+✔ cancelled private directory preparation allocates nothing (1.0796ms)
+✔ Windows private storage helper import performs no process or filesystem work (38.9618ms)
+ℹ tests 75
+ℹ suites 0
+ℹ pass 67
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 62639.3159

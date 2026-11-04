@@ -1,0 +1,29 @@
+✔ session gate exposes an inert import instead of running or allocating a fixture (94.4678ms)
+✔ offline child environments preserve Windows name semantics without admitting credentials (0.8254ms)
+✔ Windows fixture profiles cannot inherit or substitute the user credential home (0.3733ms)
+✔ native offline compaction preserves recent context and branch state through fresh-process torn-tail recovery (4665.3879ms)
+✔ a cancelled hook fails the gate without appending compaction or attempting auth/inference (949.1209ms)
+✔ default resource discovery is blocked before reading user or ancestor resources (1228.3299ms)
+✔ a custom summary that loses the fixture contract cannot produce a passing gate (5485.9961ms)
+✔ missing deterministic hook blocks default auth and inference instead of passing silently (1309.5411ms)
+✔ Windows acceptance requires native evidence, not skips, nonzero access, empty checks or the old full-scope artifact (2.1929ms)
+✔ Windows orchestration keeps every native gate, scrubs profiles and never invokes Python/Docker (8.2888ms)
+✔ a real gate failure is not reclassified as out of scope and later Windows evidence is still collected (8.4108ms)
+✔ missing native prerequisites stop Windows gates before allocating a fixture (5.9218ms)
+✔ isolated Windows PowerShell really invokes native Node and captures stdout (PATHEXT regression) (8410.1095ms)
+✔ package-smoke import never installs, packs, reads credentials or initializes the SDK (84.7471ms)
+✔ native Windows readiness needs no Harbor/Python/Docker/auth and performs only bounded credential-free probes (15.7153ms)
+✔ missing Windows prerequisites and wrong Pi cannot report ready (178.6901ms)
+✔ PowerShell policy/NET failures stay blocked without leaking stderr or bypassing execution policy (16.7615ms)
+✔ nonnative host refuses Windows readiness before any probes or temporary allocations (14.0832ms)
+✔ Windows environment canonicalizes Path without inheriting credentials or account profiles (0.3182ms)
+✔ Windows preflight CLI rejects unknown flags without any dependency probes (136.3311ms)
+✔ Windows preflight import never starts processes, allocates files or imports the SDK (106.4841ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13795.2121

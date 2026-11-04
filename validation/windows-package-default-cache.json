@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "kind": "windows_clean_package_smoke",
+  "status": "BLOCKED",
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "dependency_junction_used": false,
+  "offline_install": true,
+  "checks": {},
+  "preflight": {
+    "schema_version": 1,
+    "kind": "windows_native_preflight",
+    "readiness": "tooling-ready",
+    "target": "windows",
+    "tooling_only": true,
+    "provider_calls": 0,
+    "paid_execution": false,
+    "auth_checked": false,
+    "checks": [
+      {
+        "id": "native-windows",
+        "status": "pass",
+        "required": true,
+        "message": "Run with native Windows Node, not WSL."
+      },
+      {
+        "id": "node",
+        "status": "pass",
+        "required": true,
+        "observed": "24.19.0",
+        "minimum": "22.19.0"
+      },
+      {
+        "id": "pi-pin",
+        "status": "pass",
+        "required": true,
+        "observed": "0.99.2",
+        "expected": "0.99.2"
+      },
+      {
+        "id": "git",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "git-bash",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "ripgrep",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "fd",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "windows-powershell-net",
+        "status": "pass",
+        "required": true
+      },
+      {
+        "id": "private-spill-helper",
+        "status": "pass",
+        "required": true
+      }
+    ],
+    "deferred": [
+      "Harbor/Terminal-Bench and two-model performance acceptance",
+      "OCI proposer execution and container-backed evolution",
+      "Unix owned-process survival and process-group cleanup"
+    ],
+    "scope": "Native tooling only. No installs, containers, credentials, inference, or benchmark acceptance."
+  },
+  "package_sha256": "ae0925aee997d1e4e9678b0c75ee5bc9d08085997cefdd0f2fc14fd7c3a01056",
+  "reason": "offline-install-unavailable; inspect install.log, no online fallback attempted",
+  "temporary_install_removed": true
+}

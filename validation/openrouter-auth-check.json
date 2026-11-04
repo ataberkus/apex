@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-01T12:00:41.387481+00:00",
+  "endpoint": "https://openrouter.ai/api/v1/key",
+  "authenticated": true,
+  "is_free_tier": false,
+  "key_has_limit": true,
+  "credential_value_saved": false,
+  "inference_calls": 0
+}

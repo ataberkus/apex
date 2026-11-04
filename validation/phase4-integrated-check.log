@@ -1,0 +1,19 @@
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\lib\launcher.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at Object.resolve (node:internal/modules/esm/initialize_import_meta:37:25)
+    at resolvePi (file:///C:/Users/Valo/Documents/GitHub/apex/lib/launcher.mjs:11:43)
+    at file:///C:/Users/Valo/Documents/GitHub/apex/scripts/check.mjs:23:1 {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0

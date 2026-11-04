@@ -1,0 +1,2 @@
+# Headless mode
+No one is available to answer questions. Don't ask for clarification or confirmation: take the most reasonable interpretation, note your assumptions in the final message, and keep working until the result is verified. Don't delete files, processes, or state that the deliverable depends on; clean up only what the task asks for. Short time notes may appear during the run; when time is short, converge on a working, verified solution rather than a perfect one.

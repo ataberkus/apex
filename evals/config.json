@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "budget_cap_usd": 1,
+  "main_model": "openrouter/meta/muse-spark-1.3-contributor",
+  "fast_model": "openrouter/meta/muse-spark-1.3-contributor",
+  "thinking_level": "xhigh",
+  "allowed_models": [
+    "openrouter/meta/muse-spark-1.3-contributor"
+  ],
+  "providers": [
+    "openrouter"
+  ],
+  "api_key_env_names": [
+    "OPENROUTER_API_KEY"
+  ],
+  "target_os": "windows",
+  "container_environment": null,
+  "dataset_manifest": "evals/datasets/terminal-bench-2.0/manifest.json",
+  "paid_runs_enabled": false,
+  "execution_policy": "offline-only",
+  "phase": 4
+}

@@ -1,0 +1,14 @@
+âœ” proposer reads exact raw pages, not summaries, with UTF-8 framing (7.9099ms)
+âœ” proposer refuses traversal, absolute OS paths, and links into hidden evaluator data (6.167ms)
+âœ” listing is paginated without hiding later prior harness versions (59.6215ms)
+âœ” concurrent submissions persist exactly one declared change (3.5306ms)
+âœ” unbounded raw pages and malformed proposals are refused (4.6245ms)
+âœ” offline native proposer denies before SDK import, credential lookup or file allocation (1.3041ms)
+â„¹ tests 6
+â„¹ suites 0
+â„¹ pass 6
+â„¹ fail 0
+â„¹ cancelled 0
+â„¹ skipped 0
+â„¹ todo 0
+â„¹ duration_ms 160.674

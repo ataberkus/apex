@@ -1,0 +1,333 @@
+{
+  "schema_version": 1,
+  "authorization_source": "Explicit user approval for unlimited Codex OAuth usage, superseding the earlier USD 20 cap",
+  "execution_scope": "codex-oauth-only",
+  "provider": "openai-codex",
+  "model": "gpt-6.1-sol",
+  "thinking_level": "xhigh",
+  "auth_type": "oauth",
+  "spending_policy": "unlimited",
+  "budget_cap_usd": null,
+  "account_billed_cost_usd": null,
+  "observed_catalog_token_cost_usd": 59.29984368,
+  "reserved_catalog_token_cost_usd": 46.6944,
+  "remaining_catalog_equivalent_usd": null,
+  "runs": [
+    {
+      "run_id": "sol-oauth-001",
+      "purpose": "Native Windows Pi SDK four-tool access and verification smoke",
+      "physical_requests": 5,
+      "catalog_token_cost_usd": 0.0094904,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/sol-oauth-001/summary.json",
+      "benchmark_result": false
+    },
+    {
+      "run_id": "dashboard-smoke-001",
+      "purpose": "Dashboard end-to-end smoke: one read-tool prompt at low thinking through the browser UI, then session resume. Throwaway session deleted after the run.",
+      "physical_requests": 2,
+      "catalog_token_cost_usd": 0.006314,
+      "billed_cost_usd": null,
+      "summary_file": null,
+      "benchmark_result": false
+    },
+    {
+      "run_id": "windows-sol-live-004",
+      "purpose": "Native Windows enabled-features-together live acceptance",
+      "physical_requests": 1,
+      "catalog_token_cost_usd": 0,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/windows-sol-live-004/summary.json",
+      "benchmark_result": false,
+      "usage_complete": false
+    },
+    {
+      "run_id": "windows-sol-live-005",
+      "purpose": "Native Windows enabled-features-together live acceptance",
+      "physical_requests": 19,
+      "catalog_token_cost_usd": 0.35111359999999997,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/windows-sol-live-005/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-sol-live-006",
+      "purpose": "Native Windows enabled-features-together live acceptance",
+      "physical_requests": 21,
+      "catalog_token_cost_usd": 0.3674292,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/windows-sol-live-006/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-sol-live-007",
+      "purpose": "Native Windows enabled-features-together live acceptance",
+      "physical_requests": 10,
+      "catalog_token_cost_usd": 0.25997,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/windows-sol-live-007/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-smoke-001",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 1 tasks × 1 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 25,
+      "catalog_token_cost_usd": 0.3012496,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-smoke-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-001",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 795,
+      "catalog_token_cost_usd": 8.232368000000001,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-002",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 633,
+      "catalog_token_cost_usd": 7.170495999999999,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-002/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-003",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 452,
+      "catalog_token_cost_usd": 4.895115599999999,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-003/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-004",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 447,
+      "catalog_token_cost_usd": 4.744104799999999,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-004/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-005",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 462,
+      "catalog_token_cost_usd": 4.6287384,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-005/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-006",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 446,
+      "catalog_token_cost_usd": 4.6691516,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-006/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "cap-smoke-001",
+      "purpose": "Live A/B: stock Pi vs Apex Windows defaults, 1 tasks × 2 attempts per arm",
+      "thinking_level": "low",
+      "physical_requests": 5,
+      "catalog_token_cost_usd": 0.0258908,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/cap-smoke-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-007",
+      "purpose": "Live A/B: apex vs apex-no-checkpoints, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 452,
+      "catalog_token_cost_usd": 4.5238812,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-007/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-008",
+      "purpose": "Live A/B: apex vs apex-no-headless, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 467,
+      "catalog_token_cost_usd": 4.7148824,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-008/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-009",
+      "purpose": "Live A/B: apex vs apex-no-headless, 12 tasks × 3 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 445,
+      "catalog_token_cost_usd": 4.490736400000001,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-009/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-010",
+      "purpose": "Live A/B: apex vs apex-no-headless, 5 tasks × 5 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 275,
+      "catalog_token_cost_usd": 2.424612,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-010/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-012",
+      "purpose": "Live A/B: stock, 6 tasks × 2 attempts per arm",
+      "thinking_level": "low",
+      "physical_requests": 132,
+      "catalog_token_cost_usd": 0.9486124,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-012/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-011",
+      "purpose": "Live A/B: stock, 6 tasks × 2 attempts per arm",
+      "thinking_level": "max",
+      "physical_requests": 163,
+      "catalog_token_cost_usd": 4.3862528,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-011/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-013",
+      "purpose": "Live A/B: stock, 6 tasks × 2 attempts per arm",
+      "thinking_level": "minimal",
+      "physical_requests": 120,
+      "catalog_token_cost_usd": 0.9003976000000001,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-013/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-015",
+      "purpose": "Live A/B: stock, 6 tasks × 2 attempts per arm",
+      "thinking_level": "low",
+      "physical_requests": 12,
+      "catalog_token_cost_usd": 0,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-015/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-014",
+      "purpose": "Live A/B: stock, 6 tasks × 2 attempts per arm",
+      "thinking_level": "low",
+      "physical_requests": 131,
+      "catalog_token_cost_usd": 0.12021051999999999,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-014/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "ab-016",
+      "purpose": "Live A/B: stock vs apex vs apex+contract+todo+verify, 6 tasks × 5 attempts per arm",
+      "thinking_level": "low",
+      "physical_requests": 1403,
+      "catalog_token_cost_usd": 1.1288263600000006,
+      "billed_cost_usd": null,
+      "summary_file": "runs/ab/ab-016/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    }
+  ],
+  "guardrails": [
+    "No API-key route, provider fallback, OpenRouter spending or historical budget release",
+    "Unlimited Codex OAuth usage has no Apex dollar spending cap; automated tests still require bounded scope, physical requests, usage and deadlines",
+    "Actual subscription billing is unavailable; catalog equivalents are not invoices or a claim about account charges",
+    "Benchmark launches still require reviewed run scope, budget and a working trusted Linux-container environment"
+  ],
+  "reservations": [
+    {
+      "run_id": "windows-sol-live-004",
+      "status": "reserved",
+      "reserved_catalog_token_cost_usd": 46.6944,
+      "max_physical_requests": 24,
+      "max_payload_bytes": 262144,
+      "max_output_tokens": 128000,
+      "output_bound_source": "pinned model catalog maxTokens; no configurable server output-token cap",
+      "reserved_at": "2026-10-02T10:33:42.725Z",
+      "physical_requests": 1,
+      "usage_complete": false,
+      "reconciled_at": null
+    },
+    {
+      "run_id": "windows-sol-live-005",
+      "status": "reconciled",
+      "reserved_catalog_token_cost_usd": 46.6944,
+      "max_physical_requests": 24,
+      "max_payload_bytes": 262144,
+      "max_output_tokens": 128000,
+      "output_bound_source": "pinned model catalog maxTokens; no configurable server output-token cap",
+      "reserved_at": "2026-10-02T10:36:03.337Z",
+      "physical_requests": 19,
+      "usage_complete": true,
+      "reconciled_at": "2026-10-02T10:39:06.104Z"
+    },
+    {
+      "run_id": "windows-sol-live-006",
+      "status": "reconciled",
+      "reserved_catalog_token_cost_usd": 46.6944,
+      "max_physical_requests": 24,
+      "max_payload_bytes": 262144,
+      "max_output_tokens": 128000,
+      "output_bound_source": "pinned model catalog maxTokens; no configurable server output-token cap",
+      "reserved_at": "2026-10-02T10:57:47.596Z",
+      "physical_requests": 21,
+      "usage_complete": true,
+      "reconciled_at": "2026-10-02T11:01:12.478Z"
+    },
+    {
+      "run_id": "windows-sol-live-007",
+      "status": "reconciled",
+      "reserved_catalog_token_cost_usd": 46.6944,
+      "max_physical_requests": 24,
+      "max_payload_bytes": 262144,
+      "max_output_tokens": 128000,
+      "output_bound_source": "pinned model catalog maxTokens; no configurable server output-token cap",
+      "reserved_at": "2026-10-02T18:36:17.544Z",
+      "physical_requests": 10,
+      "usage_complete": true,
+      "reconciled_at": "2026-10-02T18:38:49.874Z"
+    }
+  ]
+}

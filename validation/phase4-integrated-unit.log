@@ -1,0 +1,2316 @@
+✔ cache ledger tracks stable prefix hashes without storing prompt values (2.8219ms)
+✔ cache ledger accounts native uncached/cache-read/cache-write without double counting (0.5234ms)
+✔ routine cap only lowers the exact Muse existing cap and preserves xhigh (0.1769ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\Valo\Documents\GitHub\apex\node_modules\@earendil-works\pi-coding-agent\dist\core\session-manager.js' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-compaction.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:253:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/Valo/Documents/GitHub/apex/node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.js'
+}
+
+Node.js v24.19.0
+✖ tests\context-compaction.test.mjs (33.7661ms)
+✔ Phase 1 flag selection defaults off and is immutable (0.7284ms)
+✔ all is explicit and unknown or ambiguous flags fail (0.4629ms)
+✔ current runtime policy remains offline, exact-model and xhigh (0.1004ms)
+✔ default extension starts no tools, prompt changes, filesystem or auxiliary calls (1.1835ms)
+✔ output section is stable and preserves native sections across turns (3.2238ms)
+✔ compact flag cancels offline before model lookup or auth (1.1284ms)
+✔ cache monitor observes mid-run tool delta without editing context messages (0.2202ms)
+✖ native lazy registration stays inactive and adds no MCP or model router (3.2685ms)
+✖ native codemode loadout omits deferred declarations and classifier access (1.5122ms)
+✖ native tool_search loads matching deferred tools only for the next declaration set (0.824ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\Valo\Documents\GitHub\apex\node_modules\@earendil-works\pi-coding-agent\dist\core\session-manager.js' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-masking.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:253:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///C:/Users/Valo/Documents/GitHub/apex/node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.js'
+}
+
+Node.js v24.19.0
+✖ tests\context-masking.test.mjs (31.0055ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-patch.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests\context-patch.test.mjs (32.061ms)
+✔ router rejects unauthorized MAIN, FAST and lower thinking before registration (1.2971ms)
+✖ router is registered during native extension loading without model runtime initialization (1.4942ms)
+✖ first ten successful persisted assistants plan, then execute despite compacted request messages (0.7265ms)
+✖ routing signals and assistant counts follow the active native branch rather than stale router state (0.6964ms)
+✖ continuations and retries preserve the allowed physical identity and xhigh (0.7347ms)
+✖ direct summaries keep fixed Muse/xhigh and never return branch state (0.5945ms)
+✖ missing, virtual or misidentified physical catalog targets fail closed (1.3289ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-shaping.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests\context-shaping.test.mjs (31.1422ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-tools.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests\context-tools.test.mjs (30.0316ms)
+✔ Phase 2 features default off and immutable explicit selection covers fourteen flags (0.8826ms)
+✔ time and independent-attempt arguments are bounded and unambiguous (0.2755ms)
+node:internal/modules/package_json_reader:301
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-control.test.mjs
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.19.0
+✖ tests\core-control.test.mjs (30.8808ms)
+✔ snapshot respects the UTF-8 byte ceiling, including a smaller caller budget (44.0696ms)
+✖ the default byte budget includes all ten entry points even when filenames need escaping (1.5576ms)
+✖ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks (8.2098ms)
+✔ manifest discovery reports scripts and entry paths without executing scripts or reading source (10.9537ms)
+✖ snapshot explicitly reports distro, shell and current user through safe local sources (41.18ms)
+✔ an unavailable OS user lookup is labeled without failing environment capture (36.9842ms)
+✔ package manager versions and static declarations are reported without npm or install operations (7.7662ms)
+✔ Makefile targets and pyproject build/test tools become static hints without running recipes (10.9357ms)
+✔ entry ranking is deterministic and promotes an explicitly relevant source path (7.5996ms)
+✔ entry discovery promotes a nested source identifier and declared symbol over a filename match (11.3928ms)
+✔ missing ripgrep keeps metadata ranking and explicitly reports the content fallback (8.9251ms)
+✔ entry source reads exclude generic tests and verifiers and enforce byte/file bounds (26.7903ms)
+✔ a manifest cannot promote an entry target that escapes the project (2.9129ms)
+✔ gitignore character classes and anchored recursive patterns filter the snapshot (8.9677ms)
+✔ untrusted ignore patterns cannot throw or stall snapshot discovery (43.3837ms)
+✔ missing tools and a missing project are labeled unavailable without failing capture (3.6123ms)
+✔ external reachability stays skipped by default and requires a literal true authorization (6.3841ms)
+✔ an explicitly authorized reachability probe is capped at two seconds without real network calls (3.4276ms)
+✖ native probes terminate hanging binaries, cap flood output and inherit no secret environment (43.1286ms)
+✖ native probes preserve UTF-8 characters split across output chunks (41.5625ms)
+✔ native tool lookup excludes PATH directories inside the project (45.6809ms)
+✔ an injected command that ignores cancellation is still bounded by the probe deadline (1014.2677ms)
+✔ import creates no processes or files and returns promptly (33.9595ms)
+✔ default Phase 2 factory and lifecycle are inert (1.6833ms)
+✔ initial snapshot is a context message and static mode sections retain native guidance (2.3514ms)
+✖ time appends threshold notes without volatile prompt edits or forced continuation (4.1973ms)
+✖ core correction preserves the selected Phase 1 edit shape through the native hook (0.9705ms)
+✖ reload retains elapsed time and does not repeat earlier time thresholds (1.7167ms)
+✖ Phase 2 opt-in launcher loads the core and retains Muse/xhigh (12.186ms)
+✔ Phase 1 and 2 flags compose, and time is only enabled by explicit feature (0.4593ms)
+✔ Apex options in literal task and Pi values retain their meanings (0.4244ms)
+✔ max is separate, explicit and blocked by free-only policy before launching Pi (0.4135ms)
+✔ offline subagent denial precedes prompt reads, cwd access, session and check adapters (2.3231ms)
+✔ future subagents use exact prompt files, independent task-only contexts and depth-one read tools (6.1978ms)
+✔ model and thinking violations are denied before deterministic session work (0.2884ms)
+✔ nested subagents and invalid tasks never start a session (0.1964ms)
+✔ subagent output and usage are bounded and inconsistent totals are rebuilt (1.2175ms)
+✔ subagent cancellation is reported coherently and retains incurred usage (0.7371ms)
+✔ verify explicit commands provide real bounded evidence without inheriting main history (0.7849ms)
+✔ verify rejects shell syntax, installs and unbounded command lists before adapters (0.3008ms)
+✔ offline max denial precedes isolation, attempts, verification, judge and cwd reads (0.4786ms)
+✔ max ranks successful verification above score and sums nested usage before cleanup (0.719ms)
+✔ max uses guarded judge only for tied passing candidates and includes its usage (0.2679ms)
+✔ max refuses malformed judge selections and cleans every candidate (0.2241ms)
+✔ all failed candidates remain failed without invoking judge (0.183ms)
+✔ max attempts are bounded and fail before isolation on bad policy/configuration (0.1726ms)
+✔ max cancellation and attempt errors retain usage and clean allocated isolation (0.2673ms)
+✔ max default copies isolate current source changes and cleanup owned directories (13.2892ms)
+✔ recovery native settings are disabled offline and bounded only under exact paid policy (0.4435ms)
+✔ default verifier checks run real subprocesses inside a copy and preserve source files (88.6214ms)
+✔ max rejects reused/source isolation paths and preserves cleanup errors (0.4939ms)
+✔ native recovery application gates before session access and applies only supported settings seam (0.1989ms)
+✔ native future SDK injection cannot fall through to default runtime or provider auth (1.7315ms)
+✖ stub-only native future path suppresses ambient resources and binds before prompting (3.1401ms)
+✖ default max copies preserve internal symlinks without shared writes and reject external links (2.335ms)
+✖ native future read tools confine paths and honor installed bounded read/search semantics (1.9618ms)
+✖ native future turn bound aborts tool loops and retains all partial usage (1.3595ms)
+✔ verify rejects native test flags that open listeners or inject arbitrary startup modules (0.3448ms)
+✖ native future session may finish successfully on its eighth final turn (1.323ms)
+✖ native future cleanup disposes even after abort failure and preserves incurred usage (1.3913ms)
+✖ native SDK rechecks policy before auth and streaming on every fresh-context turn (1.3168ms)
+✖ native SDK validates physical model, reasoning and cancellation before each request seam (1.6092ms)
+✖ auxiliary usage reaches native tool-result events while pre-call denials omit usage (1.4675ms)
+✔ missing helper usage remains explicitly incomplete and preserves known optional subsets (0.9285ms)
+✔ max optional token subsets aggregate only when known for every accounting source (0.2834ms)
+✔ zero helper accounting is explicitly incomplete rather than evidence of a free request (0.4957ms)
+✖ policy revoked during async auth preparation stops provider dispatch in the same turn (1.159ms)
+✔ serialized max results retain explicit accounting completeness for every adapter source (0.4568ms)
+✔ max exception serialization preserves missing callback accounting and known incurred usage (0.3098ms)
+✔ factory and import have no process or filesystem side effects (2.7134ms)
+✔ bash timeout defaults preserve valid explicit values and block malformed values (0.3475ms)
+✖ real service survives host exit and reload explicitly kills its owned group (33.5051ms)
+✖ real noisy child logs and tails are capped with restrictive permissions (0.917ms)
+✖ forged metadata, stale identity, traversal and symlinks cannot kill an unrelated real child (5.2766ms)
+✖ symlink state directories, Windows, malformed starts and canceled calls allocate no child (1.6491ms)
+✖ failed supervisor spawn rejects instead of reporting a running process (1.2907ms)
+✖ signed metadata cannot redirect an explicit owned kill to a different PID (4.7594ms)
+✖ readiness timeout and in-flight abort retain an explicitly manageable real child (0.7861ms)
+✖ TERM-resistant command remains owned and can receive a later explicit SIGKILL (0.7146ms)
+✖ concurrent KILL and TERM requests from fresh managers cannot lose the owned KILL (0.7011ms)
+✖ concurrent first starts publish only complete ownership state (3032.5463ms)
+✔ recovery launch refuses offline before environment or filesystem access (0.7896ms)
+✖ authorized profile stores only native retry settings and cleans its own agent directory (1.5588ms)
+✔ offline extraction denies before registry/auth/completion and exposes manual criteria (5.4955ms)
+✔ future authorized extraction uses one native exact FAST/xhigh completion and records usage (2.0313ms)
+✔ extraction fails closed on alternate models, cancellation, malformed criteria and missing usage (4.1462ms)
+✔ contract and todo custom data retain exact JSON and restore through compaction (2.1571ms)
+✔ todo serializes concurrent deltas and requires concrete dropped reasons (1.1656ms)
+✔ snapshot is detached and task reset cannot preserve foreign branch criteria (1.1467ms)
+✔ gate caps forced continuations at two and preserves prior boundary drafts (1.4063ms)
+✔ aborted/error/pending/malformed boundaries never consume caps or force requests (0.7194ms)
+✔ completed final-assistant boundary becomes continuable through its own nonempty native draft (1.0997ms)
+✔ missing todo steer occurs once after two turns only for an explicit multi-step task (1.2837ms)
+✔ verification must be an actual successful known checker after the final mutation (1.1508ms)
+✔ unknown bash and apply_patch invalidate stale checks even on error (0.8613ms)
+✔ sibling verifier begun before an edit cannot prove success after that edit (0.69ms)
+✔ verifier completed while sibling mutation remains pending cannot clear the gate (1.0988ms)
+✔ nested native events are coherent and duplicate execution events are idempotent (0.7475ms)
+✔ unseen or incomplete nested mutation summaries invalidate instead of inventing verification (0.6827ms)
+✔ explicit artifacts check confined paths and parsed format without executing check strings (5.2301ms)
+✖ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats (4.2326ms)
+✔ criteria do not claim semantic compliance from file existence or opaque check text (3.0738ms)
+✔ checker help/version requests and later failed checks cannot preserve a passing gate (0.7464ms)
+✔ changing a criterion resets resolved matching todo instead of reusing old acceptance (1.0591ms)
+✔ valid extraction usage is retained even when generated criteria are invalid (1.1097ms)
+✔ extraction cannot publish after an active native branch changes (0.9762ms)
+✖ artifact format parser rejects invalid CSV after a closing quote and directory symlinks (4.3277ms)
+✔ Phase 1 compaction that retains only contract/todo still restores task identity and continuation caps (1.5626ms)
+✔ explicit three inline numbered steps trigger the same bounded missing-todo steering (0.7206ms)
+✔ observation-looking shell hooks and incomplete checker results invalidate stale success (0.8964ms)
+✔ pending mutation persistence is bounded while all live calls still block verification (12.4038ms)
+✔ completion usage is accounted to its originating task when abortion follows the response (2.8739ms)
+✔ completion error usage is accounted once even when no criteria can be published (1.0719ms)
+✔ stale branch and revoked policy still retain incurred completion usage without publishing criteria (2.1127ms)
+✔ a new user task never inherits a previous task completion or error usage (2.1207ms)
+✔ actual extraction requests with missing usage report incomplete accounting and offline denials report none (1.6015ms)
+✔ successful extraction records exactly one dedicated helper accounting entry (1.262ms)
+✔ pre-request registry errors cannot masquerade as incurred extraction usage (0.7068ms)
+✔ partial error and aborted provider responses retain usage while reporting incomplete accounting (2.0243ms)
+✔ proposer reads exact raw pages, not summaries, with UTF-8 framing (7.1484ms)
+✔ proposer refuses traversal, absolute OS paths, and links into hidden evaluator data (4.51ms)
+✔ listing is paginated without hiding later prior harness versions (162.6868ms)
+✔ concurrent submissions persist exactly one declared change (3.6282ms)
+✔ unbounded raw pages and malformed proposals are refused (4.2342ms)
+✔ offline native proposer denies before SDK import, credential lookup or file allocation (1.0327ms)
+✔ session and selected native branch have separate totals without mutating source snapshots (2.9421ms)
+✔ helper replay and state snapshots are billed once while distinct identical requests remain distinct (0.4124ms)
+✔ partial or missing helper records preserve known amounts and make full cost unknown (0.4825ms)
+✔ thinking and one-hour cache writes are subsets rather than additional billable tokens (0.2465ms)
+✔ unknown context and absent or partial pricing never become free cost or invented context (0.2721ms)
+✔ native compaction, branch summary, usage and attributed tool totals are included without guessed model (0.2573ms)
+✔ category byte estimates count UTF8 content once and top consumers never echo payloads (0.2358ms)
+✔ task identity follows each branch ancestor instead of latest sibling state (0.3296ms)
+✔ conflicting IDs, helper identities, invalid subsets, missing compaction and zero placeholders fail honestly (0.6478ms)
+✔ partial subset totals stay unknown when a helper aborted after returning a known prefix (0.2191ms)
+✔ native parent topology does not accept unavailable array branches or sibling ancestry cycles (0.3224ms)
+✔ unsupported usage and unpaid no-attempt tool snapshots cannot be billed as valid helpers (0.1808ms)
+✔ unsafe numeric aggregates cannot silently round exact token and native cost totals (0.2248ms)
+✔ identical main response replay is counted once but independent response IDs remain separate (0.1637ms)
+✔ an incurred extraction snapshot without its dedicated helper record makes totals incomplete without replay billing (0.2343ms)
+✔ native bash execution, injected custom and summary message content contribute safe byte proxies (0.1664ms)
+✔ footer includes usage, cache-hit/context percentages, routed model and explicit active task cost (0.2727ms)
+✔ footer chooses active leaf task rather than a sibling and keeps unknown values explicit (0.2722ms)
+✔ navigation active leaf selects explicit task without narrowing all-session accounting (0.2369ms)
+✔ factory is inert and invalid/cancelled methods fail before Git (1.3521ms)
+✖ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index (877.4857ms)
+✔ concurrent sibling captures wait for one persistent snapshot and finish is idempotent (1045.6849ms)
+✔ reopen persists records, session isolation and detached list objects (936.3342ms)
+✖ manual post-turn edits and chmod refuse all restoration before any file changes (1875.3224ms)
+✔ ignored and private paths are excluded, preserve mutations and never enter shadow history (858.6534ms)
+✖ symlink capture and later symlink target/ancestor restoration are rejected without external writes (201.867ms)
+✔ newly ignored restoration paths refuse undo (724.4911ms)
+✖ corrupt/foreign metadata and private-store symlinks fail closed (843.6541ms)
+✔ capture and restore enforce file, byte, checkpoint caps (1396.3748ms)
+✖ post-apply durable Git failure rolls back every actual restored file and remains retryable (641.854ms)
+✔ unfinished capture cannot undo and shutdown cancels a queued/in-flight capture (516.8937ms)
+✔ session metadata supports safe custom version-control directory without ambient Git variables (747.3974ms)
+✖ binary/CRLF payloads and literal newline filenames survive source attributes without filters (180.2692ms)
+✖ hard links and shadow object-directory symlinks fail closed (627.5948ms)
+✔ same-session manager instances serialize capture and user edits to unchanged paths remain (685.6846ms)
+✔ actual shutdown cancels in-flight and queued captures, and Git timeouts are bounded (367.4205ms)
+✔ rollback refuses concurrent manual edits and retains explicit private recovery backups (860.7909ms)
+✔ large allowed blobs restore beyond textual Git output cap, and external shadow indirection is refused (1332.2726ms)
+✔ untrusted shadow attributes cannot invoke source filters (404.5464ms)
+✖ regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation (412.1885ms)
+✔ source regular-file growth after fstat uses bounded chunk reads without readFile (287.4383ms)
+✔ manifest regular-file growth after fstat uses bounded chunk reads without readFile (544.304ms)
+✔ default features startup and shutdown are completely inert (1.0936ms)
+✔ selected cost exposes native status/report without model work (1.9505ms)
+✔ plan gates any nested/deferred mutator, retains readonly and cancels tools (5.3971ms)
+✔ eval remember never creates tool or accesses learning cwd (0.1324ms)
+✖ skills discovery is explicit and excludes shared scanner/templates (3.2589ms)
+✔ core todo and verification do not force planning continuations (3.3179ms)
+✔ checkpoint hooks skip untouched turns and close one capture after sibling calls (0.3531ms)
+✔ checkpoint capture failure blocks mutation and does not finish missing state (0.2234ms)
+✔ tree navigation restores base tools without old plan writes into new branch (0.244ms)
+✔ checkpoint turn IDs remain unique across tree navigation and undo stays on active branch (0.5177ms)
+✖ native extension-local flag scoping still shares eval/safety ownership (1.9364ms)
+✖ scoped native flags preserve Phase 1 edits when core corrections are enabled (3.6106ms)
+✔ future authorized planning fills task placeholder with literal dollar replacement syntax (4.3377ms)
+✔ nine Phase 3 flags are default off and strictly parsed (1.0351ms)
+✖ Phase 3 prefix loads native extension and explicit eval without eating task (3.2771ms)
+✖ combined extensions retain context core features order and route (0.2572ms)
+✔ Phase 3 default forwards and selected variants reject model overrides (0.1992ms)
+✔ report and resume are exact local verbs with bounded literal option parser (0.1686ms)
+✔ actual resume free-policy denial precedes file or Pi resolution (37.3075ms)
+✖ native Pi argument parser retains prompt after eval boolean with explicit model (0.6534ms)
+✔ learnings are deferred, explicit, literal and supply a detached context file (28.4632ms)
+✔ eval denial happens before filesystem access and tool callbacks (0.2253ms)
+✔ concurrent appends across instances serialize without lost facts or duplicate facts (260.9486ms)
+✔ missing load creates no files, malformed/oversized facts and abort are refused (2.5422ms)
+✖ directory/file symlinks and oversized existing content are refused (1.7345ms)
+✔ fact count/UTF8 byte caps are enforced for append and load (5.6082ms)
+✔ eval/headless/RPC/no UI never request approval or inspect annotations (0.5732ms)
+✔ annotation hints are unverified, contradictory/destructive/open-world and unknown tools ask (0.976ms)
+✖ native builtins use conservative classifications with no annotations (0.9789ms)
+✔ literal echo avoids destructive false positives while direct and nested destructive shell asks (0.388ms)
+✔ decline/throw/pre-abort/pending cancellation block and approvals do not leak across calls (0.7018ms)
+✔ approval is bounded even if UI ignores abort and a late approval is ignored (54.1192ms)
+✖ ten discoverable assets have valid short frontmatter and resolvable relative probes (4.8687ms)
+✖ description anchors route ten mechanical fixtures to nonoverlapping domains (2.3608ms)
+✖ shared helpers cannot be discovered as an eleventh skill (0.3974ms)
+✖ debugging executes a real offline probe and returns its domain evidence (0.9176ms)
+✖ test-writing executes a real offline probe and returns its domain evidence (0.4511ms)
+✖ profiling executes a real offline probe and returns its domain evidence (0.5213ms)
+✖ build-systems executes a real offline probe and returns its domain evidence (0.7315ms)
+✖ python-packaging executes a real offline probe and returns its domain evidence (0.4054ms)
+✖ numerics executes a real offline probe and returns its domain evidence (0.5583ms)
+✖ http executes a real offline probe and returns its domain evidence (1.0451ms)
+✖ databases executes a real offline probe and returns its domain evidence (0.7077ms)
+✖ git-surgery executes a real offline probe and returns its domain evidence (0.3594ms)
+✖ security-hardening executes a real offline probe and returns its domain evidence (0.3523ms)
+✖ probes reject malformed arguments and missing roots with bounded JSON (30.5437ms)
+✖ probes refuse root symlinks and do not follow child symlinks or private files (0.6812ms)
+✖ all probes leave project scripts unexecuted and redact source contents (0.5182ms)
+✖ scanner enforces file, byte, depth and output bounds on real fixtures (0.737ms)
+✖ total public text reads stop before the byte budget is exceeded (0.5415ms)
+✖ large real trees stop at directory and directory-entry budgets (0.7541ms)
+✖ Git probes never follow worktree pointers or oversized HEAD contents (0.4714ms)
+✖ empty projects do not invent installed packages or static evidence (0.6707ms)
+✖ hardlinked files are skipped rather than reading another name for private data (0.7842ms)
+✖ malformed public manifests do not fabricate dependency or build declarations (0.3677ms)
+✖ a regular-file-to-FIFO replacement before the actual open cannot block or enter the scan (0.4984ms)
+✔ offline plan enters without prompting and gates nested/deferred/unknown calls (4.5362ms)
+✔ manual save keeps literal markdown at exact PLAN.md and restores tools (19.8023ms)
+✔ cancel/shutdown restore tools without creating a plan (2.0845ms)
+✖ plan write rejects symlink and restores on failure (1.8644ms)
+✔ reload active branch and compaction restore prior tool selection (1.3925ms)
+✔ completed boundary saves final assistant text and preserves existing drafts (5.7069ms)
+✔ pending continuation does not save while aborted/error outcomes restore honestly (1.7433ms)
+✔ completed boundary without final text refuses completion and restores (0.8763ms)
+✔ future plan prompting requires exact policy/model/xhigh and actual sendUserMessage (3.6742ms)
+✔ send/persist errors restore tools and never retain an active flag (1.0582ms)
+✔ prior assistant text is never saved for a new or reloaded task (0.804ms)
+✔ nonfinal assistant tool-use text cannot be presented as a complete plan (0.7158ms)
+✔ failed restoration is honest and shutdown retries the original tools (0.8672ms)
+✔ failed persistence during finish never claims completion and later shutdown clears stale active state (46.8913ms)
+✔ review guards policy before reading cwd/task/context or invoking verify (0.362ms)
+✔ authorized review sends current staged and unstaged diff plus requirements to native verify seam (152.924ms)
+✔ invalid review policy identities refuse before verify and failed seam stays honest (13.4933ms)
+✔ review never claims success for malformed or non-complete native verification evidence (181.4025ms)
+✔ default profile forwards prompt and tool arguments without shell interpolation (0.9019ms)
+✔ headless profile supplies JSON print mode exactly once (0.1053ms)
+✔ headless profile refuses contradictory modes and unimplemented max profile (0.2227ms)
+✔ profile-looking words in the prompt remain untouched (0.06ms)
+✔ Apex flags are prefix-only and never consume Pi option values (0.0665ms)
+✔ headless rejects equals-mode unsupported by Pi and repeated conflicting modes (0.0909ms)
+﹣ dry-run CLI resolves real pinned Pi without invoking a provider (0.0369ms) # SKIP
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.6451ms)
+✔ Phase 1 rejects wrong models, thinking, unknown and repeated feature options before Pi (0.1771ms)
+✖ route selection loads its model before Pi selection and still keeps physical policy (2.4196ms)
+✔ Phase 1 gate exposes an inert import without SDK loading or fixture allocation (73.058ms)
+✖ missing native compact policy cannot pass or reach a provider (100.9581ms)
+✖ native codemode gate detects corrupt shaping of programmatic JSON results (62.4294ms)
+✖ native Phase 1 factory initializes actual wrappers, lazy loadout and cancellation offline (63.0585ms)
+✖ Phase 1 gate denies ambient resource discovery before reading outside its fixture (64.499ms)
+✔ Phase 2 gate import leaves SDK, extension factories and fixture allocation inert (94.4958ms)
+✖ native Phase 2 gate proves opt-in state, bounded boundaries and owned process survival offline (57.65ms)
+✖ missing native settlement gate fails instead of inventing offline verification success (52.3998ms)
+✖ Phase 2 gate denies ambient package/resource discovery outside the fixture (61.3674ms)
+✖ lost bg startup report recovers only fixture-owned IDs and acknowledges their cleanup (69.97ms)
+✔ Phase 2 gate rejects unknown fault modes before fixture allocation (0.6267ms)
+✔ Phase 3 gate import leaves SDK, extensions and fixtures inert (97.2776ms)
+✖ native Phase 3 gate exercises commands, tools, resources and persisted state offline (62.9821ms)
+✖ missing native plan enforcement fails without provider calls (61.9952ms)
+✖ Phase 3 gate rejects ambient discovery and cleans fault fixtures (68.1387ms)
+✔ Phase 3 gate rejects unknown faults before allocation (0.6037ms)
+✔ fallback Python version probes obey the caller subprocess limits and environment (33.5064ms)
+✔ readiness requires every required check to pass (1.3376ms)
+✔ importing preflight performs no probes or filesystem writes (35.666ms)
+✖ ready tooling uses only bounded local probes with no inherited credentials or remote contexts (61.5925ms)
+✖ a same-version Harbor wheel without the pinned VCS commit blocks readiness (35.6488ms)
+✖ prerelease or suffixed package versions cannot satisfy exact Pi and Harbor pins (36.4055ms)
+✖ old Python, changed Pi, or changed configured pins cannot report tooling ready (38.7984ms)
+✖ missing Docker, Windows daemon, or missing Compose wait support blocks local readiness (73.177ms)
+✔ CLI reports blocked as JSON with exit 2 without printing command errors or environment secrets (33.2153ms)
+✔ importing the process microcheck does not spawn processes or create fixtures (55.7762ms)
+﹣ native Pi bash service survives tool-host exit and the owned process is cleaned up (51.7848ms) # requires Linux setsid and nohup
+﹣ missing readiness waits for the service watchdog before removing its fixture (0.1537ms) # requires Linux
+﹣ an aborted loopback health response returns a failure artifact and cleans up (0.1146ms) # requires Linux
+﹣ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (0.0956ms) # requires Linux
+✔ free policy overrides unused historical budget and explicit request cap (0.7958ms)
+✔ paid smoke needs its own unique current reservation (0.1596ms)
+✔ paid policy rejects overcommitted or inconsistent ledger amounts (0.2241ms)
+✔ paid policy preserves exclusive Muse model and xhigh selection (0.1369ms)
+✔ free CLI refuses before credentials, SDK startup or filesystem run creation (32.7272ms)
+✔ conservative reservation covers all four maximum sized requests (0.2456ms)
+✔ fifth physical send fails before transport and sends are counted on failed responses (11.5537ms)
+✔ six-request profile reserves its full bound and blocks the seventh send (0.3668ms)
+✔ only authorized request profiles and their corresponding spend caps are accepted (0.1804ms)
+✖ CLI enforces profile and budget limits without credentials or provider calls (119.6996ms)
+✔ guard records blocked reasons separately from the SDK connection-error text (0.2969ms)
+✔ model mismatch and fallback fields cannot reach transport (0.2676ms)
+✔ UTF-8 byte cap rejects a multibyte payload before transport (0.1771ms)
+✔ request body and endpoint are checked for both Request and URL inputs (2.3333ms)
+✔ missing budget, larger authorization, unsupported model and unknown prices fail closed (0.2286ms)
+✔ response identity is restricted to requested slug and official canonical slug (0.1008ms)
+✔ payload preflight validates independently and never counts an unsent request (0.2102ms)
+✔ payload thinking downgrade is rejected before any physical request (0.247ms)
+✔ redirects are denied for URL, string and Request inputs even if caller requests follow (0.4249ms)
+✔ successful echo cannot count as fixture verification (1.3161ms)
+✔ fixture completion rejects a final error and honors six-request policy (1.0031ms)
+✔ exact successful verification requires both edits before that bash start (1.1889ms)
+✔ later genuine verification is recognized after an unrelated earlier bash (0.9847ms)
+✔ reported reasoning sums billable responses and excludes an unsent guard error (0.2639ms)
+✖ provider credential echoes are sanitized before native session persistence without losing usage or IDs (1.6224ms)
+✔ session gate exposes an inert import instead of running or allocating a fixture (66.3244ms)
+✖ native offline compaction preserves recent context and branch state through fresh-process torn-tail recovery (51.7018ms)
+✖ a cancelled hook fails the gate without appending compaction or attempting auth/inference (53.5106ms)
+✖ default resource discovery is blocked before reading user or ancestor resources (54.9636ms)
+✖ a custom summary that loses the fixture contract cannot produce a passing gate (50.2628ms)
+✖ missing deterministic hook blocks default auth and inference instead of passing silently (46.4083ms)
+✔ bounded real native JSONL report aggregates all branches and exposes no prompt or tool payloads (14.617ms)
+✔ resume metadata identifies only unresolved tools on native active branch and never replays or writes (5.8036ms)
+✔ unterminated valid record and torn final fragment are distinguished without native tail repair (12.7678ms)
+✔ malformed interior records fail closed with line number rather than raw payload echo (5.1656ms)
+✔ report rejects oversized files and invalid limits before reading a payload (2.8974ms)
+✖ report refuses file and parent symlinks and nonregular files (2.2834ms)
+✔ invalid UTF8, empty files and nonnative headers fail with bounded messages (17.0775ms)
+✔ duplicate replay is reconciled but conflicting identity, broken parents and cycles are refused (14.0457ms)
+✔ completed active branch reports no pending tool and preserves empty native branch metadata (7.3761ms)
+✔ native safe custom session IDs and assistant model settings survive metadata inspection (4.856ms)
+✔ extra header payload and overlong native lines cannot leak through report metadata (12.7443ms)
+✔ malformed native message shapes and excessive nesting cannot become an empty or successful report (11.546ms)
+✔ the last physical replay record determines native resume leaf even when accounting deduplicates it (4.4132ms)
+✔ torn tail invalidates full subset and task totals and estimates while retaining observed accounting (4.6894ms)
+✖ a regular session replaced by an unwritten FIFO before real open is refused without blocking (41.8835ms)
+ℹ tests 355
+ℹ suites 0
+ℹ pass 235
+ℹ fail 115
+ℹ cancelled 0
+ℹ skipped 5
+ℹ todo 0
+ℹ duration_ms 18588.7521
+
+✖ failing tests:
+
+test at tests\context-compaction.test.mjs:1:1
+✖ tests\context-compaction.test.mjs (33.7661ms)
+  'test failed'
+
+test at tests\context-lazy.test.mjs:35:1
+✖ native lazy registration stays inactive and adds no MCP or model router (3.2685ms)
+  AssertionError [ERR_ASSERTION]: Apex lazy registration is missing
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:11:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:36:44)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\context-lazy.test.mjs:50:1
+✖ native codemode loadout omits deferred declarations and classifier access (1.5122ms)
+  AssertionError [ERR_ASSERTION]: Apex lazy registration is missing
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:11:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:51:26)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\context-lazy.test.mjs:64:1
+✖ native tool_search loads matching deferred tools only for the next declaration set (0.824ms)
+  AssertionError [ERR_ASSERTION]: Apex lazy registration is missing
+  + actual - expected
+  
+  + 'undefined'
+  - 'function'
+  
+      at fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:11:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/context-lazy.test.mjs:65:34)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'undefined',
+    expected: 'function',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\context-masking.test.mjs:1:1
+✖ tests\context-masking.test.mjs (31.0055ms)
+  'test failed'
+
+test at tests\context-patch.test.mjs:1:1
+✖ tests\context-patch.test.mjs (32.061ms)
+  'test failed'
+
+test at tests\context-router.test.mjs:54:1
+✖ router is registered during native extension loading without model runtime initialization (1.4942ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-router.test.mjs:74:1
+✖ first ten successful persisted assistants plan, then execute despite compacted request messages (0.7265ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-router.test.mjs:90:1
+✖ routing signals and assistant counts follow the active native branch rather than stale router state (0.6964ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-router.test.mjs:105:1
+✖ continuations and retries preserve the allowed physical identity and xhigh (0.7347ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-router.test.mjs:121:1
+✖ direct summaries keep fixed Muse/xhigh and never return branch state (0.5945ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-router.test.mjs:130:1
+✖ missing, virtual or misidentified physical catalog targets fail closed (1.3289ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\context-router.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\context-shaping.test.mjs:1:1
+✖ tests\context-shaping.test.mjs (31.1422ms)
+  'test failed'
+
+test at tests\context-tools.test.mjs:1:1
+✖ tests\context-tools.test.mjs (30.0316ms)
+  'test failed'
+
+test at tests\core-control.test.mjs:1:1
+✖ tests\core-control.test.mjs (30.8808ms)
+  'test failed'
+
+test at tests\core-environment.test.mjs:66:1
+✖ the default byte budget includes all ten entry points even when filenames need escaping (1.5576ms)
+  Error: ENOENT: no such file or directory, open 'C:\Users\Valo\Documents\GitHub\apex\.test-environment-kywTKX\src\0.mjs'
+      at async open (node:internal/fs/promises:697:25)
+      at async writeFile (node:internal/fs/promises:1317:14)
+      at async put (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:23:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:69:32)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.test-environment-kywTKX\\src\\0\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01.mjs'
+  }
+
+test at tests\core-environment.test.mjs:80:1
+✖ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks (8.2098ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\.test-environment-Kg6Pz1' -> 'C:\Users\Valo\Documents\GitHub\apex\.test-environment-yJu2MI\external'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:91:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.test-environment-Kg6Pz1',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.test-environment-yJu2MI\\external'
+  }
+
+test at tests\core-environment.test.mjs:117:1
+✖ snapshot explicitly reports distro, shell and current user through safe local sources (41.18ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - '/bin/fixture-shell'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:125:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '/bin/fixture-shell',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core-environment.test.mjs:339:1
+✖ native probes terminate hanging binaries, cap flood output and inherit no secret environment (43.1286ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:352:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core-environment.test.mjs:361:1
+✖ native probes preserve UTF-8 characters split across output chunks (41.5625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '' !== '🙂'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-environment.test.mjs:369:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: '🙂',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core-integration.test.mjs:46:1
+✖ time appends threshold notes without volatile prompt edits or forced continuation (4.1973ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\extensions\apex-core\control.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-integration.test.mjs:62:1
+✖ core correction preserves the selected Phase 1 edit shape through the native hook (0.9705ms)
+  Error: ENOENT: no such file or directory, mkdtemp 'C:\Users\Valo\Documents\GitHub\apex\.cache\correction-compat-XXXXXX'
+      at async mkdtemp (node:internal/fs/promises:1254:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-integration.test.mjs:64:13)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdtemp',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache\\correction-compat-XXXXXX'
+  }
+
+test at tests\core-integration.test.mjs:80:1
+✖ reload retains elapsed time and does not repeat earlier time thresholds (1.7167ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\extensions\apex-core\control.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-launcher.test.mjs:5:1
+✖ Phase 2 opt-in launcher loads the core and retains Muse/xhigh (12.186ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(args.some(value=>value.endsWith('/apex-core/index.mjs')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-launcher.test.mjs:8:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\core-models.test.mjs:138:1
+✖ stub-only native future path suppresses ambient resources and binds before prompting (3.1401ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:152:1
+✖ default max copies preserve internal symlinks without shared writes and reject external links (2.335ms)
+  Error: EPERM: operation not permitted, symlink 'target.txt' -> 'C:\Users\Valo\Documents\GitHub\apex\.models-test-a58gJ3\link.txt'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-models.test.mjs:153:173)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'target.txt',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.models-test-a58gJ3\\link.txt'
+  }
+
+test at tests\core-models.test.mjs:157:1
+✖ native future read tools confine paths and honor installed bounded read/search semantics (1.9618ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\package.json' -> 'C:\Users\Valo\Documents\GitHub\apex\.models-test-BTvJKv\outside.json'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-models.test.mjs:158:184)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\package.json',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.models-test-BTvJKv\\outside.json'
+  }
+
+test at tests\core-models.test.mjs:165:1
+✖ native future turn bound aborts tool loops and retains all partial usage (1.3595ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:175:1
+✖ native future session may finish successfully on its eighth final turn (1.323ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:179:1
+✖ native future cleanup disposes even after abort failure and preserves incurred usage (1.3913ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:183:1
+✖ native SDK rechecks policy before auth and streaming on every fresh-context turn (1.3168ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:190:1
+✖ native SDK validates physical model, reasoning and cancellation before each request seam (1.6092ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:195:1
+✖ auxiliary usage reaches native tool-result events while pre-call denials omit usage (1.4675ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-models.test.mjs:216:1
+✖ policy revoked during async auth preparation stops provider dispatch in the same turn (1.159ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\core-models.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\core-process.test.mjs:80:1
+✖ real service survives host exit and reload explicitly kills its owned group (33.5051ms)
+  AssertionError [ERR_ASSERTION]: file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305
+        if (platform === 'win32' || typeof process.getuid !== 'function') throw new Error('Native Windows background management is unsupported');
+                                                                                ^
+  
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at file:///C:/Users/Valo/Documents/GitHub/apex/core-process-fixture-OkklAS/[eval1]:1:255
+      at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+      at async node:internal/modules/esm/loader:224:26
+      at async ModuleLoader.executeModuleJob (node:internal/modules/esm/loader:221:20)
+      at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:91:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\core-process.test.mjs:118:1
+✖ real noisy child logs and tails are capped with restrictive permissions (0.917ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:125:21)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:138:1
+✖ forged metadata, stale identity, traversal and symlinks cannot kill an unrelated real child (5.2766ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:146:21)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:172:1
+✖ symlink state directories, Windows, malformed starts and canceled calls allocate no child (1.6491ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\core-process-fixture-9fi3Cl' -> 'C:\Users\Valo\Documents\GitHub\apex\core-process-fixture-Wkvk6n\.apex'
+      at symlinkSync (node:fs:1938:11)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:186:5)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\core-process-fixture-9fi3Cl',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\core-process-fixture-Wkvk6n\\.apex'
+  }
+
+test at tests\core-process.test.mjs:198:1
+✖ failed supervisor spawn rejects instead of reporting a running process (1.2907ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /ENOENT|spawn/i. Input:
+  
+  'Error: Native Windows background management is unsupported'
+  
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:203:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: Native Windows background management is unsupported
+        at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+        at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+        at file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:203:32
+        at waitForActual (node:assert:632:21)
+        at strict.rejects (node:assert:769:31)
+        at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:203:18)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /ENOENT|spawn/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\core-process.test.mjs:210:1
+✖ signed metadata cannot redirect an explicit owned kill to a different PID (4.7594ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:218:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:247:1
+✖ readiness timeout and in-flight abort retain an explicitly manageable real child (0.7861ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:261:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:275:1
+✖ TERM-resistant command remains owned and can receive a later explicit SIGKILL (0.7146ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:282:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:300:1
+✖ concurrent KILL and TERM requests from fresh managers cannot lose the owned KILL (0.7011ms)
+  Error: Native Windows background management is unsupported
+      at Object.execute (file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-core/process.mjs:305:79)
+      at call (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:20:50)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:309:21)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\core-process.test.mjs:338:1
+✖ concurrent first starts publish only complete ownership state (3032.5463ms)
+  AssertionError [ERR_ASSERTION]: owned fixture did not reach expected state
+      at until (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:32:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-process.test.mjs:374:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at tests\core-recovery-profile.test.mjs:12:1
+✖ authorized profile stores only native retry settings and cleans its own agent directory (1.5588ms)
+  Error: ENOENT: no such file or directory, mkdtemp 'C:\Users\Valo\Documents\GitHub\apex\.cache\recovery-test-XXXXXX'
+      at async mkdtemp (node:internal/fs/promises:1254:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-recovery-profile.test.mjs:14:13)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdtemp',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache\\recovery-test-XXXXXX'
+  }
+
+test at tests\core-state.test.mjs:266:1
+✖ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats (4.2326ms)
+  Error: EPERM: operation not permitted, symlink 'data.json' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.state-fixture-tOg23Y\linked.json'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-state.test.mjs:269:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'data.json',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.state-fixture-tOg23Y\\linked.json'
+  }
+
+test at tests\core-state.test.mjs:329:1
+✖ artifact format parser rejects invalid CSV after a closing quote and directory symlinks (4.3277ms)
+  Error: EPERM: operation not permitted, symlink 'real' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.state-fixture-TFf4Cj\shortcut'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/core-state.test.mjs:337:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'real',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.state-fixture-TFf4Cj\\shortcut'
+  }
+
+test at tests\features-checkpoints.test.mjs:45:1
+✖ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index (877.4857ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  438 !== 416
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:64:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 438,
+    expected: 416,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\features-checkpoints.test.mjs:107:1
+✖ manual post-turn edits and chmod refuse all restoration before any file changes (1875.3224ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:117:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /conflict/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\features-checkpoints.test.mjs:141:1
+✖ symlink capture and later symlink target/ancestor restoration are rejected without external writes (201.867ms)
+  Error: EPERM: operation not permitted, symlink 'ignored\external.txt' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-Cd0PSn\link.txt'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:145:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'ignored\\external.txt',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-Cd0PSn\\link.txt'
+  }
+
+test at tests\features-checkpoints.test.mjs:169:1
+✖ corrupt/foreign metadata and private-store symlinks fail closed (843.6541ms)
+  Error: EPERM: operation not permitted, symlink 'ignored' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-KU0tXW\.apex'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:183:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'ignored',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-KU0tXW\\.apex'
+  }
+
+test at tests\features-checkpoints.test.mjs:198:1
+✖ post-apply durable Git failure rolls back every actual restored file and remains retryable (641.854ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  438 !== 493
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:214:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 438,
+    expected: 493,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\features-checkpoints.test.mjs:250:1
+✖ binary/CRLF payloads and literal newline filenames survive source attributes without filters (180.2692ms)
+  Error: ENOENT: no such file or directory, open 'C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-bLt1pZ\literal
+  name-µ.txt'
+      at async open (node:internal/fs/promises:697:25)
+      at async writeFile (node:internal/fs/promises:1317:14)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:255:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-bLt1pZ\\literal\nname-µ.txt'
+  }
+
+test at tests\features-checkpoints.test.mjs:266:1
+✖ hard links and shadow object-directory symlinks fail closed (627.5948ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-PJcr2m\ignored' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-PJcr2m\.apex\checkpoints\fa57a52dbf08190218529730a3e99db6946c6c29220fb6e0551e21598b0b05db\shadow\.git\objects\00'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-checkpoints.test.mjs:279:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-PJcr2m\\ignored',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-PJcr2m\\.apex\\checkpoints\\fa57a52dbf08190218529730a3e99db6946c6c29220fb6e0551e21598b0b05db\\shadow\\.git\\objects\\00'
+  }
+
+test at tests\features-checkpoints.test.mjs:369:1
+✖ regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation (412.1885ms)
+  Error: Command failed: C:\Program Files\nodejs\node.exe --input-type=module -e 
+      import fs from 'node:fs';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { execFileSync } from 'node:child_process';
+      import path from 'node:path';
+      import { createHash } from 'node:crypto';
+      const [cwd, moduleURL, mode] = process.argv.slice(1);
+      const sessionKey = createHash('sha256').update('session-a').digest('hex');
+      const target = mode === 'source' ? path.join(cwd, 'tracked.txt') : path.join(cwd, '.apex/checkpoints', sessionKey, 'state.json');
+      const original = fs.promises.lstat;
+      let replaced = false;
+      fs.promises.lstat = async (...args) => {
+        const info = await original(...args);
+        if (args[0] === target && !replaced) {
+          replaced = true;
+          await fs.promises.unlink(target);
+          execFileSync('mkfifo', [target], { env: process.env });
+        }
+        return info;
+      };
+      syncBuiltinESMExports();
+      const { createCheckpointManager } = await import(moduleURL);
+      const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });
+      try {
+        await (mode === 'source' ? manager.capture('fifo-race') : manager.list());
+        throw Error('FIFO unexpectedly accepted');
+      } catch (error) {
+        process.stdout.write(JSON.stringify({ replaced, code: error.code, message: error.message }));
+        if (!replaced || !['unsafe-path', 'metadata'].includes(error.code)) process.exitCode = 1;
+      }
+     C:\Users\Valo\Documents\GitHub\apex\tests\.checkpoint-fixture-2hUnMr file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-features/checkpoints.mjs source
+  
+      at genericNodeError (node:internal/errors:985:15)
+      at wrappedFn (node:internal/errors:539:14)
+      at ChildProcess.exithandler (node:child_process:417:12)
+      at ChildProcess.emit (node:events:509:28)
+      at maybeClose (node:internal/child_process:1141:16)
+      at ChildProcess._handle.onexit (node:internal/child_process:306:5) {
+    code: 1,
+    killed: false,
+    signal: null,
+    cmd: "C:\\Program Files\\nodejs\\node.exe --input-type=module -e \n    import fs from 'node:fs';\n    import { syncBuiltinESMExports } from 'node:module';\n    import { execFileSync } from 'node:child_process';\n    import path from 'node:path';\n    import { createHash } from 'node:crypto';\n    const [cwd, moduleURL, mode] = process.argv.slice(1);\n    const sessionKey = createHash('sha256').update('session-a').digest('hex');\n    const target = mode === 'source' ? path.join(cwd, 'tracked.txt') : path.join(cwd, '.apex/checkpoints', sessionKey, 'state.json');\n    const original = fs.promises.lstat;\n    let replaced = false;\n    fs.promises.lstat = async (...args) => {\n      const info = await original(...args);\n      if (args[0] === target && !replaced) {\n        replaced = true;\n        await fs.promises.unlink(target);\n        execFileSync('mkfifo', [target], { env: process.env });\n      }\n      return info;\n    };\n    syncBuiltinESMExports();\n    const { createCheckpointManager } = await import(moduleURL);\n    const manager = createCheckpointManager({ cwd, sessionId: 'session-a' });\n    try {\n      await (mode === 'source' ? manager.capture('fifo-race') : manager.list());\n      throw Error('FIFO unexpectedly accepted');\n    } catch (error) {\n      process.stdout.write(JSON.stringify({ replaced, code: error.code, message: error.message }));\n      if (!replaced || !['unsafe-path', 'metadata'].includes(error.code)) process.exitCode = 1;\n    }\n   C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.checkpoint-fixture-2hUnMr file:///C:/Users/Valo/Documents/GitHub/apex/extensions/apex-features/checkpoints.mjs source",
+    stdout: '{"replaced":true,"message":"FIFO unexpectedly accepted"}',
+    stderr: ''
+  }
+
+test at tests\features-integration.test.mjs:38:1
+✖ skills discovery is explicit and excludes shared scanner/templates (3.2589ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(r.skillPaths.every(p=>p.endsWith('/SKILL.md')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-integration.test.mjs:40:84)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\features-integration.test.mjs:80:1
+✖ native extension-local flag scoping still shares eval/safety ownership (1.9364ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\extensions\apex-core\control.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\features-integration.test.mjs:90:1
+✖ scoped native flags preserve Phase 1 edits when core corrections are enabled (3.6106ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\extensions\apex-context\tools.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\features-launcher.test.mjs:13:1
+✖ Phase 3 prefix loads native extension and explicit eval without eating task (3.2771ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(args.some(s=>s.endsWith('/apex-features/index.mjs')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-launcher.test.mjs:15:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\features-launcher.test.mjs:21:1
+✖ combined extensions retain context core features order and route (0.2572ms)
+  AssertionError [ERR_ASSERTION]: The "string" argument must be of type string. Received type undefined (undefined)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-launcher.test.mjs:24:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /apex-context/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\features-launcher.test.mjs:43:1
+✖ native Pi argument parser retains prompt after eval boolean with explicit model (0.6534ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'C:\Users\Valo\Documents\GitHub\apex\node_modules\@earendil-works\pi-coding-agent\dist\cli\args.js' imported from C:\Users\Valo\Documents\GitHub\apex\tests\features-launcher.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+      at moduleResolve (node:internal/modules/esm/resolve:865:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32
+      at TracingChannel.tracePromise (node:diagnostics_channel:362:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///C:/Users/Valo/Documents/GitHub/apex/node_modules/@earendil-works/pi-coding-agent/dist/cli/args.js'
+  }
+
+test at tests\features-learnings.test.mjs:21:1
+✖ directory/file symlinks and oversized existing content are refused (1.7345ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\tests\.learnings-fixture-xXMbFV\outside' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.learnings-fixture-xXMbFV\.apex'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-learnings.test.mjs:22:89)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.learnings-fixture-xXMbFV\\outside',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.learnings-fixture-xXMbFV\\.apex'
+  }
+
+test at tests\features-safety.test.mjs:13:1
+✖ native builtins use conservative classifications with no annotations (0.9789ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\features-safety.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\features-skills.test.mjs:52:1
+✖ ten discoverable assets have valid short frontmatter and resolvable relative probes (4.8687ms)
+  AssertionError [ERR_ASSERTION]: debugging skill asset missing
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:56:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\features-skills.test.mjs:70:1
+✖ description anchors route ten mechanical fixtures to nonoverlapping domains (2.3608ms)
+  AssertionError [ERR_ASSERTION]: runtime failures
+  + actual - expected
+  
+  + []
+  - [
+  -   'debugging'
+  - ]
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:82:48)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'debugging' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\features-skills.test.mjs:85:1
+✖ shared helpers cannot be discovered as an eleventh skill (0.3974ms)
+  Error: ENOENT: no such file or directory, scandir 'C:\C:\Users\Valo\Documents\GitHub\apex\skills'
+      at async readdir (node:internal/fs/promises:1013:18)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:86:23)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'scandir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\skills'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ debugging executes a real offline probe and returns its domain evidence (0.9176ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ test-writing executes a real offline probe and returns its domain evidence (0.4511ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ profiling executes a real offline probe and returns its domain evidence (0.5213ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ build-systems executes a real offline probe and returns its domain evidence (0.7315ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ python-packaging executes a real offline probe and returns its domain evidence (0.4054ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ numerics executes a real offline probe and returns its domain evidence (0.5583ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ http executes a real offline probe and returns its domain evidence (1.0451ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ databases executes a real offline probe and returns its domain evidence (0.7077ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ git-surgery executes a real offline probe and returns its domain evidence (0.3594ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:107:45
+✖ security-hardening executes a real offline probe and returns its domain evidence (0.3523ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:108:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:124:1
+✖ probes reject malformed arguments and missing roots with bounded JSON (30.5437ms)
+  AssertionError [ERR_ASSERTION]: debugging: unexpected stderr
+  + actual - expected
+  
+  + 'node:internal/modules/cjs/loader:1520\r\n' +
+  +   '  throw err;\r\n' +
+  +   '  ^\r\n' +
+  +   '\r\n' +
+  +   "Error: Cannot find module 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\skills\\debugging\\scripts\\probe.mjs'\r\n" +
+  +   '    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)\r\n' +
+  +   '    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)\r\n' +
+  +   '    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)\r\n' +
+  +   '    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)\r\n' +
+  +   '    at Module._load (node:internal/modules/cjs/loader:1294:5)\r\n' +
+  +   '    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n' +
+  +   '    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n' +
+  +   '    at node:internal/main/run_main_module:33:47 {\r\n' +
+  +   "  code: 'MODULE_NOT_FOUND',\r\n" +
+  +   '  requireStack: []\r\n' +
+  +   '}\r\n' +
+  +   '\r\n' +
+  +   'Node.js v24.19.0\r\n'
+  - ''
+  
+      at probe (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:31:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:126:30)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: "node:internal/modules/cjs/loader:1520\r\n  throw err;\r\n  ^\r\n\r\nError: Cannot find module 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\skills\\debugging\\scripts\\probe.mjs'\r\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)\r\n    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)\r\n    at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)\r\n    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)\r\n    at Module._load (node:internal/modules/cjs/loader:1294:5)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47 {\r\n  code: 'MODULE_NOT_FOUND',\r\n  requireStack: []\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\features-skills.test.mjs:134:1
+✖ probes refuse root symlinks and do not follow child symlinks or private files (0.6812ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:135:19)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:159:1
+✖ all probes leave project scripts unexecuted and redact source contents (0.5182ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:160:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:176:1
+✖ scanner enforces file, byte, depth and output bounds on real fixtures (0.737ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:179:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:193:1
+✖ total public text reads stop before the byte budget is exceeded (0.5415ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:196:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:206:1
+✖ large real trees stop at directory and directory-entry budgets (0.7541ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:212:17)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:222:1
+✖ Git probes never follow worktree pointers or oversized HEAD contents (0.4714ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:223:19)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:243:1
+✖ empty projects do not invent installed packages or static evidence (0.6707ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:244:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:259:1
+✖ hardlinked files are skipped rather than reading another name for private data (0.7842ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:260:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:271:1
+✖ malformed public manifests do not fabricate dependency or build declarations (0.3677ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:272:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-skills.test.mjs:282:1
+✖ a regular-file-to-FIFO replacement before the actual open cannot block or enter the scan (0.4984ms)
+  Error: ENOENT: no such file or directory, mkdir 'C:\C:\Users\Valo\Documents\GitHub\apex\.cache'
+      at async mkdir (node:internal/fs/promises:916:10)
+      at async fixture (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:17:3)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-skills.test.mjs:283:15)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'mkdir',
+    path: 'C:\\C:\\Users\\Valo\\Documents\\GitHub\\apex\\.cache'
+  }
+
+test at tests\features-workflows.test.mjs:38:1
+✖ plan write rejects symlink and restores on failure (1.8644ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\tests\.plan-fixture-WgdB3z\outside.md' -> 'C:\Users\Valo\Documents\GitHub\apex\tests\.plan-fixture-WgdB3z\PLAN.md'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/features-workflows.test.mjs:39:106)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.plan-fixture-WgdB3z\\outside.md',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\tests\\.plan-fixture-WgdB3z\\PLAN.md'
+  }
+
+test at tests\launcher.test.mjs:46:1
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.6451ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /apex-context\/index\.mjs$/. Input:
+  
+  'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:53:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs',
+    expected: /apex-context\/index\.mjs$/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\launcher.test.mjs:61:1
+✖ route selection loads its model before Pi selection and still keeps physical policy (2.4196ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(args.some(value=>value.endsWith('/apex-router/index.mjs')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:30:1
+✖ missing native compact policy cannot pass or reach a provider (100.9581ms)
+  TypeError: Cannot read properties of undefined (reading 'entry_count')
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:35:34)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\phase1-micro.test.mjs:43:1
+✖ native codemode gate detects corrupt shaping of programmatic JSON results (62.4294ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:48:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:55:1
+✖ native Phase 1 factory initializes actual wrappers, lazy loadout and cancellation offline (63.0585ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_phase1_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded local native tool calls plus an explicitly synthetic text masking observation","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"environment_sanitized":false,"no_ambient_discovery":true},"cleanup":{"fixture_removed":true},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase1-micro-f37Ypc","failure":"offline_phase1_fixture_operation_failed","failure_stage":"sdk"}
+  
+  'FAIL' !== 'PASS'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:60:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FAIL',
+    expected: 'PASS',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:79:1
+✖ Phase 1 gate denies ambient resource discovery before reading outside its fixture (64.499ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.resource_discovery_attempts > 0)
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:84:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:30:1
+✖ native Phase 2 gate proves opt-in state, bounded boundaries and owned process survival offline (57.65ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_phase2_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded native tools/boundaries; deterministic injected clock and synthetic masking observation","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"environment_sanitized":false,"no_ambient_discovery":true},"cleanup":{"fixture_removed":true,"owned_processes_removed":true,"recovered_owned_ids":0},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase2-micro-sX9EFg","failure":"offline_phase2_fixture_operation_failed","failure_stage":"sdk","failure_code":"ERR_MODULE_NOT_FOUND"}
+  
+  'FAIL' !== 'PASS'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:35:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FAIL',
+    expected: 'PASS',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:71:1
+✖ missing native settlement gate fails instead of inventing offline verification success (52.3998ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:76:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:83:1
+✖ Phase 2 gate denies ambient package/resource discovery outside the fixture (61.3674ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.resource_discovery_attempts > 0)
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:88:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:94:1
+✖ lost bg startup report recovers only fixture-owned IDs and acknowledges their cleanup (69.97ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'offline_phase2_fixture_operation_failed'
+  - 'background_report_lost'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:99:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'offline_phase2_fixture_operation_failed',
+    expected: 'background_report_lost',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase3-micro.test.mjs:32:1
+✖ native Phase 3 gate exercises commands, tools, resources and persisted state offline (62.9821ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_phase3_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"Script-seeded native commands/tools/resources/session boundaries; no model completion.","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"environment_sanitized":false,"no_ambient_discovery":true},"cleanup":{"fixture_removed":true,"owned_processes_removed":true},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\phase3-micro-Edbb33","failure":"offline_phase3_fixture_operation_failed","failure_stage":"sdk","failure_code":"ERR_MODULE_NOT_FOUND"}
+  
+  'FAIL' !== 'PASS'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase3-micro.test.mjs:36:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FAIL',
+    expected: 'PASS',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase3-micro.test.mjs:73:1
+✖ missing native plan enforcement fails without provider calls (61.9952ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase3-micro.test.mjs:78:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase3-micro.test.mjs:83:1
+✖ Phase 3 gate rejects ambient discovery and cleans fault fixtures (68.1387ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(discovered.resource_discovery_attempts > 0)
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase3-micro.test.mjs:88:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\preflight.test.mjs:137:1
+✖ ready tooling uses only bounded local probes with no inherited credentials or remote contexts (61.5925ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at simulationResult (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:81:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:139:29)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\preflight.test.mjs:171:1
+✖ a same-version Harbor wheel without the pinned VCS commit blocks readiness (35.6488ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at simulationResult (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:81:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:173:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\preflight.test.mjs:180:1
+✖ prerelease or suffixed package versions cannot satisfy exact Pi and Harbor pins (36.4055ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at simulationResult (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:81:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:183:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\preflight.test.mjs:195:1
+✖ old Python, changed Pi, or changed configured pins cannot report tooling ready (38.7984ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at simulationResult (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:81:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:204:24)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\preflight.test.mjs:216:1
+✖ missing Docker, Windows daemon, or missing Compose wait support blocks local readiness (73.177ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  null !== 0
+  
+      at simulationResult (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:81:10)
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/preflight.test.mjs:219:24)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\provider-smoke.test.mjs:125:1
+✖ CLI enforces profile and budget limits without credentials or provider calls (119.6996ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'native_session_failed'
+  - 'budget_insufficient'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/provider-smoke.test.mjs:135:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'native_session_failed',
+    expected: 'budget_insufficient',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\provider-smoke.test.mjs:292:1
+✖ provider credential echoes are sanitized before native session persistence without losing usage or IDs (1.6224ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@earendil-works/pi-coding-agent' imported from C:\Users\Valo\Documents\GitHub\apex\tests\provider-smoke.test.mjs
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+      at packageResolve (node:internal/modules/esm/resolve:768:81)
+      at moduleResolve (node:internal/modules/esm/resolve:859:18)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+      at #resolve (node:internal/modules/esm/loader:683:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+      at node:internal/modules/esm/loader:632:32 {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at tests\session-micro.test.mjs:20:1
+✖ native offline compaction preserves recent context and branch state through fresh-process torn-tail recovery (51.7018ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_session_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded assistant tool calls with actual native built-in tool results","summary_source":"deterministic local extension fixture","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"no_ambient_discovery":true,"environment_sanitized":false},"cleanup":{"fixture_removed":true},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-Iezyym","failure":"offline_fixture_operation_failed"}
+  
+  'FAIL' !== 'PASS'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:25:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'FAIL',
+    expected: 'PASS',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\session-micro.test.mjs:45:1
+✖ a cancelled hook fails the gate without appending compaction or attempting auth/inference (53.5106ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'offline_fixture_operation_failed'
+  - 'compaction_cancelled'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:50:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'offline_fixture_operation_failed',
+    expected: 'compaction_cancelled',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\session-micro.test.mjs:56:1
+✖ default resource discovery is blocked before reading user or ancestor resources (54.9636ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(result.resource_discovery_attempts > 0)
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:61:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\session-micro.test.mjs:66:1
+✖ a custom summary that loses the fixture contract cannot produce a passing gate (50.2628ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - false
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:71:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\session-micro.test.mjs:76:1
+✖ missing deterministic hook blocks default auth and inference instead of passing silently (46.4083ms)
+  AssertionError [ERR_ASSERTION]: {"kind":"offline_session_contract","status":"FAIL","model":"openrouter/meta/muse-spark-1.3-contributor","thinking_level":"xhigh","transcript_source":"script-seeded assistant tool calls with actual native built-in tool results","summary_source":"deterministic local extension fixture","model_performance_measured":false,"provider_calls":0,"benchmark_runs":0,"network_attempts":0,"transport_attempts":0,"resource_discovery_attempts":0,"attempted_calls":{"network":0,"auth":0,"inference":0,"credentials":0},"checks":{"no_ambient_discovery":true,"environment_sanitized":false},"cleanup":{"fixture_removed":true},"fixture":"C:\\Users\\Valo\\Documents\\GitHub\\apex\\session-micro-TbR29C","failure":"offline_fixture_operation_failed"}
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:81:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\session-report.test.mjs:73:1
+✖ report refuses file and parent symlinks and nonregular files (2.2834ms)
+  Error: EPERM: operation not permitted, symlink 'C:\Users\Valo\Documents\GitHub\apex\.accounting-fixture-Y1SCiU\session.jsonl' -> 'C:\Users\Valo\Documents\GitHub\apex\.accounting-fixture-Y1SCiU\link.jsonl'
+      at async symlink (node:internal/fs/promises:1059:10)
+      at async TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-report.test.mjs:76:46)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.accounting-fixture-Y1SCiU\\session.jsonl',
+    dest: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\.accounting-fixture-Y1SCiU\\link.jsonl'
+  }
+
+test at tests\session-report.test.mjs:168:1
+✖ a regular session replaced by an unwritten FIFO before real open is refused without blocking (41.8835ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-report.test.mjs:206:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

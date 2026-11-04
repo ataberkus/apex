@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "kind": "windows_skip_inventory",
+  "native_windows": true,
+  "total_skips": 45,
+  "node_skips": 43,
+  "python_skips": 2,
+  "category_counts": {
+    "windows-file-symlink-privilege": 15,
+    "outside-native-windows-scope": 29,
+    "optional-checker-unavailable": 1
+  },
+  "skipped_boundaries_passed": false,
+  "elevation_requested": false,
+  "node_source": "validation/windows-unit-verified.log",
+  "node_source_sha256": "2859b4dc52e6c1131682bd16c9b8dcc490f33fc956bda83396eab58e03aa7030",
+  "python_source": "validation/windows-python-skip-audit.log",
+  "python_source_sha256": "8e2f75229477498e12615df2e40bec4a24d60d645951b4ab8299e658bae2b072",
+  "node": [
+    {
+      "test": "file symlink queue alias",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "POSIX mode preserved",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "outside file symlink rejected",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "POSIX private spill permissions",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "owned logs remain owner-readable under a restrictive process umask",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "wrapper and native sibling edits serialize against realpath aliases",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "ambiguous native filename rows do not fabricate search totals",
+      "reason": "Windows forbids literal newline filenames; ambiguous newline rows unexercised",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "dangling file symlink write refused",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "default diagnostics run an existing local TypeScript compiler without network and return new errors",
+      "reason": "No complete existing TypeScript checker available in this environment",
+      "category": "optional-checker-unavailable"
+    },
+    {
+      "test": "default diagnostic timeouts terminate inherited-output checker descendants within the checker budget",
+      "reason": "Unix process-group test",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "file symlink manifest is never read",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "native probes terminate hanging binaries, cap flood output and inherit no secret environment",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "native probes preserve UTF-8 characters split across output chunks",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "default max copies preserve internal symlinks without shared writes and reject external links",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "native read rejects outside file link",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "real service survives host exit and reload explicitly kills its owned group",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "real noisy child logs and tails are capped with restrictive permissions",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "forged metadata, stale identity, traversal and symlinks cannot kill an unrelated real child",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "Unix state directory links are refused before spawn",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "failed supervisor spawn rejects instead of reporting a running process",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "signed metadata cannot redirect an explicit owned kill to a different PID",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "readiness timeout and in-flight abort retain an explicitly manageable real child",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "TERM-resistant command remains owned and can receive a later explicit SIGKILL",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "concurrent KILL and TERM requests from fresh managers cannot lose the owned KILL",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "concurrent first starts publish only complete ownership state",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "POSIX private retry files",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "file symlink artifact refused",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "POSIX mode restored",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "mode",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "file symlink capture",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "POSIX mode rolled back",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "file symlink refused without changing target",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "file link source excluded",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "a regular-file-to-FIFO replacement before the actual open cannot block or enter the scan",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "plan write rejects symlink and restores on failure",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "lost bg startup report recovers only fixture-owned IDs and acknowledges their cleanup",
+      "reason": "Requires Unix native owned-process start and process-group cleanup.",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "native Pi bash service survives tool-host exit and the owned process is cleaned up",
+      "reason": "requires Linux setsid and nohup",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "missing readiness waits for the service watchdog before removing its fixture",
+      "reason": "requires Linux",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "an aborted loopback health response returns a failure artifact and cleans up",
+      "reason": "requires Linux",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "delayed service initialization still confirms watchdog cleanup when readiness is unreadable",
+      "reason": "requires Linux",
+      "category": "outside-native-windows-scope"
+    },
+    {
+      "test": "file symlink refused",
+      "reason": "File symlink creation unavailable (EPERM); boundary unexercised",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "a regular session replaced by an unwritten FIFO before real open is refused without blocking",
+      "reason": "Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows",
+      "category": "outside-native-windows-scope"
+    }
+  ],
+  "python": [
+    {
+      "test": "test_unsafe_file_types_and_symlink_targets_rejected (test_evolve_comparison.LeaderboardTests.test_unsafe_file_types_and_symlink_targets_rejected)",
+      "reason": "host does not permit symlink creation",
+      "category": "windows-file-symlink-privilege"
+    },
+    {
+      "test": "test_symlink_and_reparse_escapes_are_rejected (test_evolve_integrity.EvolutionIntegrityTests.test_symlink_and_reparse_escapes_are_rejected)",
+      "reason": "filesystem does not permit symlink creation",
+      "category": "windows-file-symlink-privilege"
+    }
+  ],
+  "remaining": [
+    "File-symlink boundaries remain unexercised with this account; junction/hard-link coverage does not replace them.",
+    "A full optional TypeScript checker is unavailable; no TypeScript diagnostic completion is claimed."
+  ],
+  "revalidated": [
+    {
+      "date": "2026-10-19",
+      "command": "npm run test:windows",
+      "log": "validation/windows-native-unit-2026-10-19.log",
+      "log_sha256": "8439cf2dd38c449e35b87e53ca304cd4c03d450406106bb569c14b45cb152e41",
+      "tests": 574,
+      "passed": 531,
+      "failed": 0,
+      "node_skips": 43,
+      "same_skipped_tests_as_node_list": true,
+      "category_counts": {
+        "windows-file-symlink-privilege": 13,
+        "outside-native-windows-scope": 29,
+        "optional-checker-unavailable": 1
+      },
+      "python_rerun": false
+    }
+  ]
+}

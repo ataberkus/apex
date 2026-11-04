@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "kind": "windows_interactive_terminal_acceptance",
+  "status": "PASS",
+  "date": "2026-10-19",
+  "supersedes": "validation/windows-terminal-acceptance-2026-10-02.json (GPT-6.1 Sol, explicit feature selection; kept as history)",
+  "host": "Windows 10 19045, Windows PowerShell 5.1 console host (conhost), no Windows Terminal",
+  "input_method": "WriteConsoleInputW key events into the console input buffer after AttachConsole; screen read with ReadConsoleOutputCharacterW",
+  "auth": "Claude Pro/Max OAuth from the dashboard login directory (PI_CODING_AGENT_DIR=%LOCALAPPDATA%\\Apex\\sol-oauth); Pi refreshed the expired access token itself on first use",
+  "sessions": [
+    {
+      "command": "node bin/apex --autocompact-tokens 20000",
+      "fixture": "fresh Git repository in %TEMP% with sample.txt and a 40 KB notes.txt; removed afterwards",
+      "resolved": "anthropic/claude-opus-5-5 at medium; extensions claude-identity, apex-context (cache), apex-core (correct), apex-features (cost,plan,report,resume,autocompact,checkpoints)",
+      "checks": {
+        "plain_apex_defaults_loaded": true,
+        "edit_applied": true,
+        "cost_command_reports_usage": true,
+        "undo_restores_edit": true,
+        "plan_mode_tools_read_only": true,
+        "plan_answer_saved_to_plan_md": true,
+        "plan_completion_notified": true,
+        "undo_removes_saved_plan": true,
+        "plan_cancel": true,
+        "report_command_outputs_json": true,
+        "resume_info_inspects_without_replay": true,
+        "autocompact_compacts_settled_session": true,
+        "cost_priced_after_compaction": true,
+        "session_reopened_with_totals": true,
+        "ctrl_d_exits_to_shell": true
+      },
+      "physical_requests": 9,
+      "footer_session_estimate_usd": 0.36734
+    },
+    {
+      "command": "node bin/apex --apex-features safety,cost,checkpoints",
+      "fixture": "fresh Git repository in %TEMP% with sample.txt; removed afterwards",
+      "resolved": "anthropic/claude-opus-5-5 at medium (explicit selection keeps the Windows target)",
+      "checks": {
+        "explicit_selection_stays_on_windows_target": true,
+        "safety_confirm_dialog_rendered": true,
+        "safety_escape_denies_and_blocks": true,
+        "safety_enter_allows_edit": true,
+        "safety_enter_allows_bash": true,
+        "undo_restores_edit": true,
+        "cost_command_reports_usage": true,
+        "ctrl_d_exits_to_shell": true
+      },
+      "physical_requests": 5,
+      "footer_session_estimate_usd": 0.020932
+    }
+  ],
+  "fixes_found_and_verified": [
+    "An explicit selection without --apex-target (apex --apex-features safety,cost,checkpoints) started on openrouter/meta/muse-spark-1.3-contributor, the frozen benchmark model; exited before any request. lib/windows-target.mjs now keeps explicit selections on the Windows target unless they name a Muse model; the relaunch above resolved Opus 5.5.",
+    "A plan turn saved PLAN.md silently and /plan said 'Offline plan mode ... Save explicit Markdown with /plan save'. The plan outcome is now notified ('Plan saved to PLAN.md; prior tools restored.') and the /plan message says the next answer is saved.",
+    "After autocompact, /cost read 'session unknown; native estimate' because Pi 0.99.2 writes compaction usage without a model. Native compaction and branch-summary usage is now priced on the session model; the reopened session showed 'session estimate $0.2570'."
+  ],
+  "observations": [
+    "--autocompact-tokens 20000 first reported Pi's 'Nothing to compact (session too small)': Pi keeps its most recent 20000 tokens (compaction.keepRecentTokens), so a threshold near that has nothing older to summarize. At 42k context tokens it compacted ('Compacted at 42k context tokens.').",
+    "Pi prints a static warning that Anthropic subscription auth in a third-party harness draws from extra usage; Apex sends the Claude Code identity and the requests completed on the subscription login.",
+    "Pi's exit hint reads 'pi --session <id>'; with Apex use 'apex --session <id>' to keep the features.",
+    "The violet-on-background palette-slot issue of Pi's default system theme in conhost (2026-10-02) still applies; see WINDOWS_LOCAL.md."
+  ],
+  "provider": "anthropic OAuth subscription",
+  "physical_requests": 14,
+  "catalog_estimate_usd": 0.388272,
+  "ledger": "evals/claude-budget.json",
+  "fixture_removed": true
+}

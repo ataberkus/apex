@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "tool": "rg",
+      "source": "existing-user-installed-native-binary",
+      "version_output": "ripgrep 15.2.0 (rev e89fff89ac)\n\nfeatures:+pcre2\nsimd(compile):+SSE2,-SSSE3,-AVX2\nsimd(runtime):+SSE2,+SSSE3,+AVX2\n\nPCRE2 10.45 is available (JIT is available)",
+      "sha256": "14231169855ec5205cf5a1b6f1db358ff4aed4247c86b69ce8aae647c77f6680"
+    },
+    {
+      "tool": "fd",
+      "source": "existing-user-installed-native-binary",
+      "version_output": "fd 10.5.0",
+      "sha256": "d67d27a8e375ed7e9bca2b506a9dd5082bc24547aeba908b863f6f8b8ab0c3b9"
+    }
+  ],
+  "paid_execution": false,
+  "system_modified": false,
+  "wsl_available": false
+}

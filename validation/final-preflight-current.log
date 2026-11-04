@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "readiness": "blocked",
+  "tooling_only": true,
+  "paid_execution": false,
+  "version_pins": {
+    "pi_version": "0.99.2",
+    "pi_source_commit": "8ce69e9d2b171d173fe4b6b2b6256f1f4411e69d",
+    "harbor_version": "0.23.0",
+    "harbor_commit": "99218a4611e3bd76e49ce3b5f977e8c8134ad3ac",
+    "node_minimum": "22.19.0",
+    "python_minimum": "3.12.0"
+  },
+  "checks": [
+    {
+      "id": "version-pins",
+      "status": "pass",
+      "required": true,
+      "message": "Project version pins must match the approved Pi and Harbor sources."
+    },
+    {
+      "id": "execution-policy",
+      "status": "pass",
+      "required": true,
+      "message": "Paid runs must be disabled and execution policy must be offline-only."
+    },
+    {
+      "id": "node",
+      "status": "pass",
+      "required": true,
+      "observed": "24.19.0",
+      "minimum": "22.19.0"
+    },
+    {
+      "id": "pi-pin",
+      "status": "pass",
+      "required": true,
+      "observed": "0.99.2",
+      "expected": "0.99.2"
+    },
+    {
+      "id": "python",
+      "status": "pass",
+      "required": true,
+      "observed": "3.13.7",
+      "minimum": "3.12.0"
+    },
+    {
+      "id": "harbor-pin",
+      "status": "pass",
+      "required": true,
+      "observed_version": "0.23.0",
+      "observed_commit": "99218a4611e3bd76e49ce3b5f977e8c8134ad3ac",
+      "expected_version": "0.23.0",
+      "expected_commit": "99218a4611e3bd76e49ce3b5f977e8c8134ad3ac",
+      "message": "Installed Harbor must include the pinned VCS commit; a same-version wheel is insufficient."
+    },
+    {
+      "id": "docker-cli",
+      "status": "pass",
+      "required": true,
+      "observed": "29.3.1"
+    },
+    {
+      "id": "docker-daemon",
+      "status": "blocked",
+      "required": true,
+      "observed_os": null,
+      "expected_os": "linux",
+      "reason": "probe-failed",
+      "message": "The local daemon must support Linux containers. Windows users can run this check inside WSL2 Ubuntu."
+    },
+    {
+      "id": "docker-compose",
+      "status": "blocked",
+      "required": true,
+      "observed": null,
+      "reason": "probe-failed"
+    },
+    {
+      "id": "compose-wait",
+      "status": "blocked",
+      "required": true,
+      "message": "Pinned Harbor requires Docker Compose up --wait support."
+    }
+  ],
+  "local_docker": {
+    "endpoint_scope": "local",
+    "endpoint": "npipe:////./pipe/docker_engine",
+    "cli_available": true,
+    "daemon_reachable": false,
+    "daemon_os": null,
+    "compose_available": false,
+    "compose_wait_supported": false,
+    "ready": false
+  },
+  "scope": "Prerequisite tooling only. Containers, images, inference, and benchmarks were not run.",
+  "windows_guidance": "Use WSL2 Ubuntu with Docker Engine and Compose for Linux tasks. That Windows setup has not been validated by this check."
+}

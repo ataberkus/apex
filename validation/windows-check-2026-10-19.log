@@ -1,0 +1,5 @@
+
+> @apex-agent/pi@0.0.0 check:windows
+> node scripts/check.mjs --windows
+
+Native Windows syntax, JSON, package resources and Pi checks passed. Python/Harbor/container acceptance is separate.

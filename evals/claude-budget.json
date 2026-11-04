@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "authorization_source": "User instruction 2026-10-19: Sol access ended; continue on Claude only. Native Windows live acceptance on anthropic/claude-opus-5-5 at medium thinking with a USD 10 combined catalog-estimate cap",
+  "execution_scope": "claude-oauth-windows-acceptance",
+  "provider": "anthropic",
+  "model": "claude-opus-5-5",
+  "thinking_level": "medium",
+  "auth_type": "oauth",
+  "spending_policy": "capped",
+  "budget_cap_usd": 10,
+  "account_billed_cost_usd": null,
+  "observed_catalog_token_cost_usd": 1.1724456,
+  "reserved_catalog_token_cost_usd": 0,
+  "remaining_catalog_equivalent_usd": 8.8275544,
+  "guardrails": [
+    "Covers automated and manual live Windows acceptance runs only; ordinary daily use of a Claude subscription has no Apex dollar cap",
+    "No API-key route, provider fallback, OpenRouter spending or historical budget release",
+    "Every run declares bounded scope, physical requests, a per-run catalog-estimate cap and a deadline before its first request",
+    "Actual subscription billing is unavailable; catalog equivalents from the pinned Pi catalog are not invoices"
+  ],
+  "runs": [
+    {
+      "run_id": "claude-oauth-refresh-probe-001",
+      "purpose": "One tiny plain `apex --profile headless --no-tools` print call on the default model to prove Pi's built-in Claude OAuth refresh on native Windows",
+      "physical_requests": 1,
+      "catalog_token_cost_usd": 0.004181,
+      "billed_cost_usd": null,
+      "summary_file": "runs/claude-live/refresh-probe/events.jsonl",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-claude-live-001",
+      "purpose": "Native Windows enabled-features-together live acceptance (SDK)",
+      "physical_requests": 10,
+      "catalog_token_cost_usd": 0.7214326,
+      "billed_cost_usd": null,
+      "summary_file": "runs/model-smoke/windows-claude-live-001/summary.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-terminal-acceptance-2026-10-19",
+      "purpose": "Interactive Windows PowerShell 5.1 console acceptance: plain apex defaults with autocompact, then opt-in safety",
+      "physical_requests": 14,
+      "catalog_token_cost_usd": 0.388272,
+      "billed_cost_usd": null,
+      "summary_file": "validation/windows-terminal-acceptance.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-dashboard-acceptance-2026-10-19",
+      "purpose": "Native Windows dashboard acceptance: Default, Plain agent and Everyday safety presets on Opus 5.5 medium",
+      "physical_requests": 12,
+      "catalog_token_cost_usd": 0.037443,
+      "billed_cost_usd": null,
+      "summary_file": "validation/windows-dashboard-acceptance.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    },
+    {
+      "run_id": "windows-pair-smoke-2026-10-19",
+      "purpose": "Native Windows --apex-pair headless smoke: Opus 5.5 low plans/edits, Haiku 4.5 low builds",
+      "physical_requests": 2,
+      "catalog_token_cost_usd": 0.021117,
+      "billed_cost_usd": null,
+      "summary_file": "validation/windows-optin-audit.json",
+      "benchmark_result": false,
+      "usage_complete": true
+    }
+  ],
+  "reservations": [
+    {
+      "run_id": "windows-claude-live-001",
+      "status": "reconciled",
+      "reserved_catalog_token_cost_usd": 4,
+      "max_physical_requests": 16,
+      "max_payload_bytes": 262144,
+      "max_output_tokens": 16000,
+      "output_bound_source": "guard lowers each payload max_tokens and refuses a send whose worst case would pass the run cap",
+      "reserved_at": "2026-10-19T18:22:03.282Z",
+      "physical_requests": 10,
+      "usage_complete": true,
+      "reconciled_at": "2026-10-19T18:24:38.510Z"
+    }
+  ]
+}

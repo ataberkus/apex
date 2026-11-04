@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-preview",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "C:/Users/Valo/AppData/Local/Temp/claude/C--Users-Valo-Documents-GitHub-apex/d2fde7e5-450e-4e19-9cb5-d37d901bdbb9/scratchpad/dash-preview.mjs"
+      ],
+      "port": 4799
+    },
+    {
+      "name": "picker-preview",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "C:/Users/Valo/AppData/Local/Temp/claude/C--Users-Valo-Documents-GitHub-apex/f3f03c89-c47c-42ba-b3b4-4aaf7c1eb917/scratchpad/dash-preview.mjs"
+      ],
+      "port": 4801
+    }
+  ]
+}

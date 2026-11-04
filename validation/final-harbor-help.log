@@ -1,0 +1,34 @@
+                                                                               
+ Usage: -c [OPTIONS] COMMAND [ARGS]...                                         
+                                                                               
++- Options -------------------------------------------------------------------+
+| --version             -v                                                    |
+| --install-completion            Install completion for the current shell.   |
+| --show-completion               Show completion for the current shell, to   |
+|                                 copy it or customize the installation.      |
+| --help                -h        Show this message and exit.                 |
++-----------------------------------------------------------------------------+
++- Commands ------------------------------------------------------------------+
+| check     Check task quality against a rubric.                              |
+| analyze   Analyze trial trajectories.                                       |
+| init      Initialize a new task or dataset.                                 |
+| run       Start a job. Alias for `harbor job start`.                        |
+| exec      Compile paths into tasks and run a job.                           |
+| publish   Publish tasks and datasets to the Harbor registry.                |
+| upload    Upload job results to the Harbor platform.                        |
+| download  Download a task or dataset.                                       |
+| sync      Update task digests in a dataset manifest.                        |
+| view      Start web server to browse trajectory files.                      |
+| adapter   Manage adapters.                                                  |
+| agent     Inspect built-in agents.                                          |
+| task      Manage tasks.                                                     |
+| dataset   Manage datasets.                                                  |
+| job       Manage jobs.                                                      |
+| hub       View Harbor Hub jobs, tasks, and trials.                          |
+| trial     Manage trials.                                                    |
+| cache     Manage Harbor cache.                                              |
+| plugins   Manage job plugins.                                               |
+| auth      Manage authentication.                                            |
+| version   Manage package versions.                                          |
++-----------------------------------------------------------------------------+
+

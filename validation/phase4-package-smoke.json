@@ -1,0 +1,12 @@
+{
+  "kind": "phase4_offline_packaged_cli_smoke",
+  "status": "PASS",
+  "provider_calls": 0,
+  "benchmark_runs": 0,
+  "help_exit": 0,
+  "run_exit": 2,
+  "packaged_files": 271,
+  "private_state_excluded": true,
+  "offline_denial_before_allocation": true,
+  "temporary_extraction_removed": true
+}

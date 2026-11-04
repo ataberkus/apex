@@ -1,0 +1,39 @@
+✔ default features startup and shutdown are completely inert (4.225673ms)
+✔ selected cost exposes native status/report without model work (6.130568ms)
+✔ plan gates any nested/deferred mutator, retains readonly and cancels tools (13.905799ms)
+✔ eval remember never creates tool or accesses learning cwd (0.387463ms)
+✔ skills discovery is explicit and excludes shared scanner/templates (0.762887ms)
+✔ core todo and verification do not force planning continuations (5.493319ms)
+✔ checkpoint hooks skip untouched turns and close one capture after sibling calls (0.748485ms)
+✔ checkpoint capture failure blocks mutation and does not finish missing state (0.645631ms)
+✔ tree navigation restores base tools without old plan writes into new branch (0.839222ms)
+✔ checkpoint turn IDs remain unique across tree navigation and undo stays on active branch (3.458ms)
+✔ native extension-local flag scoping still shares eval/safety ownership (1461.426742ms)
+✔ scoped native flags preserve Phase 1 edits when core corrections are enabled (3.527865ms)
+✔ future authorized planning fills task placeholder with literal dollar replacement syntax (16.816736ms)
+✔ offline plan enters without prompting and gates nested/deferred/unknown calls (22.048361ms)
+✔ manual save keeps literal markdown at exact PLAN.md and restores tools (10.380929ms)
+✔ cancel/shutdown restore tools without creating a plan (10.628411ms)
+✔ plan write rejects symlink and restores on failure (12.568117ms)
+✔ reload active branch and compaction restore prior tool selection (2.824967ms)
+✔ completed boundary saves final assistant text and preserves existing drafts (6.512613ms)
+✔ pending continuation does not save while aborted/error outcomes restore honestly (4.332394ms)
+✔ completed boundary without final text refuses completion and restores (4.580247ms)
+✔ future plan prompting requires exact policy/model/xhigh and actual sendUserMessage (19.418698ms)
+✔ send/persist errors restore tools and never retain an active flag (6.713925ms)
+✔ prior assistant text is never saved for a new or reloaded task (3.482862ms)
+✔ nonfinal assistant tool-use text cannot be presented as a complete plan (3.592462ms)
+✔ failed restoration is honest and shutdown retries the original tools (2.302832ms)
+✔ failed persistence during finish never claims completion and later shutdown clears stale active state (6.034854ms)
+✔ review guards policy before reading cwd/task/context or invoking verify (1.036172ms)
+✔ authorized review sends current staged and unstaged diff plus requirements to native verify seam (114.040302ms)
+✔ invalid review policy identities refuse before verify and failed seam stays honest (18.760303ms)
+✔ review never claims success for malformed or non-complete native verification evidence (95.908332ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1770.520623

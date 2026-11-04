@@ -1,0 +1,45 @@
+{
+  "id": "meta/muse-spark-1.3-contributor",
+  "canonical_slug": "meta/muse-spark-1.3-contributor-20260902",
+  "name": "Meta: Muse Spark 1.3 Contributor",
+  "context_length": 1048576,
+  "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000002",
+    "web_search": "0.0025",
+    "input_cache_read": "0.000000002"
+  },
+  "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 943718,
+    "is_moderated": true
+  },
+  "supported_parameters": [
+    "include_reasoning",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_p"
+  ],
+  "architecture": {
+    "modality": "text+image+file+video->text",
+    "input_modalities": [
+      "text",
+      "image",
+      "video",
+      "file"
+    ],
+    "output_modalities": [
+      "text"
+    ],
+    "tokenizer": "Other",
+    "instruct_type": null
+  }
+}

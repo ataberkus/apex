@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "kind": "phase3_local_scope",
+  "local_scope_status": "complete",
+  "phase3_empirical_acceptance_criteria_met": false,
+  "phase0_empirical_exit_criteria_met": false,
+  "phase1_cost_target_measured": false,
+  "phase2_pass_rate_target_measured": false,
+  "project_definition_of_done_met": false,
+  "execution_policy": "offline-only",
+  "paid_runs_enabled": false,
+  "configuration": {
+    "main_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "fast_model": "openrouter/meta/muse-spark-1.3-contributor",
+    "thinking_level": "xhigh",
+    "pi_version": "0.99.2",
+    "default_enabled_features": [],
+    "feature_flags": [
+      "cost",
+      "checkpoints",
+      "review",
+      "plan",
+      "remember",
+      "skills",
+      "safety",
+      "report",
+      "resume"
+    ]
+  },
+  "verification": {
+    "check": "PASS",
+    "unit_tests_passed": 586,
+    "node_tests_passed": 440,
+    "python_tests_passed": 146,
+    "unit_tests_failed": 0,
+    "unit_tests_skipped": 1,
+    "skip_reason": "optional installed TypeScript checker unavailable",
+    "unit_file_concurrency": 2,
+    "integrated_micro": "PASS",
+    "phase3_native_checks_passed": 31,
+    "phase2_native_checks_passed": 22,
+    "phase1_native_checks_passed": 16,
+    "native_attempted_calls": {
+      "network": 0,
+      "auth": 0,
+      "inference": 0,
+      "credentials": 0
+    },
+    "ambient_discovery_attempts": 0,
+    "cli_sdk_initializations": 0,
+    "independent_reviews_remaining_material_defects": 0,
+    "owned_native_cleanup": {
+      "fixture_removed": true,
+      "owned_processes_removed": true
+    }
+  },
+  "spend": {
+    "additional_provider_calls": 0,
+    "additional_inference_calls": 0,
+    "additional_usd": 0,
+    "historical_provider_calls": 9,
+    "historical_usd": 0.002482108,
+    "historical_unused_cap_usd": 0.997517892,
+    "unused_cap_frozen": true,
+    "reserved_usd": 0
+  },
+  "benchmark_trials": 0,
+  "pi_core_changes": false,
+  "active_apex_resources": "all default off; skills and remember explicitly selected/deferred",
+  "cloud_resources_created": false,
+  "system_installations": false,
+  "development_exceptions": [
+    "Prior full suite hit service watchdog startup race; failed log preserved, real delayed-start regression fixes proof deadline.",
+    "Prior nine-concurrent-file suite hit unchanged five-second session fault child deadline; failure preserved; final runner caps local unit files at two with unchanged assertions/timeouts.",
+    "Native fixtures and future-model stub records are synthetic; no model execution."
+  ],
+  "pending": [
+    "stock baselines and full/held-out benchmarks",
+    "all model ablation effects and performance targets",
+    "top five benchmark failure classes and exact request category attribution",
+    "renewed priced-execution authorization and configured container host/image digests",
+    "native Windows and real container runs",
+    "pi-durable API integration and in-flight side-effect replay"
+  ],
+  "limits": [
+    "accounting categories are stored-content UTF8 bytes/4 estimates",
+    "known observations never turn incomplete/full costs into free totals",
+    "checkpoints regular files/local Git only; bounded storage and no cross-process lock/crash-restore recovery",
+    "safety annotations unverified; approval UX and filesystem checks are not an OS sandbox",
+    "review bounded tracked diff requires HEAD; model-generated plan/review guarded offline",
+    "skills static probes/mechanical metadata do not measure model routing",
+    "native completed-session restore does not replay pending tools"
+  ],
+  "evidence": [
+    "validation/phase3-check.log",
+    "validation/phase3-unit.log",
+    "validation/phase3-micro-gates.log",
+    "validation/phase3-micro.json",
+    "validation/phase3-integration-review.md",
+    "validation/phase3-modules-review.md",
+    "validation/phase3-assets-review.md",
+    "validation/phase3-watchdog-review.md",
+    "validation/phase3-cleanup.json"
+  ],
+  "source_base_commit": "6cfa514fa91a1d6cb19d33e65ccfb1b630744360",
+  "design_commit": "76a3da7"
+}

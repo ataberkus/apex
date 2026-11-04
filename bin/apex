@@ -1,0 +1,87 @@
+#!/usr/bin/env bun
+import { spawn } from 'node:child_process';
+import { buildPiInvocation, resolvePi } from '../lib/launcher.mjs';
+import {runtimeExecutable, spawnFailure} from '../lib/runtime.mjs';
+import {withWindowsDefaults} from '../lib/windows-target.mjs';
+import {runtimePolicy,parseCoreFlags} from '../extensions/apex-core/config.mjs';
+
+import {parseLocalCommand,formatSessionReport} from '../lib/commands.mjs';
+import {createStyle,formatError} from '../lib/cli-style.mjs';
+
+// process.stderr.write, not console.error: Bun's console paints strings red whenever colors are forced, even on a pipe.
+const reportError = error => process.stderr.write(formatError(createStyle(process.stderr), error.message) + '\n');
+
+async function printReport(local) {
+  const {readSessionReport} = await import('../lib/session-report.mjs');
+  const report = await readSessionReport(local.file);
+  console.log(local.json ? JSON.stringify(report) : formatSessionReport(report, createStyle(process.stdout)));
+}
+
+/** `apex resume SESSION` replays nothing: a session with pending tool calls or a torn tail is refused. */
+async function inspectResumable(local) {
+  const {inspectResume} = await import('../lib/session-report.mjs');
+  const resume = await inspectResume(local.file);
+  if (resume.pendingTools.length || resume.tornTail) throw Error('Session has unresolved tool calls or a torn tail; automatic replay is unavailable.');
+  return resume;
+}
+
+/** Run Pi as a child with inherited stdio until it exits; the recovery core feature runs it inside a disposable profile. */
+async function launch(invocation) {
+  let profile;
+  const coreIndex = invocation.args.indexOf('--apex-core-flags');
+  const flags = coreIndex < 0 ? [] : parseCoreFlags(invocation.args[coreIndex + 1]);
+  if (flags.includes('recovery')) {
+    const {createRecoveryProfile} = await import('../lib/recovery-profile.mjs');
+    profile = await createRecoveryProfile({policy: runtimePolicy(), cwd: process.cwd(), env: process.env});
+  }
+  const cleanup = async () => { try { await profile?.cleanup(); } catch (error) { reportError(error); return false; } return true; };
+  const command = runtimeExecutable();
+  const child = spawn(command, [invocation.cli, ...invocation.args], {stdio: 'inherit', shell: false, ...(profile ? {env: profile.env} : {})});
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
+  await new Promise(resolve => {
+    child.once('error', async error => { reportError(Error(spawnFailure(error, {command}))); process.exitCode = 1; await cleanup(); resolve(); });
+    child.once('exit', async (code, signal) => {
+      process.exitCode = code ?? (signal === 'SIGINT' ? 130 : 1);
+      if (!await cleanup()) process.exitCode = 1;
+      resolve();
+    });
+  });
+}
+
+/** The automatic update check runs beside an interactive session only; scripted and headless runs never see it. */
+function interactiveLaunch(args) {
+  if (!process.stdout.isTTY || !process.stderr.isTTY) return false;
+  return !args.some((arg, index) => ['--apex-eval', '--print', '-p', '--mode'].includes(arg) || (arg === '--profile' && args[index + 1] === 'headless'));
+}
+
+async function main(incoming) {
+  if (incoming[0] === '--apex-help') {
+    const {formatHelp} = await import('../lib/help.mjs');
+    return console.log(formatHelp(createStyle(process.stdout)));
+  }
+  const local = parseLocalCommand(incoming);
+  if (local?.kind === 'resume' && !local.dryRun && !runtimePolicy().paid_runs_enabled) throw Error('Resume launch is disabled by the offline-only policy; inspect with --apex-dry-run.');
+  if (local?.kind === 'report') return printReport(local);
+  if (local?.kind === 'update') {
+    const {runUpdate} = await import('../lib/update.mjs');
+    return runUpdate(local.mode);
+  }
+  const dryRun = local?.dryRun || incoming[0] === '--apex-dry-run';
+  const resume = local ? await inspectResumable(local) : undefined;
+  const pi = resolvePi();
+  const args = resume ? ['--apex-features', 'resume', '--session', resume.file] : withWindowsDefaults(dryRun ? incoming.slice(1) : incoming);
+  const invocation = buildPiInvocation(args, pi.cli);
+  if (dryRun) return console.log(JSON.stringify({pi_version: pi.version, ...invocation, ...(resume ? {resume} : {})}));
+  // Started beside Pi and printed after it exits, so a slow or offline network never delays or breaks the session.
+  const notice = interactiveLaunch(incoming) ? import('../lib/update.mjs').then(({automaticUpdateNotice}) => automaticUpdateNotice()) : null;
+  await launch(invocation);
+  const text = await notice;
+  if (text) process.stderr.write(text + '\n');
+}
+
+try {
+  await main(process.argv.slice(2));
+} catch (error) {
+  reportError(error);
+  process.exitCode = 1;
+}

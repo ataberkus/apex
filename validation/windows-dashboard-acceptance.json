@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "kind": "windows_dashboard_acceptance",
+  "status": "PASS",
+  "date": "2026-10-19",
+  "host": "Windows 10 19045; node dashboard/server.mjs on 127.0.0.1 with a scratch APEX_DASH_HOME; headless Chromium",
+  "auth": "Claude Pro/Max OAuth (PI_CODING_AGENT_DIR=%LOCALAPPDATA%\\Apex\\sol-oauth); sidebar showed 'Claude: Login saved'",
+  "fixture": "fresh Git repository in %TEMP% with sample.txt; removed afterwards",
+  "sessions": [
+    {
+      "preset": "Default",
+      "resolved": {"model": "anthropic/claude-opus-5-5", "thinking": "medium", "target": "windows", "context": ["cache"], "core": ["correct"], "features": ["cost", "checkpoints", "plan", "report", "resume", "autocompact"], "autocompactTokens": 300000},
+      "checks": {
+        "new_session_dialog_defaults_to_opus_medium_default_preset": true,
+        "edit_applied_and_shown_in_files_changed": true,
+        "cost_command_reports_session_estimate": true,
+        "undo_restores_edit": true,
+        "plan_start_message_explains_next_turn": true,
+        "plan_answer_saved_to_plan_md_and_notified": true,
+        "undo_removes_saved_plan": true,
+        "plan_cancel": true,
+        "report_command_outputs_json_with_complete_usage": true,
+        "resume_info_inspects_without_replay": true
+      },
+      "physical_requests": 3,
+      "catalog_estimate_usd": 0.019601
+    },
+    {
+      "preset": "Plain agent",
+      "resolved": {"model": "anthropic/claude-opus-5-5", "thinking": "medium", "target": "windows", "context": [], "core": [], "features": []},
+      "checks": {"plain_agent_answers_on_claude_subscription": true},
+      "physical_requests": 1,
+      "catalog_estimate_usd": 0.001292
+    },
+    {
+      "preset": "Everyday safety",
+      "resolved": {"model": "anthropic/claude-opus-5-5", "thinking": "medium", "target": "windows", "features": ["cost", "checkpoints", "plan", "safety", "report", "resume"]},
+      "checks": {
+        "confirm_card_rendered_with_tool_and_arguments": true,
+        "deny_blocks_edit": true,
+        "allow_all_turns_on_session_auto_approve": true,
+        "auto_approve_toggle_turns_off": true,
+        "single_allow_runs_bash": true,
+        "session_listed_under_needs_you_while_waiting": true
+      },
+      "physical_requests": 8,
+      "catalog_estimate_usd": 0.01655
+    }
+  ],
+  "fixes_found": [
+    "'/plan cancel' answered 'Plan mode updated.' whether or not plan mode was active. The plan manager now reports whether it canceled ({canceled:false} when inactive, {canceled:true} after restoring the prior tools, checked directly against createPlanManager), and the command answers 'Plan canceled; prior tools restored.' or 'Plan mode is not active.' (extensions/apex-features/workflows.mjs, index.mjs). The offline gates passed after the change; not re-run live."
+  ],
+  "physical_requests": 12,
+  "catalog_estimate_usd": 0.037443,
+  "ledger": "evals/claude-budget.json",
+  "fixture_removed": true
+}

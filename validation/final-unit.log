@@ -1,0 +1,604 @@
+✔ cache ledger tracks stable prefix hashes without storing prompt values (0.8923ms)
+✔ cache ledger accounts native uncached/cache-read/cache-write without double counting (0.6497ms)
+✔ routine cap only lowers the exact Muse existing cap and preserves xhigh (0.257ms)
+✔ Phase 2 loop and time counters survive coding compaction verbatim (497.7472ms)
+✔ offline compaction cancels before touching registry/auth or injected completion (0.4189ms)
+✔ invalid policy model/thinking/enable flag cancels without registry access (0.1994ms)
+✔ compaction retains exact native cutoff, state JSON and reported summary usage (3.0083ms)
+✔ compaction passes exact physical model, API reasoning option and split prefix to injected completion (0.6653ms)
+✔ compaction unions previous hook file lists and removes modified paths from read-only lists (0.646ms)
+✔ compaction chooses active branch state rather than abandoned branch state (0.7765ms)
+✔ compaction cancels on malformed preparation, unsupported model, abort or incomplete output (4.0949ms)
+✔ compaction cancels instead of paraphrasing unsupported branch state (0.2671ms)
+✔ compaction cancels when the active branch changes while the summary is pending (0.8627ms)
+✔ compaction requires valid response usage and file-operation collections (1.2174ms)
+✔ revoking a previously enabled fixture policy cancels before registry access (0.1884ms)
+✔ enabled fixture can use the registry completion facade without explicit key lookup (0.6266ms)
+✔ Phase 3 plan and checkpoint counters survive coding compaction verbatim (0.8161ms)
+✔ Phase 1 flag selection defaults off and is immutable (0.7354ms)
+✔ all is explicit and unknown or ambiguous flags fail (0.7181ms)
+✔ current runtime policy remains offline, exact-model and xhigh (0.0976ms)
+✔ default extension starts no tools, prompt changes, filesystem or auxiliary calls (0.9865ms)
+✔ output section is stable and preserves native sections across turns (3.0572ms)
+✔ compact flag cancels offline before model lookup or auth (1.3456ms)
+✔ cache monitor observes mid-run tool delta without editing context messages (0.2382ms)
+✔ native lazy registration stays inactive and adds no MCP or model router (753.9528ms)
+✔ native codemode loadout omits deferred declarations and classifier access (0.9264ms)
+✔ native tool_search loads matching deferred tools only for the next declaration set (1.6061ms)
+✔ masking batches older assistant turns despite reset turnIndex and composes prior drafts (3.7921ms)
+✔ masking protects latest reads by canonical path and all task/contract/todo state (0.4775ms)
+✔ masking persists native context edits and reopening retains stubs with original history (4.2588ms)
+✔ masking uses active branch and does not repeat pending or persisted edits (0.637ms)
+✔ masking skips errors, images, custom structured fields, and observations without recovery logs (0.2669ms)
+✔ masking batches only when eligible observation region crosses the proxy threshold (0.1824ms)
+✔ masking prefers native full logs over shaped observed logs (0.2051ms)
+✔ failed rereads do not make the latest successful file observation maskable (0.2051ms)
+✔ recovery pointer retains the exact JSON-escaped path (0.1579ms)
+✔ a previously elided read does not displace the latest useful read protection (0.259ms)
+✔ masking preserves parent observation with native nested error with structured bash exit status (0.2436ms)
+✔ masking preserves parent observation with codemode details error without native nested record (0.1513ms)
+✔ masking preserves parent observation with successful latest nested file read (1.3725ms)
+✔ masking preserves parent observation with incomplete nested record (0.1443ms)
+✔ masking preserves parent observation with custom unknown nested status (0.0846ms)
+✔ single-file unified patch uses exact context and compact coherent result (16.3836ms)
+✔ multiple hunks have strict old/new positions and preserve BOM/CRLF (4.1581ms)
+✔ no-newline markers faithfully change final newline status (5.6736ms)
+✔ invalid counts, context, new offsets, overlaps and unsupported formats never write (10.9895ms)
+✔ later hunk failure is atomic, missing files are rejected and runtime cwd wins (6.8757ms)
+▶ patch and native edit siblings share queue including symlinks; aborted calls do not write
+  ﹣ file symlink queue alias (1.071ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ patch and native edit siblings share queue including symlinks; aborted calls do not write (3.3312ms)
+▶ mixed unchanged line endings, mode bits and temp cleanup survive atomic replacement
+  ﹣ POSIX mode preserved (0.134ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ mixed unchanged line endings, mode bits and temp cleanup survive atomic replacement (4.2334ms)
+▶ patch rejects binary/invalid UTF8, traversal and outside-cwd symlinks with no partial write
+  ﹣ outside file symlink rejected (0.3422ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ patch rejects binary/invalid UTF8, traversal and outside-cwd symlinks with no partial write (7.5739ms)
+✔ standard unified lines beginning with --- and +++ remain valid hunk data (3.6263ms)
+✔ router rejects unauthorized MAIN, FAST and lower thinking before registration (1.5362ms)
+✔ router is registered during native extension loading without model runtime initialization (764.1723ms)
+✔ first ten successful persisted assistants plan, then execute despite compacted request messages (0.6985ms)
+✔ routing signals and assistant counts follow the active native branch rather than stale router state (0.2518ms)
+✔ continuations and retries preserve the allowed physical identity and xhigh (0.4623ms)
+✔ direct summaries keep fixed Muse/xhigh and never return branch state (0.1777ms)
+✔ missing, virtual or misidentified physical catalog targets fail closed (0.2308ms)
+✔ short unchanged text is inert and creates no directory (7.5859ms)
+✔ module import is inert in a fresh process (1197.6503ms)
+✔ ANSI cleanup, carriage-return progress and repeated lines retain exact raw spill (373.1959ms)
+✔ newline progress bars are condensed without hiding a progress-adjacent failure (389.2644ms)
+✔ caps include newlines, omission markers and log reference while retaining head and tail (398.0113ms)
+✔ Unicode long lines keep both ends without replacement characters or excess bytes (421.3612ms)
+✔ test failure context and assertion diff in the middle survive bounded selection (503.8906ms)
+✔ compiler diagnostics and package-manager failures survive the middle of output (798.3244ms)
+✔ git diff keeps a hunk and changed lines with bounded head/tail (356.4262ms)
+✔ native Bash structured output remains coherent with shaped content and status fields (374.1668ms)
+✔ nested native Bash JSON remains intact for codemode before parent output is shaped (455.4523ms)
+✔ native full-output pointer is preserved and spill contains only hook-visible text (443.6778ms)
+✔ real native Bash overflow distinguishes model text bytes from structured output bytes (351.9591ms)
+✔ unknown custom structured schemas preserve the result without a spill (0.9284ms)
+✔ non-path custom details cannot corrupt the native structured path schema (741.4191ms)
+✔ nontext payloads survive exactly while the neighboring text is shaped (363.2129ms)
+▶ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive
+  ﹣ POSIX private spill permissions (0.1708ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ malicious IDs cannot escape and simultaneous spills are exclusive and restrictive (5995.5803ms)
+✔ Windows spills have protected owner-only ACLs and refuse public directories or existing hard links (2780.092ms)
+﹣ owned logs remain owner-readable under a restrictive process umask (0.1044ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ symlinked output directories are rejected without writing outside .apex (1101.1786ms)
+✔ newline-heavy output and very small valid caps remain bounded (1196.4352ms)
+✔ invalid caps fail before any filesystem mutation (1.0505ms)
+✔ feature selection is inert and conventional tools stay directly active with lazy (27.2814ms)
+✔ bounded read retains native schema/range notices and runtime cwd wins (10.0144ms)
+✔ dedup needs unchanged range and exact unmasked original observation in native active context (13.1145ms)
+✔ dedup never makes a pointer for missing/empty context or a fresh tool factory (7.21ms)
+✔ dedup hashes actual range bytes even when a native oversized-line notice is unchanged (4.7822ms)
+✔ a change outside the requested range also invalidates unchanged-file dedup (4.5932ms)
+✔ outline reports line numbers and explicitly labels approximate fallback (11.6355ms)
+✔ images retain native payload; binary and huge lines produce bounded honest results (117.9065ms)
+✔ conventional edit aliases use native multi-edit and preserve BOM/CRLF/untouched whitespace (13.7761ms)
+✔ native edit whitespace matching, ambiguity and overlap fail atomically with bounded candidates (10.6927ms)
+﹣ wrapper and native sibling edits serialize against realpath aliases (2.588ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ search uses native caps with grouped grep and unknown overflow totals (96.3886ms)
+✔ missing engines fail locally without fetching or installing and imports/factories are inert (1077.4338ms)
+﹣ ambiguous native filename rows do not fabricate search totals (0.1107ms) # Windows forbids literal newline filenames; ambiguous newline rows unexercised
+✔ edit argument preparation supports native legacy/object/string inputs without mutating raw arguments (1.0283ms)
+✔ Phase 2 features default off and immutable explicit selection covers fourteen flags (0.7912ms)
+✔ time and independent-attempt arguments are bounded and unambiguous (0.2438ms)
+✔ pre-schema preparation supports aliases without mutating raw model arguments (8.3391ms)
+✔ correction mutates the native input object and supports nested sibling paths independently (6.9098ms)
+✔ conflicting aliases and invalid post-hook native argument types block without partial mutation (7.2979ms)
+▶ confinement rejects lexical escapes, existing symlinks and dangling symlink writes
+  ﹣ dangling file symlink write refused (0.3975ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ confinement rejects lexical escapes, existing symlinks and dangling symlink writes (7.4577ms)
+✔ edit precondition accepts native multi-edit and native whitespace/BOM/CRLF modes without writing (6.0044ms)
+✔ native legacy edit forms normalize but missing, ambiguous and overlapping regions block with bounded candidates (7.2225ms)
+✔ catastrophic confirmation occurs only in a real TUI and never in headless or RPC (1.2998ms)
+✔ quoted root and expanded home operands require TUI confirmation across rm option forms (1.05ms)
+✔ quoted command descriptions and literal home strings do not request catastrophic confirmation (1.1539ms)
+✔ loop breaker notes repeat failures at three, bounds output and does not lower Muse effort (2.722ms)
+✔ repeated reads require identical result bytes and edit ping-pong requires successful reversed edits (0.2995ms)
+✔ time thresholds emit once at monotonic boundaries including catch-up and reset without timers (0.3126ms)
+✔ diagnostics select fixed installed checkers and compare a before-edit baseline with only new errors (4.6469ms)
+✔ diagnostics retain independent parallel nested baselines and reset discards pending work (5.4589ms)
+✔ diagnostics skip missing checkers, failed mutations, unsafe files and incomplete baseline checks (3.3727ms)
+✔ diagnostic output is bounded and runtime imports/factories do not launch commands (3.1487ms)
+✔ diagnostics choose Go and Cargo through their real version syntax with offline compiler options (4.7325ms)
+✔ diagnostics do not label moved pre-existing errors as newly introduced errors (3.0584ms)
+✔ new files have an empty pre-edit baseline and introduced errors are checked after creation (2.552ms)
+✔ real Node syntax diagnostics detect introduced syntax errors without executing project code (129.1074ms)
+﹣ default diagnostics run an existing local TypeScript compiler without network and return new errors (5.9677ms) # No complete existing TypeScript checker available in this environment
+﹣ default diagnostic timeouts terminate inherited-output checker descendants within the checker budget (0.2671ms) # Unix process-group test
+✔ restored monotonic budget starts at observed elapsed time (0.234ms)
+✔ diagnostic subprocess environment excludes inherited private values (2.5849ms)
+✔ snapshot respects the UTF-8 byte ceiling, including a smaller caller budget (62.3196ms)
+✔ the default byte budget includes all ten byte-heavy entry paths (escaped control names on POSIX) (13.5072ms)
+▶ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks
+  ﹣ file symlink manifest is never read (0.4018ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ snapshot obeys ignore rules, avoids dependency trees, stops at depth two and follows no symlinks (15.7222ms)
+✔ manifest discovery reports scripts and entry paths without executing scripts or reading source (8.6481ms)
+✔ snapshot explicitly reports distro, shell and current user through safe local sources (39.8607ms)
+✔ an unavailable OS user lookup is labeled without failing environment capture (84.0706ms)
+✔ package manager versions and static declarations are reported without npm or install operations (13.9375ms)
+✔ Makefile targets and pyproject build/test tools become static hints without running recipes (59.6074ms)
+✔ entry ranking is deterministic and promotes an explicitly relevant source path (31.9198ms)
+✔ entry discovery promotes a nested source identifier and declared symbol over a filename match (20.017ms)
+✔ missing ripgrep keeps metadata ranking and explicitly reports the content fallback (9.0797ms)
+✔ entry source reads exclude generic tests and verifiers and enforce byte/file bounds (69.9745ms)
+✔ a manifest cannot promote an entry target that escapes the project (5.8729ms)
+✔ gitignore character classes and anchored recursive patterns filter the snapshot (13.5381ms)
+✔ untrusted ignore patterns cannot throw or stall snapshot discovery (99.2303ms)
+✔ missing tools and a missing project are labeled unavailable without failing capture (4.2718ms)
+✔ external reachability stays skipped by default and requires a literal true authorization (9.3727ms)
+✔ an explicitly authorized reachability probe is capped at two seconds without real network calls (6.0207ms)
+﹣ native probes terminate hanging binaries, cap flood output and inherit no secret environment (0.1037ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ native probes preserve UTF-8 characters split across output chunks (0.0224ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ native tool lookup excludes PATH directories inside the project (57.6997ms)
+✔ an injected command that ignores cancellation is still bounded by the probe deadline (1010.4659ms)
+✔ import creates no processes or files and returns promptly (32.6098ms)
+✔ default Phase 2 factory and lifecycle are inert (1.2183ms)
+✔ initial snapshot is a context message and static mode sections retain native guidance (2.3295ms)
+✔ time appends threshold notes without volatile prompt edits or forced continuation (888.6713ms)
+✔ core correction preserves the selected Phase 1 edit shape through the native hook (19.083ms)
+✔ reload retains elapsed time and does not repeat earlier time thresholds (0.8227ms)
+✔ Phase 2 opt-in launcher loads the core and retains Muse/xhigh (0.8545ms)
+✔ Phase 1 and 2 flags compose, and time is only enabled by explicit feature (0.3481ms)
+✔ Apex options in literal task and Pi values retain their meanings (0.414ms)
+✔ max is separate, explicit and blocked by free-only policy before launching Pi (0.336ms)
+✔ offline subagent denial precedes prompt reads, cwd access, session and check adapters (2.4215ms)
+✔ future subagents use exact prompt files, independent task-only contexts and depth-one read tools (5.9774ms)
+✔ model and thinking violations are denied before deterministic session work (0.2877ms)
+✔ nested subagents and invalid tasks never start a session (0.2073ms)
+✔ subagent output and usage are bounded and inconsistent totals are rebuilt (1.3058ms)
+✔ subagent cancellation is reported coherently and retains incurred usage (0.8024ms)
+✔ verify explicit commands provide real bounded evidence without inheriting main history (0.8174ms)
+✔ verify rejects shell syntax, installs and unbounded command lists before adapters (0.297ms)
+✔ offline max denial precedes isolation, attempts, verification, judge and cwd reads (0.5073ms)
+✔ max ranks successful verification above score and sums nested usage before cleanup (0.6806ms)
+✔ max uses guarded judge only for tied passing candidates and includes its usage (0.2975ms)
+✔ max refuses malformed judge selections and cleans every candidate (0.2268ms)
+✔ all failed candidates remain failed without invoking judge (0.1813ms)
+✔ max attempts are bounded and fail before isolation on bad policy/configuration (0.1845ms)
+✔ max cancellation and attempt errors retain usage and clean allocated isolation (0.2769ms)
+✔ max default copies isolate current source changes and cleanup owned directories (12.3149ms)
+✔ recovery native settings are disabled offline and bounded only under exact paid policy (0.4407ms)
+✔ default verifier checks run real subprocesses inside a copy and preserve source files (84.4755ms)
+✔ max rejects reused/source isolation paths and preserves cleanup errors (0.5218ms)
+✔ native recovery application gates before session access and applies only supported settings seam (0.2007ms)
+✔ native future SDK injection cannot fall through to default runtime or provider auth (1.8913ms)
+✔ stub-only native future path suppresses ambient resources and binds before prompting (859.6927ms)
+﹣ default max copies preserve internal symlinks without shared writes and reject external links (1.9744ms) # File symlink creation unavailable (EPERM); boundary unexercised
+▶ native future read tools confine paths and honor installed bounded read/search semantics
+  ﹣ native read rejects outside file link (0.3012ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ native future read tools confine paths and honor installed bounded read/search semantics (28.4497ms)
+✔ native future turn bound aborts tool loops and retains all partial usage (1.7794ms)
+✔ verify rejects native test flags that open listeners or inject arbitrary startup modules (0.3298ms)
+✔ native future session may finish successfully on its eighth final turn (1.9231ms)
+✔ native future cleanup disposes even after abort failure and preserves incurred usage (1.8547ms)
+✔ native SDK rechecks policy before auth and streaming on every fresh-context turn (1.6705ms)
+✔ native SDK validates physical model, reasoning and cancellation before each request seam (3.0626ms)
+✔ auxiliary usage reaches native tool-result events while pre-call denials omit usage (1.4432ms)
+✔ missing helper usage remains explicitly incomplete and preserves known optional subsets (0.8201ms)
+✔ max optional token subsets aggregate only when known for every accounting source (0.3116ms)
+✔ zero helper accounting is explicitly incomplete rather than evidence of a free request (0.4853ms)
+✔ policy revoked during async auth preparation stops provider dispatch in the same turn (1.5947ms)
+✔ serialized max results retain explicit accounting completeness for every adapter source (0.4283ms)
+✔ max exception serialization preserves missing callback accounting and known incurred usage (0.5116ms)
+✔ factory and import have no process or filesystem side effects (2.9579ms)
+✔ bash timeout defaults preserve valid explicit values and block malformed values (0.4338ms)
+﹣ real service survives host exit and reload explicitly kills its owned group (0.1444ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ real noisy child logs and tails are capped with restrictive permissions (0.069ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ forged metadata, stale identity, traversal and symlinks cannot kill an unrelated real child (0.0527ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+▶ symlink state directories, Windows, malformed starts and canceled calls allocate no child
+  ﹣ Unix state directory links are refused before spawn (0.0838ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ symlink state directories, Windows, malformed starts and canceled calls allocate no child (1.6595ms)
+﹣ failed supervisor spawn rejects instead of reporting a running process (0.0753ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ signed metadata cannot redirect an explicit owned kill to a different PID (0.0682ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ readiness timeout and in-flight abort retain an explicitly manageable real child (0.086ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ TERM-resistant command remains owned and can receive a later explicit SIGKILL (0.0773ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ concurrent KILL and TERM requests from fresh managers cannot lose the owned KILL (0.0562ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+﹣ concurrent first starts publish only complete ownership state (0.0259ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ recovery launch refuses offline before environment or filesystem access (0.7036ms)
+▶ authorized profile stores only native retry settings and cleans its own agent directory
+  ﹣ POSIX private retry files (0.1218ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ authorized profile stores only native retry settings and cleans its own agent directory (8.6447ms)
+✔ offline extraction denies before registry/auth/completion and exposes manual criteria (6.4373ms)
+✔ future authorized extraction uses one native exact FAST/xhigh completion and records usage (2.0603ms)
+✔ extraction fails closed on alternate models, cancellation, malformed criteria and missing usage (4.3986ms)
+✔ contract and todo custom data retain exact JSON and restore through compaction (2.2429ms)
+✔ todo serializes concurrent deltas and requires concrete dropped reasons (1.2642ms)
+✔ snapshot is detached and task reset cannot preserve foreign branch criteria (1.0127ms)
+✔ gate caps forced continuations at two and preserves prior boundary drafts (2.338ms)
+✔ aborted/error/pending/malformed boundaries never consume caps or force requests (0.9787ms)
+✔ completed final-assistant boundary becomes continuable through its own nonempty native draft (1.497ms)
+✔ missing todo steer occurs once after two turns only for an explicit multi-step task (1.4782ms)
+✔ verification must be an actual successful known checker after the final mutation (1.5869ms)
+✔ unknown bash and apply_patch invalidate stale checks even on error (0.9025ms)
+✔ sibling verifier begun before an edit cannot prove success after that edit (0.7529ms)
+✔ verifier completed while sibling mutation remains pending cannot clear the gate (0.9ms)
+✔ nested native events are coherent and duplicate execution events are idempotent (0.9079ms)
+✔ unseen or incomplete nested mutation summaries invalidate instead of inventing verification (1.0679ms)
+✔ explicit artifacts check confined paths and parsed format without executing check strings (5.9239ms)
+▶ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats
+  ﹣ file symlink artifact refused (0.368ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ artifact validation rejects traversal, external absolutes, symlinks and conflicting formats (2.4706ms)
+✔ criteria do not claim semantic compliance from file existence or opaque check text (2.6637ms)
+✔ checker help/version requests and later failed checks cannot preserve a passing gate (0.811ms)
+✔ changing a criterion resets resolved matching todo instead of reusing old acceptance (0.8011ms)
+✔ valid extraction usage is retained even when generated criteria are invalid (1.1245ms)
+✔ extraction cannot publish after an active native branch changes (1.322ms)
+✔ artifact format parser rejects invalid CSV after a closing quote and directory symlinks (4.8849ms)
+✔ Phase 1 compaction that retains only contract/todo still restores task identity and continuation caps (1.337ms)
+✔ explicit three inline numbered steps trigger the same bounded missing-todo steering (1.2226ms)
+✔ observation-looking shell hooks and incomplete checker results invalidate stale success (1.215ms)
+✔ pending mutation persistence is bounded while all live calls still block verification (13.1143ms)
+✔ completion usage is accounted to its originating task when abortion follows the response (2.8768ms)
+✔ completion error usage is accounted once even when no criteria can be published (1.142ms)
+✔ stale branch and revoked policy still retain incurred completion usage without publishing criteria (2.1005ms)
+✔ a new user task never inherits a previous task completion or error usage (2.1915ms)
+✔ actual extraction requests with missing usage report incomplete accounting and offline denials report none (2.281ms)
+✔ successful extraction records exactly one dedicated helper accounting entry (1.5727ms)
+✔ pre-request registry errors cannot masquerade as incurred extraction usage (0.921ms)
+✔ partial error and aborted provider responses retain usage while reporting incomplete accounting (2.2333ms)
+✔ proposer reads exact raw pages, not summaries, with UTF-8 framing (7.0266ms)
+✔ proposer refuses traversal, absolute OS paths, and links into hidden evaluator data (4.8605ms)
+✔ listing is paginated without hiding later prior harness versions (72.3925ms)
+✔ concurrent submissions persist exactly one declared change (3.7373ms)
+✔ unbounded raw pages and malformed proposals are refused (4.459ms)
+✔ offline native proposer denies before SDK import, credential lookup or file allocation (1.0445ms)
+✔ session and selected native branch have separate totals without mutating source snapshots (3.0324ms)
+✔ helper replay and state snapshots are billed once while distinct identical requests remain distinct (0.4294ms)
+✔ partial or missing helper records preserve known amounts and make full cost unknown (0.9594ms)
+✔ thinking and one-hour cache writes are subsets rather than additional billable tokens (0.2665ms)
+✔ unknown context and absent or partial pricing never become free cost or invented context (0.2812ms)
+✔ native compaction, branch summary, usage and attributed tool totals are included without guessed model (0.2396ms)
+✔ category byte estimates count UTF8 content once and top consumers never echo payloads (0.2355ms)
+✔ task identity follows each branch ancestor instead of latest sibling state (0.2314ms)
+✔ conflicting IDs, helper identities, invalid subsets, missing compaction and zero placeholders fail honestly (0.7223ms)
+✔ partial subset totals stay unknown when a helper aborted after returning a known prefix (0.3844ms)
+✔ native parent topology does not accept unavailable array branches or sibling ancestry cycles (0.2844ms)
+✔ unsupported usage and unpaid no-attempt tool snapshots cannot be billed as valid helpers (0.187ms)
+✔ unsafe numeric aggregates cannot silently round exact token and native cost totals (0.2323ms)
+✔ identical main response replay is counted once but independent response IDs remain separate (0.1752ms)
+✔ an incurred extraction snapshot without its dedicated helper record makes totals incomplete without replay billing (0.2375ms)
+✔ native bash execution, injected custom and summary message content contribute safe byte proxies (0.1698ms)
+✔ footer includes usage, cache-hit/context percentages, routed model and explicit active task cost (0.2793ms)
+✔ footer chooses active leaf task rather than a sibling and keeps unknown values explicit (0.2693ms)
+✔ navigation active leaf selects explicit task without narrowing all-session accounting (0.2454ms)
+✔ factory is inert and invalid/cancelled methods fail before Git (1.9989ms)
+▶ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index
+  ﹣ POSIX mode restored (0.1513ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ real private shadow Git restores dirty/untracked/delete/create/mode without changing user index (917.3928ms)
+✔ concurrent sibling captures wait for one persistent snapshot and finish is idempotent (560.4054ms)
+✔ reopen persists records, session isolation and detached list objects (763.8357ms)
+▶ manual post-turn edits and chmod refuse all restoration before any file changes
+  ✔ content (665.5198ms)
+  ﹣ mode (0.1138ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+  ✔ deleted (890.8607ms)
+✔ manual post-turn edits and chmod refuse all restoration before any file changes (1557.0427ms)
+✔ ignored and private paths are excluded, preserve mutations and never enter shadow history (1060.1316ms)
+▶ symlink capture and later symlink target/ancestor restoration are rejected without external writes
+  ﹣ file symlink capture (0.5254ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ symlink capture and later symlink target/ancestor restoration are rejected without external writes (652.272ms)
+✔ newly ignored restoration paths refuse undo (608.4232ms)
+✔ corrupt/foreign metadata and private-store symlinks fail closed (1009.2964ms)
+✔ capture and restore enforce file, byte, checkpoint caps (1661.9741ms)
+▶ post-apply durable Git failure rolls back every actual restored file and remains retryable
+  ﹣ POSIX mode rolled back (0.1212ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ post-apply durable Git failure rolls back every actual restored file and remains retryable (970.5557ms)
+✔ unfinished capture cannot undo and shutdown cancels a queued/in-flight capture (592.4397ms)
+✔ session metadata supports safe custom version-control directory without ambient Git variables (816.8515ms)
+✔ binary/CRLF payloads and Unicode filenames survive source attributes without filters (newline name on POSIX) (961.4626ms)
+✔ hard links and shadow object-directory symlinks fail closed (717.8847ms)
+✔ same-session manager instances serialize capture and user edits to unchanged paths remain (891.5058ms)
+✔ actual shutdown cancels in-flight and queued captures, and Git timeouts are bounded (337.1062ms)
+✔ rollback refuses concurrent manual edits and retains explicit private recovery backups (879.8138ms)
+✔ large allowed blobs restore beyond textual Git output cap, and external shadow indirection is refused (1868.5204ms)
+✔ untrusted shadow attributes cannot invoke source filters (476.5991ms)
+﹣ regular source/manifest replaced by FIFO after lstat refuses promptly at descriptor validation (0.1046ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ source regular-file growth after fstat uses bounded chunk reads without readFile (299.1117ms)
+✔ manifest regular-file growth after fstat uses bounded chunk reads without readFile (435.2317ms)
+✔ default features startup and shutdown are completely inert (1.4074ms)
+✔ selected cost exposes native status/report without model work (2.3135ms)
+✔ plan gates any nested/deferred mutator, retains readonly and cancels tools (4.3733ms)
+✔ eval remember never creates tool or accesses learning cwd (0.131ms)
+✔ skills discovery is explicit and excludes shared scanner/templates (0.7666ms)
+✔ core todo and verification do not force planning continuations (2.7454ms)
+✔ checkpoint hooks skip untouched turns and close one capture after sibling calls (0.3049ms)
+✔ checkpoint capture failure blocks mutation and does not finish missing state (0.2327ms)
+✔ tree navigation restores base tools without old plan writes into new branch (0.2514ms)
+✔ checkpoint turn IDs remain unique across tree navigation and undo stays on active branch (0.5093ms)
+✔ native extension-local flag scoping still shares eval/safety ownership (1140.3302ms)
+✔ scoped native flags preserve Phase 1 edits when core corrections are enabled (2.5621ms)
+✔ future authorized planning fills task placeholder with literal dollar replacement syntax (16.3188ms)
+✔ nine Phase 3 flags are default off and strictly parsed (0.9723ms)
+✔ Phase 3 prefix loads native extension and explicit eval without eating task (0.5301ms)
+✔ combined extensions retain context core features order and route (0.227ms)
+✔ Phase 3 default forwards and selected variants reject model overrides (0.1912ms)
+✔ report and resume are exact local verbs with bounded literal option parser (0.1613ms)
+✔ actual resume free-policy denial precedes file or Pi resolution (42.7002ms)
+✔ native Pi argument parser retains prompt after eval boolean with explicit model (25.2649ms)
+✔ learnings are deferred, explicit, literal and supply a detached context file (27.8428ms)
+✔ eval denial happens before filesystem access and tool callbacks (0.1912ms)
+✔ concurrent appends across instances serialize without lost facts or duplicate facts (166.8895ms)
+✔ missing load creates no files, malformed/oversized facts and abort are refused (2.4837ms)
+▶ directory/file symlinks and oversized existing content are refused
+  ﹣ file symlink refused without changing target (0.7105ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ directory/file symlinks and oversized existing content are refused (6.015ms)
+✔ fact count/UTF8 byte caps are enforced for append and load (4.9803ms)
+✔ eval/headless/RPC/no UI never request approval or inspect annotations (0.5466ms)
+✔ annotation hints are unverified, contradictory/destructive/open-world and unknown tools ask (1.1763ms)
+✔ native builtins use conservative classifications with no annotations (903.8239ms)
+✔ literal echo avoids destructive false positives while direct and nested destructive shell asks (0.4025ms)
+✔ decline/throw/pre-abort/pending cancellation block and approvals do not leak across calls (0.8577ms)
+✔ approval is bounded even if UI ignores abort and a late approval is ignored (1.0178ms)
+✔ debugging executes a real offline probe and returns its domain evidence (52.4862ms)
+✔ test-writing executes a real offline probe and returns its domain evidence (46.7581ms)
+✔ profiling executes a real offline probe and returns its domain evidence (44.6712ms)
+✔ build-systems executes a real offline probe and returns its domain evidence (44.8274ms)
+✔ python-packaging executes a real offline probe and returns its domain evidence (42.8671ms)
+✔ numerics executes a real offline probe and returns its domain evidence (42.6184ms)
+✔ http executes a real offline probe and returns its domain evidence (46.1149ms)
+✔ databases executes a real offline probe and returns its domain evidence (47.2936ms)
+✔ git-surgery executes a real offline probe and returns its domain evidence (53.7482ms)
+✔ security-hardening executes a real offline probe and returns its domain evidence (43.3728ms)
+✔ probes reject malformed arguments and missing roots with bounded JSON (201.0568ms)
+▶ probes refuse root symlinks and do not follow child symlinks or private files
+  ﹣ file link source excluded (0.5042ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ probes refuse root symlinks and do not follow child symlinks or private files (408.1782ms)
+✔ all probes leave project scripts unexecuted and redact source contents (469.1257ms)
+✔ scanner enforces file, byte, depth and output bounds on real fixtures (503.8288ms)
+✔ total public text reads stop before the byte budget is exceeded (58.2823ms)
+✔ large real trees stop at directory and directory-entry budgets (1112.9138ms)
+✔ Git probes never follow worktree pointers or oversized HEAD contents (122.6299ms)
+✔ empty projects do not invent installed packages or static evidence (362.1872ms)
+✔ hardlinked files are skipped rather than reading another name for private data (36.0385ms)
+✔ malformed public manifests do not fabricate dependency or build declarations (35.8513ms)
+﹣ a regular-file-to-FIFO replacement before the actual open cannot block or enter the scan (0.0991ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+✔ offline plan enters without prompting and gates nested/deferred/unknown calls (4.1584ms)
+✔ manual save keeps literal markdown at exact PLAN.md and restores tools (9.2514ms)
+✔ cancel/shutdown restore tools without creating a plan (1.8488ms)
+﹣ plan write rejects symlink and restores on failure (1.7078ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ reload active branch and compaction restore prior tool selection (0.8157ms)
+✔ completed boundary saves final assistant text and preserves existing drafts (8.0265ms)
+✔ pending continuation does not save while aborted/error outcomes restore honestly (1.4794ms)
+✔ completed boundary without final text refuses completion and restores (0.9939ms)
+✔ future plan prompting requires exact policy/model/xhigh and actual sendUserMessage (3.2322ms)
+✔ send/persist errors restore tools and never retain an active flag (0.882ms)
+✔ prior assistant text is never saved for a new or reloaded task (0.8007ms)
+✔ nonfinal assistant tool-use text cannot be presented as a complete plan (0.8607ms)
+✔ failed restoration is honest and shutdown retries the original tools (0.6666ms)
+✔ failed persistence during finish never claims completion and later shutdown clears stale active state (8.191ms)
+✔ review guards policy before reading cwd/task/context or invoking verify (0.2795ms)
+✔ authorized review sends current staged and unstaged diff plus requirements to native verify seam (146.0556ms)
+✔ invalid review policy identities refuse before verify and failed seam stays honest (16.0659ms)
+✔ review never claims success for malformed or non-complete native verification evidence (135.1036ms)
+✔ default profile forwards prompt and tool arguments without shell interpolation (0.9293ms)
+✔ headless profile supplies JSON print mode exactly once (0.1063ms)
+✔ headless profile refuses contradictory modes and unimplemented max profile (0.223ms)
+✔ profile-looking words in the prompt remain untouched (0.0631ms)
+✔ Apex flags are prefix-only and never consume Pi option values (0.1928ms)
+✔ headless rejects equals-mode unsupported by Pi and repeated conflicting modes (0.1202ms)
+✔ dry-run CLI resolves real pinned Pi without invoking a provider (37.2293ms)
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.681ms)
+✔ Phase 1 rejects wrong models, thinking, unknown and repeated feature options before Pi (0.1736ms)
+✖ route selection loads its model before Pi selection and still keeps physical policy (10.3928ms)
+✔ Phase 1 gate exposes an inert import without SDK loading or fixture allocation (73.1806ms)
+✔ missing native compact policy cannot pass or reach a provider (1548.0124ms)
+✔ native codemode gate detects corrupt shaping of programmatic JSON results (1884.5016ms)
+✔ native Phase 1 factory initializes actual wrappers, lazy loadout and cancellation offline (1564.1043ms)
+✖ Phase 1 gate denies ambient resource discovery before reading outside its fixture (1966.2322ms)
+✔ Phase 2 gate import leaves SDK, extension factories and fixture allocation inert (72.4982ms)
+✔ native Phase 2 gate proves supported opt-in state and reports Unix-only process proof honestly (1712.8364ms)
+ℹ Supported native checks exercised; owned-process survival/cleanup unexercised on Windows.
+✔ missing native settlement gate fails instead of inventing offline verification success (1849.3492ms)
+✖ Phase 2 gate denies ambient package/resource discovery outside the fixture (1880.9667ms)
+﹣ lost bg startup report recovers only fixture-owned IDs and acknowledges their cleanup (0.6528ms) # Requires Unix native owned-process start and process-group cleanup.
+✔ Phase 2 gate rejects unknown fault modes before fixture allocation (0.3709ms)
+✔ Phase 3 gate import leaves SDK, extensions and fixtures inert (205.1866ms)
+✔ native Phase 3 gate exercises commands, tools, resources and persisted state offline (4871.9622ms)
+✔ missing native plan enforcement fails without provider calls (1310.6471ms)
+✖ Phase 3 gate rejects ambient discovery and cleans fault fixtures (4587.8976ms)
+✔ Phase 3 gate rejects unknown faults before allocation (0.7477ms)
+✔ fallback Python version probes obey the caller subprocess limits and environment (34.1613ms)
+✔ readiness requires every required check to pass (1.2163ms)
+✔ importing preflight performs no probes or filesystem writes (31.7718ms)
+✔ ready tooling uses only bounded local probes with no inherited credentials or remote contexts (40.0495ms)
+✔ a same-version Harbor wheel without the pinned VCS commit blocks readiness (40.262ms)
+✔ prerelease or suffixed package versions cannot satisfy exact Pi and Harbor pins (180.5592ms)
+✔ old Python, changed Pi, or changed configured pins cannot report tooling ready (305.9483ms)
+✔ missing Docker, Windows daemon, or missing Compose wait support blocks local readiness (173.4582ms)
+✔ CLI reports blocked as JSON with exit 2 without printing command errors or environment secrets (38.7226ms)
+✔ importing the process microcheck does not spawn processes or create fixtures (48.6579ms)
+﹣ native Pi bash service survives tool-host exit and the owned process is cleaned up (47.2597ms) # requires Linux setsid and nohup
+﹣ missing readiness waits for the service watchdog before removing its fixture (0.2274ms) # requires Linux
+﹣ an aborted loopback health response returns a failure artifact and cleans up (0.2463ms) # requires Linux
+﹣ delayed service initialization still confirms watchdog cleanup when readiness is unreadable (0.128ms) # requires Linux
+✔ free policy overrides unused historical budget and explicit request cap (1.7395ms)
+✔ paid smoke needs its own unique current reservation (0.338ms)
+✔ paid policy rejects overcommitted or inconsistent ledger amounts (0.5452ms)
+✔ paid policy preserves exclusive Muse model and xhigh selection (0.4399ms)
+✔ free CLI refuses before credentials, SDK startup or filesystem run creation (38.0346ms)
+✔ conservative reservation covers all four maximum sized requests (0.2826ms)
+✔ fifth physical send fails before transport and sends are counted on failed responses (12.1218ms)
+✔ six-request profile reserves its full bound and blocks the seventh send (0.3395ms)
+✔ only authorized request profiles and their corresponding spend caps are accepted (0.1967ms)
+✔ CLI enforces profile and budget limits without credentials or provider calls (1027.4618ms)
+✔ guard records blocked reasons separately from the SDK connection-error text (0.3397ms)
+✔ model mismatch and fallback fields cannot reach transport (0.5466ms)
+✔ UTF-8 byte cap rejects a multibyte payload before transport (0.202ms)
+✔ request body and endpoint are checked for both Request and URL inputs (1.8212ms)
+✔ missing budget, larger authorization, unsupported model and unknown prices fail closed (0.2119ms)
+✔ response identity is restricted to requested slug and official canonical slug (0.2181ms)
+✔ payload preflight validates independently and never counts an unsent request (0.1421ms)
+✔ payload thinking downgrade is rejected before any physical request (0.272ms)
+✔ redirects are denied for URL, string and Request inputs even if caller requests follow (0.54ms)
+✔ successful echo cannot count as fixture verification (1.2469ms)
+✔ fixture completion rejects a final error and honors six-request policy (1.163ms)
+✔ exact successful verification requires both edits before that bash start (1.2778ms)
+✔ later genuine verification is recognized after an unrelated earlier bash (1.3469ms)
+✔ reported reasoning sums billable responses and excludes an unsent guard error (0.2309ms)
+✔ provider credential echoes are sanitized before native session persistence without losing usage or IDs (772.5009ms)
+✔ session gate exposes an inert import instead of running or allocating a fixture (64.9882ms)
+✔ offline child environments preserve Windows name semantics without admitting credentials (0.6495ms)
+✔ Windows fixture profiles cannot inherit or substitute the user credential home (0.3334ms)
+✔ native offline compaction preserves recent context and branch state through fresh-process torn-tail recovery (3676.0167ms)
+✔ a cancelled hook fails the gate without appending compaction or attempting auth/inference (919.3842ms)
+✖ default resource discovery is blocked before reading user or ancestor resources (3674.4435ms)
+✔ a custom summary that loses the fixture contract cannot produce a passing gate (3356.017ms)
+✔ missing deterministic hook blocks default auth and inference instead of passing silently (920.0478ms)
+✔ bounded real native JSONL report aggregates all branches and exposes no prompt or tool payloads (13.0071ms)
+✔ resume metadata identifies only unresolved tools on native active branch and never replays or writes (5.7676ms)
+✔ unterminated valid record and torn final fragment are distinguished without native tail repair (15.438ms)
+✔ malformed interior records fail closed with line number rather than raw payload echo (4.8705ms)
+✔ report rejects oversized files and invalid limits before reading a payload (2.7278ms)
+▶ report refuses file and parent symlinks and nonregular files
+  ﹣ file symlink refused (0.4445ms) # File symlink creation unavailable (EPERM); boundary unexercised
+✔ report refuses file and parent symlinks and nonregular files (4.7635ms)
+✔ invalid UTF8, empty files and nonnative headers fail with bounded messages (17.925ms)
+✔ duplicate replay is reconciled but conflicting identity, broken parents and cycles are refused (15.8515ms)
+✔ completed active branch reports no pending tool and preserves empty native branch metadata (16.6894ms)
+✔ native safe custom session IDs and assistant model settings survive metadata inspection (12.2504ms)
+✔ extra header payload and overlong native lines cannot leak through report metadata (13.5503ms)
+✔ malformed native message shapes and excessive nesting cannot become an empty or successful report (17.0699ms)
+✔ the last physical replay record determines native resume leaf even when accounting deduplicates it (5.8899ms)
+✔ torn tail invalidates full subset and task totals and estimates while retaining observed accounting (4.9738ms)
+﹣ a regular session replaced by an unwritten FIFO before real open is refused without blocking (0.1976ms) # Requires POSIX executable modes, FIFOs or Unix process groups; unexercised on Windows
+ℹ tests 466
+ℹ suites 0
+ℹ pass 417
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 43
+ℹ todo 0
+ℹ duration_ms 50587.7214
+
+✖ failing tests:
+
+test at tests\launcher.test.mjs:46:1
+✖ Phase 1 prefix selects individual flags and exact Muse/xhigh without changing prompt words (0.681ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /apex-context\/index\.mjs$/. Input:
+  
+  'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:53:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'C:\\Users\\Valo\\Documents\\GitHub\\apex\\extensions\\apex-context\\index.mjs',
+    expected: /apex-context\/index\.mjs$/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\launcher.test.mjs:61:1
+✖ route selection loads its model before Pi selection and still keeps physical policy (10.3928ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(args.some(value=>value.endsWith('/apex-router/index.mjs')))
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/launcher.test.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests\phase1-micro.test.mjs:79:1
+✖ Phase 1 gate denies ambient resource discovery before reading outside its fixture (1966.2322ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'PASS' !== 'FAIL'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase1-micro.test.mjs:83:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'PASS',
+    expected: 'FAIL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase2-micro.test.mjs:94:1
+✖ Phase 2 gate denies ambient package/resource discovery outside the fixture (1880.9667ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'PASS' !== 'FAIL'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase2-micro.test.mjs:98:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'PASS',
+    expected: 'FAIL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase3-micro.test.mjs:83:1
+✖ Phase 3 gate rejects ambient discovery and cleans fault fixtures (4587.8976ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'PASS' !== 'FAIL'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/phase3-micro.test.mjs:87:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'PASS',
+    expected: 'FAIL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\session-micro.test.mjs:82:1
+✖ default resource discovery is blocked before reading user or ancestor resources (3674.4435ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'PASS' !== 'FAIL'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Valo/Documents/GitHub/apex/tests/session-micro.test.mjs:86:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'PASS',
+    expected: 'FAIL',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
