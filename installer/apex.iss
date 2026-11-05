@@ -38,7 +38,7 @@ UninstallDisplayName=Apex
 SetupLogging=yes
 
 [Tasks]
-Name: "desktopicon"; Description: "Create an Apex Dashboard shortcut on the desktop"; GroupDescription: "Shortcuts:"
+Name: "desktopicon"; Description: "Create an Apex Desktop shortcut on the desktop"; GroupDescription: "Shortcuts:"
 Name: "addtopath"; Description: "Add the ""apex"" command to my PATH (for cmd in any folder)"; GroupDescription: "Command line:"; Flags: unchecked
 
 ; An upgrade clears every staged top-level folder first, so no file of an older version survives in it.
@@ -46,6 +46,7 @@ Name: "addtopath"; Description: "Add the ""apex"" command to my PATH (for cmd in
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\bin"
 Type: filesandordirs; Name: "{app}\dashboard"
+Type: filesandordirs; Name: "{app}\desktop"
 Type: filesandordirs; Name: "{app}\evals"
 Type: filesandordirs; Name: "{app}\evolve"
 Type: filesandordirs; Name: "{app}\extensions"
@@ -67,11 +68,19 @@ Source: "..\bin\apex.cmd"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "..\dashboard.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
+; The desktop app: Electron (installed by scripts/build-installer.mjs) running desktop\main.mjs, grouped on the taskbar
+; under the AppUserModelID desktop\main.mjs sets.
+Name: "{group}\Apex Desktop"; Filename: "{app}\node_modules\electron\dist\electron.exe"; Parameters: """{app}\desktop\main.mjs"""; WorkingDir: "{app}"; IconFilename: "{app}\desktop\icon.ico"; AppUserModelID: "Apex.Desktop"; Comment: "Apex in its own window"
 Name: "{group}\Apex Dashboard"; Filename: "{app}\dashboard.bat"; WorkingDir: "{app}"; Comment: "Start the Apex web dashboard in your browser"
 ; Terminal Apex works on its start folder, so it starts in the user folder rather than the install folder.
 Name: "{group}\Apex"; Filename: "{app}\bin\apex.cmd"; WorkingDir: "{%USERPROFILE}"; Comment: "Terminal Apex in your user folder"
 Name: "{group}\Uninstall Apex"; Filename: "{uninstallexe}"
-Name: "{userdesktop}\Apex Dashboard"; Filename: "{app}\dashboard.bat"; WorkingDir: "{app}"; Comment: "Start the Apex web dashboard in your browser"; Tasks: desktopicon
+Name: "{userdesktop}\Apex Desktop"; Filename: "{app}\node_modules\electron\dist\electron.exe"; Parameters: """{app}\desktop\main.mjs"""; WorkingDir: "{app}"; IconFilename: "{app}\desktop\icon.ico"; AppUserModelID: "Apex.Desktop"; Comment: "Apex in its own window"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\node_modules\electron\dist\electron.exe"; Parameters: """{app}\desktop\main.mjs"""; WorkingDir: "{app}"; Description: "Start Apex Desktop"; Flags: nowait postinstall skipifsilent
+; The desktop app's own update passes /RELAUNCH=1, so it opens again once the silent upgrade is done.
+Filename: "{app}\node_modules\electron\dist\electron.exe"; Parameters: """{app}\desktop\main.mjs"""; WorkingDir: "{app}"; Flags: nowait; Check: RelaunchRequested
 
 [Code]
 { The PATH task edits HKCU\Environment exactly like install-apex.bat: the value kind is kept, so %VAR% entries
@@ -238,6 +247,11 @@ begin
   end;
 end;
 
+function RelaunchRequested(): Boolean;
+begin
+  Result := ExpandConstant('{param:relaunch|0}') = '1';
+end;
+
 function PreflightHint(): String;
 begin
   Result := 'run "bun run preflight:windows" in ' + ExpandConstant('{app}') + ' to check the setup.';
@@ -280,7 +294,7 @@ var
   Text: String;
 begin
   if CurPageID <> wpFinished then Exit;
-  Text := 'Apex is installed in ' + ExpandConstant('{app}') + '. The Apex Dashboard shortcut starts the web dashboard; Apex in the Start menu runs terminal Apex in your user folder.' + #13#10#13#10;
+  Text := 'Apex is installed in ' + ExpandConstant('{app}') + '. Apex Desktop opens Apex in its own window (closing it keeps Apex in the notification area); Apex Dashboard starts the web dashboard in your browser; Apex runs terminal Apex in your user folder.' + #13#10#13#10;
   if WizardIsTaskSelected('addtopath') then
     Text := Text + 'Open a new cmd window, cd into a project folder and type "apex" (try "apex --apex-help").' + #13#10#13#10;
   if BunFound then

@@ -22,7 +22,7 @@ function sourceFiles(directory) {
 // Bun has no `--check`: parsing each file with Bun's transpiler reports the same syntax errors without running it.
 const transpiler = new Bun.Transpiler({loader: 'js'});
 let syntaxErrors = 0;
-for (const file of ['bin/apex', 'dashboard/app.js', ...['lib', 'scripts', 'tests', 'evals', 'evolve', 'extensions', 'skills', 'dashboard'].flatMap(sourceFiles).filter(file => file.endsWith('.mjs'))]) {
+for (const file of ['bin/apex', 'dashboard/app.js', ...['lib', 'scripts', 'tests', 'evals', 'evolve', 'extensions', 'skills', 'dashboard', 'desktop'].flatMap(sourceFiles).filter(file => file.endsWith('.mjs'))]) {
   try { transpiler.transformSync(readFileSync(file, 'utf8')); }
   catch (error) {
     syntaxErrors++;

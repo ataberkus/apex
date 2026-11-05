@@ -47,14 +47,36 @@ test('every file the installer compiles in exists in the repository', () => {
 test('every installed file a shortcut starts is shipped, from an existing repository file', () => {
   const explicit = new Map(entries('Files').map(parameters).filter(({Source}) => !Source.startsWith('{#'))
     .map(({Source, DestDir}) => [`${DestDir}\\${path.win32.basename(Source)}`.toLowerCase(), fromInstaller(Source)]));
-  for (const line of entries('Icons')) {
-    const {Filename} = parameters(line);
-    if (!Filename.startsWith('{app}\\')) continue;
-    const relative = Filename.slice('{app}\\'.length).replaceAll('\\', '/');
-    const source = explicit.get(Filename.toLowerCase()) ?? (packaged(relative) ? path.join(root, relative) : null);
-    assert.ok(source, `${Filename} is neither a [Files] entry nor in package.json "files"`);
-    assert.ok(existsSync(source), `${Filename} would come from ${source}, which is missing`);
+  const builder = readFileSync(path.join(root, 'scripts', 'build-installer.mjs'), 'utf8');
+  for (const line of [...entries('Icons'), ...entries('Run')]) {
+    const {Filename, Parameters = '', IconFilename = ''} = parameters(line);
+    // Files under {app} the entry starts or shows: its program, a quoted script argument and its icon.
+    const started = [Filename, ...[...Parameters.matchAll(/"(\{app\}\\[^"]+)"/g)].map(match => match[1]), IconFilename];
+    for (const file of started.filter(file => file.startsWith('{app}\\'))) {
+      const relative = file.slice('{app}\\'.length).replaceAll('\\', '/');
+      const dependency = relative.match(/^node_modules\/([^/]+)\//)?.[1];
+      if (dependency) {
+        // Not in the package: the build installs it from bun.lock and runs its install script for the binary.
+        assert.ok(manifest.dependencies?.[dependency] || manifest.devDependencies?.[dependency], `${file} needs ${dependency} in package.json`);
+        assert.ok(builder.includes(`'node_modules', '${dependency}', 'install.js'`), `${file}: scripts/build-installer.mjs must run ${dependency}'s install script`);
+        continue;
+      }
+      const source = explicit.get(file.toLowerCase()) ?? (packaged(relative) ? path.join(root, relative) : null);
+      assert.ok(source, `${file} is neither a [Files] entry nor in package.json "files"`);
+      assert.ok(existsSync(source), `${file} would come from ${source}, which is missing`);
+    }
   }
+});
+
+test('the desktop shortcuts share the AppUserModelID the desktop app sets, and an update relaunches it', () => {
+  const main = readFileSync(path.join(root, 'desktop', 'main.mjs'), 'utf8');
+  const id = main.match(/const APP_ID = '([^']+)'/)?.[1];
+  const desktop = entries('Icons').map(parameters).filter(({Filename}) => Filename.endsWith('\\electron.exe'));
+  assert.equal(desktop.length, 2);
+  for (const icon of desktop) assert.equal(icon.AppUserModelID, id);
+  assert.match(main, /runInstaller\(file, \{args: \['\/RELAUNCH=1'\]\}\)/);
+  assert.ok(entries('Run').map(parameters).some(({Check, Flags}) => Check === 'RelaunchRequested' && !/postinstall/.test(Flags)));
+  assert.match(script, /\{param:relaunch\|0\}'\) = '1'/);
 });
 
 test('the installer version comes from the build, never from the script', () => {

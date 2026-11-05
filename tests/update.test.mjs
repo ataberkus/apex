@@ -186,6 +186,9 @@ test('the setup program starts detached with the silent upgrade switches and not
   assert.equal(calls[0].options.detached, true);
   assert.equal(calls[0].options.shell, false);
   assert.ok(calls[0].child.unrefed);
+  // The desktop app's update asks the setup program to open it again.
+  await runInstaller('C:\\Temp\\apex-setup-1.3.0.exe', {spawn, args: ['/RELAUNCH=1']});
+  assert.deepEqual(calls[1].args, ['/SILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CLOSEAPPLICATIONS', '/RELAUNCH=1']);
   const failing = () => { const child = new EventEmitter(); queueMicrotask(() => child.emit('error', new Error('blocked'))); return child; };
   await assert.rejects(runInstaller('C:\\Temp\\x.exe', {spawn: failing}), /Could not start x\.exe: blocked/);
 });

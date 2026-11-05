@@ -25,7 +25,11 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const apexDir = process.env.APEX_DASH_HOME ?? join(process.env.LOCALAPPDATA ?? join(homedir(), '.local', 'share'), 'Apex');
 const agentDir = process.env.PI_CODING_AGENT_DIR ?? join(apexDir, 'sol-oauth');
 const store = join(apexDir, 'dashboard.json');
-const port = Number(process.env.APEX_DASH_PORT ?? 4777);
+const portFlag = process.argv.indexOf('--port');
+const portText = portFlag < 0 ? process.env.APEX_DASH_PORT ?? '4777' : process.argv[portFlag + 1] ?? '';
+let port = /^\d+$/.test(portText) ? Number(portText) : NaN; // becomes the bound port once listening, so --port 0 picks a free one
+if (!(port <= 65535)) { console.error(`Port must be a whole number from 0 to 65535, got "${portText}".`); process.exit(2); }
+const desktop = process.argv.includes('--desktop'); // started by the Electron shell: ready line on stdout, stops when stdin closes
 const THINKING = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 const DIALOGS = new Set(['select', 'confirm', 'input', 'editor']);
 // Auto-approve answers only the safety gate's per-call prompt; catastrophic-command confirmations always ask.
@@ -588,7 +592,7 @@ const UPDATE_COMMAND = `bun "${join(root, 'bin', 'apex')}" update`;
 async function cachedUpdate() {
   try {
     const {cachedUpdateState} = await import('../lib/update.mjs');
-    return {...cachedUpdateState({root}), command: UPDATE_COMMAND, selfUpdate: process.platform === 'win32'};
+    return {...cachedUpdateState({root}), command: UPDATE_COMMAND, selfUpdate: process.platform === 'win32', desktop};
   } catch { return null; }
 }
 
@@ -664,7 +668,7 @@ const server = http.createServer(async (req, res) => {
       const {checkForUpdate} = await import('../lib/update.mjs');
       let result;
       try { result = await checkForUpdate({root}); } catch (error) { return fail(res, 502, error.message); }
-      return json(res, 200, {...result, command: UPDATE_COMMAND, selfUpdate: process.platform === 'win32'});
+      return json(res, 200, {...result, command: UPDATE_COMMAND, selfUpdate: process.platform === 'win32', desktop});
     }
     if (url.pathname === '/api/workspaces') {
       const path = resolve(String(body.path ?? '')).replace(/^[a-z]:/, drive => drive.toUpperCase());
@@ -784,8 +788,10 @@ const server = http.createServer(async (req, res) => {
 
 server.on('error', error => { console.error(error.message); process.exit(1); });
 server.listen(port, '127.0.0.1', () => {
+  port = server.address().port;
   const url = `http://127.0.0.1:${port}/?t=${token}`;
   console.log(`Apex dashboard: ${url}`);
+  if (desktop) return console.log(JSON.stringify({apexDashboard: url})); // the desktop shell checks for updates itself
   // The automatic update check only prints a notice in this window; installing needs the dashboard closed first.
   void import('../lib/update.mjs').then(({automaticUpdateNotice}) => automaticUpdateNotice({command: UPDATE_COMMAND}))
     .then(notice => { if (notice) console.log(`${notice} Close the dashboard before installing.`); }, () => {});
@@ -796,4 +802,12 @@ server.listen(port, '127.0.0.1', () => {
     .on('error', error => console.warn(`Could not open the browser: ${error.message}. Open the URL above instead.`))
     .unref();
 });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { for (const login of Object.values(logins)) if (login.flow) void login.cancel(login.flow.id); for (const session of live.values()) session.child.stdin.end(); for (const job of enhanceJobs.values()) job.child?.kill(); process.exit(0); });
+function shutdown() {
+  for (const login of Object.values(logins)) if (login.flow) void login.cancel(login.flow.id);
+  for (const session of live.values()) session.child.stdin.end();
+  for (const job of enhanceJobs.values()) job.child?.kill();
+  process.exit(0);
+}
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, shutdown);
+// Windows kills child processes without signals, so the desktop shell asks for shutdown by closing stdin.
+if (desktop) { process.stdin.on('end', shutdown); process.stdin.resume(); }

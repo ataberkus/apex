@@ -2,8 +2,8 @@
 // "bun run build:installer <version>": the version comes from the release tag, package.json stays 0.0.0 in Git.
 // It packs this checkout exactly as the release tarball (`bun pm pack`), stamps the version into the staged
 // package.json, installs the locked dependencies beside it the way the release gate does (Pi is a devDependency, so a
-// production install would drop it), checks that the staged launcher resolves the pinned Pi, then compiles
-// installer/apex.iss with Inno Setup 6 (ISCC.exe from ISCC, PATH or the default install folders).
+// production install would drop it) and the desktop app's Electron binary, checks that the staged launcher resolves the
+// pinned Pi, then compiles installer/apex.iss with Inno Setup 6 (ISCC.exe from ISCC, PATH or the default install folders).
 import {spawnSync} from 'node:child_process';
 import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync} from 'node:fs';
 import os from 'node:os';
@@ -78,6 +78,10 @@ export function buildInstaller(version, {env = process.env, log = console.log} =
     copyFileSync(path.join(root, 'bun.lock'), path.join(app, 'bun.lock'));
     // The release gate's install. Hoisted (this lock's default) keeps node_modules free of links.
     run(bun, ['install', '--frozen-lockfile', '--ignore-scripts', '--linker=hoisted'], {cwd: app});
+    // The desktop app's Electron: its install script (skipped above) downloads the binary and checks it against the
+    // checksums in the locked electron package.
+    run(bun, [path.join(app, 'node_modules', 'electron', 'install.js')], {cwd: app});
+    if (!existsSync(path.join(app, 'node_modules', 'electron', 'dist', 'electron.exe'))) throw new Error('Staged Electron has no dist\\electron.exe');
     const pi = JSON.parse(readFileSync(path.join(app, 'node_modules', '@earendil-works', 'pi-coding-agent', 'package.json'), 'utf8'));
     if (pi.version !== PI_VERSION) throw new Error(`Staged Pi is ${pi.version}, not the pinned ${PI_VERSION}`);
     const staged = JSON.parse(readFileSync(path.join(app, 'package.json'), 'utf8'));

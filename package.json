@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.4.0",
+    "electron": "44.5.1",
     "jsdom": "21.1.2"
   },
   "scripts": {
@@ -44,6 +45,9 @@
     "build:installer": "bun scripts/build-installer.mjs",
     "apex": "bun bin/apex",
     "dashboard": "bun dashboard/server.mjs --open",
+    "desktop": "electron desktop/main.mjs",
+    "desktop:shortcut": "electron desktop/main.mjs --install-shortcuts",
+    "smoke:desktop": "bun scripts/smoke-desktop.mjs",
     "evolve": "bun scripts/evolve.mjs",
     "micro:evolve": "bun scripts/evolve.mjs --micro"
   },
@@ -51,6 +55,7 @@
     ".gitattributes",
     "bin/apex",
     "dashboard",
+    "desktop",
     "lib",
     "scripts/*.mjs",
     "scripts/*.py",

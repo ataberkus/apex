@@ -1433,7 +1433,10 @@ $('launch-form').onsubmit = async e => {
 let updateResult = null; // the last manual check; while shown it replaces the hint
 const releaseLink = (href, text) => { const a = el('a', '', text); if (/^https:\/\//.test(href ?? '')) { a.href = href; a.target = '_blank'; a.rel = 'noopener'; } return a; };
 // The page cannot install: apex update refuses while the dashboard serves files from the install folder.
-const installSteps = (u, latest) => u.selfUpdate
+// The desktop app installs it itself, from its tray menu or the prompt it shows when it starts.
+const installSteps = (u, latest) => u.desktop
+  ? [el('p', '', `Apex ${latest} is available. Choose "Check for updates" in the Apex tray menu to install it.`)]
+  : u.selfUpdate
   ? [el('p', '', `Apex ${latest} is available. Close this dashboard (Ctrl+C in its window), then run in a terminal:`), el('code', 'update-command', u.command)]
   : [el('p', '', `Apex ${latest} is available. Update this copy the way you installed it; apex update supports only the Windows setup program.`)];
 function renderUpdateHint() {

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<meta name="color-scheme" content="dark light">
+<title>Apex</title>
+<style>
+  :root { --paper:#0F111C; --ink:#E4E5F1; --muted:#9A9FBD; --line:#272A42; --mark:#ABA1FF; }
+  @media (prefers-color-scheme: light) { :root { --paper:#F1F2F6; --ink:#191B2A; --muted:#5A5F77; --line:#D8DBE5; --mark:#4636D6; } }
+  html, body { margin:0; height:100%; background:var(--paper); color:var(--ink); font:15px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:18vh 24px 24px; }
+  h1 { font:600 28px Bahnschrift,"Segoe UI",sans-serif; margin:0 0 8px; color:var(--mark); }
+  p { margin:0 0 16px; color:var(--muted); }
+  pre { white-space:pre-wrap; max-height:45vh; overflow:auto; padding:12px; border:1px solid var(--line); border-radius:6px; font:13px "Cascadia Mono",Consolas,monospace; }
+  a { display:inline-block; padding:8px 16px; border-radius:6px; background:var(--mark); color:var(--paper); text-decoration:none; font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Apex</h1>
+  <p id="status" role="status">Starting Apex…</p>
+  <pre id="detail" hidden></pre>
+  <a id="retry" href="?state=retry" hidden>Retry</a>
+</main>
+<script>
+  const query = new URLSearchParams(location.search);
+  if (query.get('state') === 'failed') {
+    document.getElementById('status').textContent = 'Apex could not start.';
+    const detail = document.getElementById('detail');
+    detail.textContent = query.get('detail') || '';
+    detail.hidden = !detail.textContent;
+    document.getElementById('retry').hidden = false;
+  }
+</script>
+</body>
+</html>
